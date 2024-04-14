@@ -1,4 +1,6 @@
-let x = 4; mut y: var = 2.4
-let z: i32 = x + y + y;
-let a = z += x += y
-print(a)
+{
+  let x = 4
+  mut y: var = 2.4  ; let z: i32 = x + y + y;
+  let a = z += x += y
+  ret a
+}

@@ -1,84 +1,76 @@
 parser grammar ZfgParser;
 options { tokenVocab = ZfgLexer; }
 
-start: (statement SEMIC?)* EOF;
+@parser::members {
+  final CommonTokenStream _cts = (CommonTokenStream) _input;
+  int     _eolCacheKey = -1;
+  boolean _eolCacheResult = false;
+  boolean EOL() {
+    final int i = _cts.index();
+    if (i != _eolCacheKey) {
+      _eolCacheKey = i;
+      _eolCacheResult = EOL(i);
+    }
+    return _eolCacheResult;
+  }
+  boolean EOL(int i) {
+    for (i -= 1; i >= 0; i -= 1) {
+      final Token t = _cts.get(i);
+      if (t.getType() == ZfgLexer.Nl) return true;
+      if (t.getChannel() == Token.DEFAULT_CHANNEL) return false;
+    }
+    return false;
+  }
+}
+
+start
+  : returnBlock EOF
+  ;
+
+returnBlock
+  : LBRACE (stmt=statement (SEMIC | {EOL()}?))* ret=return (SEMIC | {EOL()}?) RBRACE
+  ;
 
 statement
-  : variable_declaration_statement
-  | assign_expression
-  | print_statement
+  : variable
+  | assignment
   ;
 
-// TODO: Remove print_statement
-print_statement
-  : PRINT LPAREN LowerSnakeCaseName RPAREN
+variable
+  : mod=(LET | MUT) id=LowerId (COLON type=(VAR | I08 | I16 | I32 | I64 | F32 | F64))? SETA rhs=expression
   ;
 
-variable_declaration_statement
-  : (LET | MUT) LowerSnakeCaseName (COLON variable_type)? ASSIGN expression
+assignment
+  : lhs=path op=(SETA | ADDA | SUBA | MULA | DIVA | REMA | MODA | ANDA | IORA | XORA | SHLA | SHRA) rhs=expression
   ;
 
-variable_type
-  : VAR | I08 | I16 | I32 | I64 | F32 | F64
+return
+  : RET expr=expression
   ;
 
 expression
-  // path
-  : path
-  // literal
-  | literal
-  // parenthetical circumfix
-  | LPAREN expression RPAREN
-  // unary postfix
-  | expression (INCR | DECR)
-  // unary prefix
-  | (INCR | DECR | ADD | SUB | EQZ | NEQZ) expression
-  // multaplicative infix
-  | expression (MUL | POW | DIV | MOD | PMOD) expression
-  // additive infix
-  | expression (ADD | SUB) expression
-  // shift infix
-  | expression (SHL | SHR | SHRA ) expression
-  // bitwise AND infix
-  | expression BITAND expression
-  // bitwise XOR infix
-  | expression BITXOR expression
-  // bitwise OR infix
-  | expression BITOR expression
-  // relational infix
-  | expression (LT | GT | LE | GE) expression
-  // equality infix
-  | expression (EQ | NE | EQR | NER) expression
-  // assignment
-  | assign_expression
-  ;
-
-assign_expression
-  : path
-    ( ASSIGN
-    | ADD_ASSIGN | SUB_ASSIGN | MUL_ASSIGN | POW_ASSIGN | DIV_ASSIGN | MOD_ASSIGN | PMOD_ASSIGN
-    | SHL_ASSIGN | SHR_ASSIGN | SHRA_ASSIGN
-    | BITAND_ASSIGN | BITXOR_ASSIGN | BITOR_ASSIGN)
-    expression
+  : path                                                     # PathExpr
+  | lit=(BitLit | IntLit | FltLit)                           # LiteralExpr
+  | LPAREN expression RPAREN                                 # GroupExpr
+  | lhs=expression op=(INC | DEC)                            # PostfixExpr
+  | op=(INC | DEC | ADD | SUB | NOT) rhs=expression          # PrefixExpr
+  | lhs=expression op=(MUL | DIV | REM | MOD) rhs=expression # InfixExpr
+  | lhs=expression op=(ADD | SUB) rhs=expression             # InfixExpr
+  | lhs=expression op=(SHL | SHR) rhs=expression             # InfixExpr
+  | lhs=expression op=AND rhs=expression                     # InfixExpr
+  | lhs=expression op=XOR rhs=expression                     # InfixExpr
+  | lhs=expression op=IOR rhs=expression                     # InfixExpr
+  | lhs=expression op=CMP rhs=expression                     # InfixExpr
+  | lhs=expression op=(LT | GT | LE | GE) rhs=expression     # InfixExpr
+  | lhs=expression op=(EQ | NE | EQR | NER) rhs=expression   # InfixExpr
+  | assignment                                               # AssignExpr
   ;
 
 path
-  : identifier (DOT identifier)*
+  : part=identifier ('.' part=identifier)*
   ;
 
 identifier
-  : LowerSnakeCaseName
-  | UpperCamelCaseName
+  : LowerId
+  | UpperId
   ;
-
-literal
-  : TRUE
-  | FALSE
-  | BinIntegerLiteral
-  | OctIntegerLiteral
-  | DecIntegerLiteral
-  | HexIntegerLiteral
-  | DecFloatLiteral
-  | HexFloatLiteral
-  ;
-

@@ -15,7 +15,8 @@
       "type": "java",
       "request": "launch",
       "mainClass": "zfg.Main",
-      "args": [ "src/test/resources/test.zfg" ]
+      "args": [ "src/test/resources/test.zfg" ],
+      "console": "externalTerminal",
     },
     {
       "name": "ANTLR Grammar",
