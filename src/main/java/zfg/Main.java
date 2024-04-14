@@ -13,8 +13,10 @@ import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 
-import zfg.antlr.ZfgLexer;
 import zfg.antlr.ZfgParser;
+import zfg.ast.Ast;
+import zfg.ast.Parser;
+import zfg.ast.PrettyPrint;
 
 public class Main {
   public static void main(final String[] args) {
@@ -37,16 +39,7 @@ public class Main {
   public static void compile(final Path sourcePath, final Path targetPath) {
     System.out.println("compile: " + sourcePath + " -> " + targetPath);
 
-    final CharStream source = readFile(sourcePath);
-    System.out.println("source:\n>" + source.toString().replaceAll("[\r\n]+", "\n>"));
-
-    final ZfgLexer lexer = new ZfgLexer(source);
-    final CommonTokenStream tokens = new CommonTokenStream(lexer);
-    final ZfgParser parser = new ZfgParser(tokens);
-    final ZfgParser.StartContext start = parser.start();
-    System.out.println("parsed: " + start.toStringTree(parser));
-
-    // TODO Convert parse tree into ZFG AST
+    final Ast ast = Parser.parse(sourcePath);
 
     // TODO Generate JVM bytecode from ZFG AST
     final byte[] bytecode = generateBytecode();
