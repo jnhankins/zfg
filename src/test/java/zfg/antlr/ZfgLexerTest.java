@@ -2,6 +2,7 @@ package zfg.antlr;
 
 import static zfg.antlr.TokenMatcher.assertTokens;
 import static zfg.antlr.TokenMatcher.token;
+import static zfg.antlr.TokenMatcher.tokens;
 
 import org.junit.jupiter.api.Test;
 
@@ -12,12 +13,17 @@ public class ZfgLexerTest {
     assertTokens("let", token(ZfgLexer.LET));
     assertTokens("mut", token(ZfgLexer.MUT));
     assertTokens("fun", token(ZfgLexer.FUN));
+    assertTokens("ret", token(ZfgLexer.RET));
   }
 
   @Test
   public void testPrimitives() {
     assertTokens("var", token(ZfgLexer.VAR));
     assertTokens("bit", token(ZfgLexer.BIT));
+    assertTokens("u08", token(ZfgLexer.U08));
+    assertTokens("u16", token(ZfgLexer.U16));
+    assertTokens("u32", token(ZfgLexer.U32));
+    assertTokens("u64", token(ZfgLexer.U64));
     assertTokens("i08", token(ZfgLexer.I08));
     assertTokens("i16", token(ZfgLexer.I16));
     assertTokens("i32", token(ZfgLexer.I32));
@@ -48,44 +54,44 @@ public class ZfgLexerTest {
   public void testArithmeticOperators() {
     assertTokens("++", token(ZfgLexer.INC));
     assertTokens("--", token(ZfgLexer.DEC));
-    assertTokens("+", token(ZfgLexer.ADD));
-    assertTokens("-", token(ZfgLexer.SUB));
-    assertTokens("*", token(ZfgLexer.MUL));
-    assertTokens("/", token(ZfgLexer.DIV));
-    assertTokens("%", token(ZfgLexer.REM));
+    assertTokens("+",  token(ZfgLexer.ADD));
+    assertTokens("-",  token(ZfgLexer.SUB));
+    assertTokens("*",  token(ZfgLexer.MUL));
+    assertTokens("/",  token(ZfgLexer.DIV));
+    assertTokens("%",  token(ZfgLexer.REM));
     assertTokens("%%", token(ZfgLexer.MOD));
-    assertTokens("!", token(ZfgLexer.NOT));
-    assertTokens("&", token(ZfgLexer.AND));
-    assertTokens("|", token(ZfgLexer.IOR));
-    assertTokens("^", token(ZfgLexer.XOR));
+    assertTokens("!",  token(ZfgLexer.NOT));
+    assertTokens("&",  token(ZfgLexer.AND));
+    assertTokens("|",  token(ZfgLexer.IOR));
+    assertTokens("^",  token(ZfgLexer.XOR));
     assertTokens("<<", token(ZfgLexer.SHL));
     assertTokens(">>", token(ZfgLexer.SHR));
   }
 
   @Test
   public void testAssignmentOperators() {
-    assertTokens("=", token(ZfgLexer.SETA));
-    assertTokens("+=", token(ZfgLexer.ADDA));
-    assertTokens("-=", token(ZfgLexer.SUBA));
-    assertTokens("*=", token(ZfgLexer.MULA));
-    assertTokens("/=", token(ZfgLexer.DIVA));
-    assertTokens("%=", token(ZfgLexer.REMA));
+    assertTokens("=",   token(ZfgLexer.SETA));
+    assertTokens("+=",  token(ZfgLexer.ADDA));
+    assertTokens("-=",  token(ZfgLexer.SUBA));
+    assertTokens("*=",  token(ZfgLexer.MULA));
+    assertTokens("/=",  token(ZfgLexer.DIVA));
+    assertTokens("%=",  token(ZfgLexer.REMA));
     assertTokens("%%=", token(ZfgLexer.MODA));
-    assertTokens("&=", token(ZfgLexer.ANDA));
-    assertTokens("|=", token(ZfgLexer.IORA));
-    assertTokens("^=", token(ZfgLexer.XORA));
+    assertTokens("&=",  token(ZfgLexer.ANDA));
+    assertTokens("|=",  token(ZfgLexer.IORA));
+    assertTokens("^=",  token(ZfgLexer.XORA));
     assertTokens("<<=", token(ZfgLexer.SHLA));
     assertTokens(">>=", token(ZfgLexer.SHRA));
   }
 
   @Test
   public void testRelationalOperators() {
-    assertTokens("<", token(ZfgLexer.LT));
-    assertTokens(">", token(ZfgLexer.GT));
-    assertTokens("<=", token(ZfgLexer.LE));
-    assertTokens(">=", token(ZfgLexer.GE));
-    assertTokens("==", token(ZfgLexer.EQ));
-    assertTokens("!=", token(ZfgLexer.NE));
+    assertTokens("<",   token(ZfgLexer.LTN));
+    assertTokens(">",   token(ZfgLexer.GTN));
+    assertTokens("<=",  token(ZfgLexer.LEQ));
+    assertTokens(">=",  token(ZfgLexer.GEQ));
+    assertTokens("==",  token(ZfgLexer.EQL));
+    assertTokens("!=",  token(ZfgLexer.NEQ));
     assertTokens("===", token(ZfgLexer.EQR));
     assertTokens("!==", token(ZfgLexer.NER));
     assertTokens("<=>", token(ZfgLexer.CMP));
@@ -165,17 +171,16 @@ public class ZfgLexerTest {
 
   @Test
   public void testWhitespaceAndComments() {
-    // Whitespace
-    assertTokens(" ", token(ZfgLexer.Ws));
-    assertTokens("\t", token(ZfgLexer.Ws));
-    // Newline
-    assertTokens("\n", token(ZfgLexer.Nl));
-    assertTokens("\r\n", token(ZfgLexer.Nl));
-    // Whitespace and newlines
-    assertTokens(" \n\t \f\r\n\r\n",
-        token(ZfgLexer.Ws), token(ZfgLexer.Nl), token(ZfgLexer.Ws), token(ZfgLexer.Nl));
+    // Whitespace indentation
+    assertTokens(" ", token(ZfgLexer.WsInd));
+    assertTokens("\t", token(ZfgLexer.WsInd));
+    // Whitespace end-of-line
+    assertTokens("\n", token(ZfgLexer.WsEol));
+    assertTokens("\r\n", token(ZfgLexer.WsEol));
+    // Whitespace indentation and newlines
+    assertTokens(" \n\t \f\r\n\r\n", tokens(ZfgLexer.WsInd, ZfgLexer.WsEol, ZfgLexer.WsInd, ZfgLexer.WsEol));
     // Line comment
-    assertTokens("//", token(ZfgLexer.Lc));
-    assertTokens("// blah blah blah", token(ZfgLexer.Lc));
+    assertTokens("//", token(ZfgLexer.LnCom));
+    assertTokens("// blah blah blah", token(ZfgLexer.LnCom));
   }
 }

@@ -27,7 +27,7 @@ POINT: '.' ; // Path separator (e.g. 'std.io.println')
 COLON: ':' ; // Variable id-type separator, field id-type separator, literal id-value separator
 SEMIC: ';' ; // Statement separator, type member separator
 
-// Grouping Circumfix Operators
+// Groupors (Circumfix Operators)
 LPAREN: '(' ; // Expression grouping, function parameters
 RPAREN: ')' ;
 LBRACE: '{' ; // Scoped block, function body, type body
@@ -86,8 +86,8 @@ UpperId: [A-Z][a-zA-Z0-9]*;
 LowerId: [a-z_][a-z0-9_]*;
 
 // Whitespace and Comments
-WsTab: [ \t]+ -> channel(WHITESPACE_CHANNEL);        // Whitespace, i.e. space or tab
-WsEol: ([\r]? [\n])+ -> channel(WHITESPACE_CHANNEL); // Newline, i.e. LF or CRLF
+WsInd: [ \t]+ -> channel(WHITESPACE_CHANNEL);        // Whitespace indentation, i.e. space or tab
+WsEol: ([\r]? [\n])+ -> channel(WHITESPACE_CHANNEL); // Whitespace end-of-line, i.e. LF or CRLF
 LnCom: '//' ~[\r\n]* -> channel(COMMENTS_CHANNEL);   // Line comment, i.e. '// ...'
 
 // Numeric Literal Fragments

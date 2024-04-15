@@ -7,10 +7,11 @@ import static zfg.antlr.ZfgLexer.INC;
 import static zfg.antlr.ZfgLexer.DEC;
 import static zfg.antlr.ZfgLexer.ADD;
 import static zfg.antlr.ZfgLexer.SUB;
-import static zfg.antlr.ZfgParser.CMP;
-import static zfg.antlr.ZfgParser.GT;
-import static zfg.antlr.ZfgParser.LE;
-import static zfg.antlr.ZfgParser.LT;
+import static zfg.antlr.ZfgLexer.CMP;
+import static zfg.antlr.ZfgLexer.GTN;
+import static zfg.antlr.ZfgLexer.GEQ;
+import static zfg.antlr.ZfgLexer.LEQ;
+import static zfg.antlr.ZfgLexer.LTN;
 import static zfg.antlr.ZfgLexer.NOT;
 import static zfg.antlr.ZfgLexer.MUL;
 import static zfg.antlr.ZfgLexer.DIV;
@@ -21,13 +22,12 @@ import static zfg.antlr.ZfgLexer.SHR;
 import static zfg.antlr.ZfgLexer.AND;
 import static zfg.antlr.ZfgLexer.XOR;
 import static zfg.antlr.ZfgLexer.IOR;
-import static zfg.antlr.ZfgLexer.EQ;
-import static zfg.antlr.ZfgLexer.NE;
+import static zfg.antlr.ZfgLexer.EQL;
+import static zfg.antlr.ZfgLexer.NEQ;
 import static zfg.antlr.ZfgLexer.EQR;
 import static zfg.antlr.ZfgLexer.NER;
 
 
-import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.Token;
 
@@ -40,7 +40,10 @@ import zfg.antlr.ZfgParser.PathContext;
 import zfg.antlr.ZfgParser.PathExprContext;
 import zfg.antlr.ZfgParser.PostfixExprContext;
 import zfg.antlr.ZfgParser.PrefixExprContext;
-import zfg.ast.Expr.LiteralExpr;
+import zfg.ast.expr.Expr;
+import zfg.ast.expr.Expr.LiteralExpr;
+import zfg.ast.types.PriType;
+import zfg.ast.types.Type;
 import zfg.num.Bit;
 import zfg.num.Flt;
 import zfg.num.Int;
@@ -73,7 +76,7 @@ public class Parser {
 
   public Expr visitPathExpr(final PathExprContext ctx) {
     final PathContext pathCtx = ctx.path();
-    // TODO
+    throw new UnsupportedOperationException("TODO");
   }
 
   public Expr visitLiteralExpr(final LiteralExprContext ctx) {
@@ -98,47 +101,47 @@ public class Parser {
 
   public Expr visitPostfixExpr(final PostfixExprContext ctx) {
     return switch (ctx.op.getType()) {
-      case INC -> visitPostIncExpr(ctx);
-      case DEC -> visitPostDecExpr(ctx);
+      case INC -> visitPostIncExpr(ctx); // a++
+      case DEC -> visitPostDecExpr(ctx); // a--
       default -> throw new AssertionError();
     };
   }
 
   public Expr visitPrefixExpr(final PrefixExprContext ctx) {
     return switch (ctx.op.getType()) {
-      case INC -> visitPreIncExpr(ctx);
-      case DEC -> visitPreDecExpr(ctx);
-      case ADD -> visitPosExpr(ctx);
-      case SUB -> visitNegExpr(ctx);
-      case NOT -> visitNotExpr(ctx);
+      case INC -> visitPreIncExpr(ctx); // ++a
+      case DEC -> visitPreDecExpr(ctx); // --a
+      case ADD -> visitPosExpr(ctx); // +a
+      case SUB -> visitNegExpr(ctx); // -a
+      case NOT -> visitNotExpr(ctx); // !a
       default -> throw new AssertionError();
     };
   }
 
   public Expr visitInfixExpr(final InfixExprContext ctx) {
     return switch (ctx.op.getType()) {
-      case MUL -> visitMulExpr(ctx);
-      case DIV -> visitDivExpr(ctx);
-      case REM -> visitRemExpr(ctx);
-      case MOD -> visitModExpr(ctx);
-      case ADD -> visitAddExpr(ctx);
-      case SUB -> visitSubExpr(ctx);
-      case SHL -> visitShlExpr(ctx);
-      case SHR -> visitShrExpr(ctx);
-      case AND -> visitAndExpr(ctx);
-      case XOR -> visitXorExpr(ctx);
-      case IOR -> visitIorExpr(ctx);
-      case CMP -> visitCmpExpr(ctx);
-      case LT  -> visitLtExpr(ctx);
-      case GT  -> visitGtExpr(ctx);
-      case LE  -> visitLeExpr(ctx);
-      case GE  -> visitGeExpr(ctx);
-      case EQ  -> visitEqExpr(ctx);
-      case NE  -> visitNeExpr(ctx);
-      case EQR -> visitEqrExpr(ctx);
-      case NER -> visitNerExpr(ctx);
+      case MUL -> visitMulExpr(ctx); // a * b
+      case DIV -> visitDivExpr(ctx); // a / b
+      case REM -> visitRemExpr(ctx); // a % b
+      case MOD -> visitModExpr(ctx); // a %% b
+      case ADD -> visitAddExpr(ctx); // a + b
+      case SUB -> visitSubExpr(ctx); // a - b
+      case SHL -> visitShlExpr(ctx); // a << b
+      case SHR -> visitShrExpr(ctx); // a >> b
+      case AND -> visitAndExpr(ctx); // a & b
+      case XOR -> visitXorExpr(ctx); // a ^ b
+      case IOR -> visitIorExpr(ctx); // a | b
+      case CMP -> visitCmpExpr(ctx); // a <=> b
+      case LTN -> visitLtnExpr(ctx); // a < b
+      case GTN -> visitGtnExpr(ctx); // a > b
+      case LEQ -> visitLeqExpr(ctx); // a <= b
+      case GEQ -> visitGeqExpr(ctx); // a >= b
+      case EQL -> visitEqlExpr(ctx); // a == b
+      case NEQ -> visitNeqExpr(ctx); // a != b
+      case EQR -> visitEqrExpr(ctx); // a === b
+      case NER -> visitNerExpr(ctx); // a !== b
       default -> throw new AssertionError();
-    }
+    };
   }
 
   public Expr visitAssignExpr(final AssignExprContext ctx) {
@@ -180,6 +183,42 @@ public class Parser {
     throw new UnsupportedOperationException("TODO");
   }
 
+  public Expr visitAddExpr(final InfixExprContext ctx) {
+    // Post-order traversal
+    Expr lhs = visitExpression(ctx.lhs);
+    Expr rhs = visitExpression(ctx.rhs);
+    // Type checking
+    final PriType resultType = switch (lhs.type(), rhs.type()) {
+      case (PriType lhsType, PriType rhsType) -> {
+
+      }
+      default -> throw new ParserException(ctx, "Cannot add non-privitive non-numeric types: " + lhs.type() + " + " + rhs.type());
+    }
+    final Type lhsType = lhs.type();
+    final Type rhsType = rhs.type();
+    if (!(lhsType instanceof PriType) || !(rhsType instanceof PriType))
+      throw new ParserException(ctx, "Cannot add non-privitive non-numeric types: " + lhsType + " + " + rhsType);
+    final PriType lhsPriType = (PriType) lhsType;
+    final PriType rhsPriType = (PriType) rhsType;
+    if (!lhsPriType.isNum() || !rhsPriType.isNum())
+      throw new ParserException(ctx, "Cannot add non-numeric types: " + lhsPriType + " + " + rhsPriType);
+    if ((lhsPriType.isSignedInt() && !rhsPriType.isSignedInt()) || (!lhsPriType.isSignedInt() && rhsPriType.isSignedInt()))
+      throw new ParserException(ctx, "Cannot add signed and unsigned integers. Consider casting: " + lhsPriType + " + " + rhsPriType);
+    // Result type
+    final PriType
+
+    // Constant propogation
+
+    // Simplification
+    throw new UnsupportedOperationException("TODO");
+  }
+
+  public Expr visitSubExpr(final InfixExprContext ctx) {
+    final Expr lhs = visitExpression(ctx.lhs);
+    final Expr rhs = visitExpression(ctx.rhs);
+    throw new UnsupportedOperationException("TODO");
+  }
+
   public Expr visitMulExpr(final InfixExprContext ctx) {
     final Expr lhs = visitExpression(ctx.lhs);
     final Expr rhs = visitExpression(ctx.rhs);
@@ -199,30 +238,6 @@ public class Parser {
   }
 
   public Expr visitModExpr(final InfixExprContext ctx) {
-    final Expr lhs = visitExpression(ctx.lhs);
-    final Expr rhs = visitExpression(ctx.rhs);
-    throw new UnsupportedOperationException("TODO");
-  }
-
-  public Expr visitAddExpr(final InfixExprContext ctx) {
-    final Expr lhs = visitExpression(ctx.lhs);
-    final Expr rhs = visitExpression(ctx.rhs);
-    throw new UnsupportedOperationException("TODO");
-  }
-
-  public Expr visitSubExpr(final InfixExprContext ctx) {
-    final Expr lhs = visitExpression(ctx.lhs);
-    final Expr rhs = visitExpression(ctx.rhs);
-    throw new UnsupportedOperationException("TODO");
-  }
-
-  public Expr visitShlExpr(final InfixExprContext ctx) {
-    final Expr lhs = visitExpression(ctx.lhs);
-    final Expr rhs = visitExpression(ctx.rhs);
-    throw new UnsupportedOperationException("TODO");
-  }
-
-  public Expr visitShrExpr(final InfixExprContext ctx) {
     final Expr lhs = visitExpression(ctx.lhs);
     final Expr rhs = visitExpression(ctx.rhs);
     throw new UnsupportedOperationException("TODO");
@@ -252,37 +267,49 @@ public class Parser {
     throw new UnsupportedOperationException("TODO");
   }
 
-  public Expr visitLtExpr(final InfixExprContext ctx) {
+  public Expr visitShlExpr(final InfixExprContext ctx) {
     final Expr lhs = visitExpression(ctx.lhs);
     final Expr rhs = visitExpression(ctx.rhs);
     throw new UnsupportedOperationException("TODO");
   }
 
-  public Expr visitGtExpr(final InfixExprContext ctx) {
+  public Expr visitShrExpr(final InfixExprContext ctx) {
     final Expr lhs = visitExpression(ctx.lhs);
     final Expr rhs = visitExpression(ctx.rhs);
     throw new UnsupportedOperationException("TODO");
   }
 
-  public Expr visitLeExpr(final InfixExprContext ctx) {
+  public Expr visitLtnExpr(final InfixExprContext ctx) {
     final Expr lhs = visitExpression(ctx.lhs);
     final Expr rhs = visitExpression(ctx.rhs);
     throw new UnsupportedOperationException("TODO");
   }
 
-  public Expr visitGeExpr(final InfixExprContext ctx) {
+  public Expr visitGtnExpr(final InfixExprContext ctx) {
     final Expr lhs = visitExpression(ctx.lhs);
     final Expr rhs = visitExpression(ctx.rhs);
     throw new UnsupportedOperationException("TODO");
   }
 
-  public Expr visitEqExpr(final InfixExprContext ctx) {
+  public Expr visitLeqExpr(final InfixExprContext ctx) {
     final Expr lhs = visitExpression(ctx.lhs);
     final Expr rhs = visitExpression(ctx.rhs);
     throw new UnsupportedOperationException("TODO");
   }
 
-  public Expr visitNeExpr(final InfixExprContext ctx) {
+  public Expr visitGeqExpr(final InfixExprContext ctx) {
+    final Expr lhs = visitExpression(ctx.lhs);
+    final Expr rhs = visitExpression(ctx.rhs);
+    throw new UnsupportedOperationException("TODO");
+  }
+
+  public Expr visitEqlExpr(final InfixExprContext ctx) {
+    final Expr lhs = visitExpression(ctx.lhs);
+    final Expr rhs = visitExpression(ctx.rhs);
+    throw new UnsupportedOperationException("TODO");
+  }
+
+  public Expr visitNeqExpr(final InfixExprContext ctx) {
     final Expr lhs = visitExpression(ctx.lhs);
     final Expr rhs = visitExpression(ctx.rhs);
     throw new UnsupportedOperationException("TODO");
@@ -300,5 +327,5 @@ public class Parser {
     throw new UnsupportedOperationException("TODO");
   }
 
-  
+
 }

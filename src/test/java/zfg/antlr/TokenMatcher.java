@@ -25,6 +25,7 @@ public class TokenMatcher {
   private Integer stopIndex = null;
 
   // Constructors
+  public static TokenMatcher[] tokens(final int... types) { return Arrays.stream(types).mapToObj(TokenMatcher::token).toArray(TokenMatcher[]::new); }
   public static TokenMatcher token(final int type) { return new TokenMatcher(type); }
   public TokenMatcher(final int type) { this.type = type; }
 

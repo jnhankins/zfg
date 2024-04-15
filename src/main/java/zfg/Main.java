@@ -8,15 +8,9 @@ import java.util.Arrays;
 
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
-import org.antlr.v4.runtime.CommonTokenStream;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
-
-import zfg.antlr.ZfgParser;
-import zfg.ast.PrettyPrint;
-import zfg.ast.literal.Ast;
-import zfg.ast.literal.Parser;
 
 public class Main {
   public static void main(final String[] args) {
@@ -39,7 +33,8 @@ public class Main {
   public static void compile(final Path sourcePath, final Path targetPath) {
     System.out.println("compile: " + sourcePath + " -> " + targetPath);
 
-    final Ast ast = Parser.parse(sourcePath);
+    // TODO
+    //final Ast ast = Parser.parse(sourcePath);
 
     // TODO Generate JVM bytecode from ZFG AST
     final byte[] bytecode = generateBytecode();

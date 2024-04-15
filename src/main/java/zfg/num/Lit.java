@@ -1,6 +1,4 @@
 package zfg.num;
 
 // TODO move me
-public interface Lit {
-
-}
+public interface Lit {}

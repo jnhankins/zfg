@@ -3,22 +3,18 @@ options { tokenVocab = ZfgLexer; }
 
 @parser::members {
   final CommonTokenStream _cts = (CommonTokenStream) _input;
-  int     _eolCacheKey = -1;
-  boolean _eolCacheVal = false;
+  int _eolCache = 0;
   boolean EOL() {
     final int i = _cts.index();
-    if (i != _eolCacheKey) {
-      _eolCacheKey = i;
-      _eolCacheVal = EOL(i);
+    if (i == 0) return false;
+    if (_eolCache == +i) return true;
+    if (_eolCache == -i) return false;
+    for (int j = i - 1; j >= 0; j -= 1) {
+      final Token t = _cts.get(j);
+      if (t.getType() == ZfgLexer.WsEol) { _eolCache = +i; return true; }
+      if (t.getChannel() == Token.DEFAULT_CHANNEL) break;
     }
-    return _eolCacheResult;
-  }
-  boolean EOL(int i) {
-    for (i -= 1; i >= 0; i -= 1) {
-      final Token t = _cts.get(i);
-      if (t.getType() == ZfgLexer.Nl) return true;
-      if (t.getChannel() == Token.DEFAULT_CHANNEL) return false;
-    }
+    _eolCache = -i;
     return false;
   }
 }
@@ -61,8 +57,8 @@ expression
   | lhs=expression op=XOR rhs=expression                     # InfixExpr
   | lhs=expression op=IOR rhs=expression                     # InfixExpr
   | lhs=expression op=CMP rhs=expression                     # InfixExpr
-  | lhs=expression op=(LT | GT | LE | GE) rhs=expression     # InfixExpr
-  | lhs=expression op=(EQ | NE | EQR | NER) rhs=expression   # InfixExpr
+  | lhs=expression op=(LTN | GTN | LEQ | GEQ) rhs=expression # InfixExpr
+  | lhs=expression op=(EQL | NEQ | EQR | NER) rhs=expression # InfixExpr
   | assignment                                               # AssignExpr
   ;
 
