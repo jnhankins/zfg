@@ -1,43 +1,18 @@
 package zfg.ast;
 
-import java.util.Objects;
+import org.antlr.v4.runtime.ParserRuleContext;
 
-public abstract class Expr {
+import zfg.num.Lit;
 
-  public static abstract class UnaryExpr<C> extends Expr {
-    public final C child;
+public interface Expr {
 
-    public UnaryExpr(final C child) {
-      Objects.requireNonNull(child);
-      this.child = child;
+
+  public static class LiteralExpr implements Expr {
+    public final Lit value;
+
+    public LiteralExpr(final ParserRuleContext ctx, final Lit value) {
+      this.value = value;
     }
   }
-
-  public static class PosExpr extends UnaryExpr<Expr> {
-    public PosExpr(final Expr child) {
-      super(child);
-    }
-  }
-
-  public static class NegExpr extends UnaryExpr<Expr> {
-    public NegExpr(final Expr child) {
-      super(child);
-    }
-  }
-
-  public static abstract class BinaryExpr<L, R> extends Expr {
-    public final L lhs;
-    public final R rhs;
-
-    public BinaryExpr(final L lhs, final R rhs) {
-      Objects.requireNonNull(lhs);
-      Objects.requireNonNull(rhs);
-      this.lhs = lhs;
-      this.rhs = rhs;
-    }
-  }
-
-
-
 
 }

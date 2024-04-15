@@ -14,9 +14,9 @@ import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 
 import zfg.antlr.ZfgParser;
-import zfg.ast.Ast;
-import zfg.ast.Parser;
 import zfg.ast.PrettyPrint;
+import zfg.ast.literal.Ast;
+import zfg.ast.literal.Parser;
 
 public class Main {
   public static void main(final String[] args) {

@@ -22,7 +22,7 @@
   "java.configuration.updateBuildConfiguration": "interactive",
   "java.import.gradle.enabled": true,
   "java.import.gradle.wrapper.enabled": true,
-  "java.format.enabled": true,
+  "java.format.enabled": false,
   "java.format.settings.profile": "GoogleStyle",
 
   "antlr4.format": {

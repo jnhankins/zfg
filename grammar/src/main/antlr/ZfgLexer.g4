@@ -66,12 +66,12 @@ SHLA: '<<=' ; // Shift left assignment infix operator, e.g. 'x <<= y'
 SHRA: '>>=' ; // Shift right assignment infix operator, e.g. 'x >>= y'
 
 // Relational Operators
-LTN: '<'   ; // Less than infix operator, e.g. 'x < y'
-GTN: '>'   ; // Greater than infix operator, e.g. 'x > y'
-LEQ: '<='  ; // Less than or equal to infix operator, e.g. 'x <= y'
-GEQ: '>='  ; // Greater than or equal to infix operator, e.g. 'x >= y'
-EQL: '=='  ; // Equal to infix operator, e.g. 'x == y'
-NEQ: '!='  ; // Not equal to infix operator, e.g. 'x != y'
+LT:  '<'   ; // Less than infix operator, e.g. 'x < y'
+GT:  '>'   ; // Greater than infix operator, e.g. 'x > y'
+LE:  '<='  ; // Less than or equal to infix operator, e.g. 'x <= y'
+GE:  '>='  ; // Greater than or equal to infix operator, e.g. 'x >= y'
+EQ:  '=='  ; // Equal to infix operator, e.g. 'x == y'
+NE:  '!='  ; // Not equal to infix operator, e.g. 'x != y'
 EQR: '===' ; // Equal references infix operator, e.g. 'x <?> y'
 NER: '!==' ; // Not equal references infix operator, e.g. 'x <!> y'
 CMP: '<=>' ; // Compare infix operator, e.g. 'x <=> y'
@@ -86,9 +86,9 @@ UpperId: [A-Z][a-zA-Z0-9]*;
 LowerId: [a-z_][a-z0-9_]*;
 
 // Whitespace and Comments
-WsTab: [ \t]+ -> channel(WHITESPACE_CHANNEL);        // Whitespace, i.e. space or tab
-WsEol: ([\r]? [\n])+ -> channel(WHITESPACE_CHANNEL); // Newline, i.e. LF or CRLF
-LnCom: '//' ~[\r\n]* -> channel(COMMENTS_CHANNEL);   // Line comment, i.e. '// ...'
+Ws: [ \t]+ -> channel(WHITESPACE_CHANNEL);        // Whitespace, i.e. space or tab
+Nl: ([\r]? [\n])+ -> channel(WHITESPACE_CHANNEL); // Newline, i.e. LF or CRLF
+Lc: '//' ~[\r\n]* -> channel(COMMENTS_CHANNEL);   // Line comment, i.e. '// ...'
 
 // Numeric Literal Fragments
 fragment BinDigit: [0-1];    // Binary digit
