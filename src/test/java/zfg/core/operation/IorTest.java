@@ -20,8 +20,8 @@ import zfg.core.primative.U64;
 
 public final class IorTest {
 
-  @ParameterizedTest(name = "{index}: {0} and {1} = {2}") @MethodSource("testU08")
-  void testU08(final Bit a, final Bit b, final Bit e) { assertEquals(e, Ior.bit(a, b)); }
+  @ParameterizedTest(name = "{index}: {0} ior {1} = {2}") @MethodSource("testBit")
+  void testBit(final Bit a, final Bit b, final Bit e) { assertEquals(e, Ior.bit(a, b)); }
   static Stream<Arguments> testBit() {
     return Helper.bit(new int[][] {
       {0, 0, 0},

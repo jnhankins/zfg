@@ -26,7 +26,7 @@ public final class Ltn {
   private static final int    i64(final long   a, final long   b) { return a < b ? 1 : 0; }
   private static final int    f32(final float  a, final float  b) { return a < b ? 1 : 0; }
   private static final int    f64(final double a, final double b) { return a < b ? 1 : 0; }
-  public static final Bit bit(final U08 a, final U08 b) { return Bit.of(bit(a.value, b.value)); }
+  public static final Bit bit(final Bit a, final Bit b) { return Bit.of(bit(a.value, b.value)); }
   public static final Bit u08(final U08 a, final U08 b) { return Bit.of(u08(a.value, b.value)); }
   public static final Bit u16(final U16 a, final U16 b) { return Bit.of(u16(a.value, b.value)); }
   public static final Bit u32(final U32 a, final U32 b) { return Bit.of(u32(a.value, b.value)); }

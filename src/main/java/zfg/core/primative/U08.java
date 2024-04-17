@@ -7,7 +7,7 @@ public final class U08 {
   public static final void throwIfInvalid(final int value) { if (!isValid(value)) throw new IllegalArgumentException("value is out of range for u08 [" + MIN_VALUE + ", " + MAX_VALUE + "]: " + value); }
   public static final U08 of(final int value) { throwIfInvalid(value); return CACHE[value + MIN_VALUE]; }
   private static final U08[] CACHE = new U08[MAX_VALUE - MIN_VALUE + 1];
-  static { for (int i = MIN_VALUE; i <= MAX_VALUE; i++) CACHE[i] = new U08(i); }
+  static { for (int i = MIN_VALUE; i < CACHE.length; i++) CACHE[i] = new U08(i); }
 
   public final int value;
   public U08(final int value) { this.value = value; }

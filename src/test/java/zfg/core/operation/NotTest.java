@@ -8,6 +8,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import zfg.core.primative.Bit;
 import zfg.core.primative.I08;
 import zfg.core.primative.I16;
 import zfg.core.primative.I32;
@@ -18,6 +19,16 @@ import zfg.core.primative.U32;
 import zfg.core.primative.U64;
 
 public final class NotTest {
+
+  @ParameterizedTest(name = "{index}: not {0} = {1}") @MethodSource("testBit")
+  void testBit(final Bit a, final Bit e) { assertEquals(e, Not.bit(a)); }
+  static Stream<Arguments> testBit() {
+    return Helper.bit(new int[][] {
+      {0, 1},
+      {1, 0},
+    });
+  }
+
   @ParameterizedTest(name = "{index}: not {0} = {1}") @MethodSource("testU08")
   void testU08(final U08 a, final U08 e) { assertEquals(e, Not.u08(a)); }
   static Stream<Arguments> testU08() {
