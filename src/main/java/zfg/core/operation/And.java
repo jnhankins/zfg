@@ -9,6 +9,7 @@ import zfg.core.primative.U08;
 import zfg.core.primative.U16;
 import zfg.core.primative.U32;
 import zfg.core.primative.U64;
+import zfg.core.primative.Val;
 
 public final class And {
   private And() {}
@@ -30,4 +31,9 @@ public final class And {
   public static final I16 i16(final I16 a, final I16 b) { return I16.of(i16(a.value, b.value)); }
   public static final I32 i32(final I32 a, final I32 b) { return I32.of(i32(a.value, b.value)); }
   public static final I64 i64(final I64 a, final I64 b) { return I64.of(i64(a.value, b.value)); }
+
+  @FunctionalInterface
+  public static interface I<V extends Val> {
+    public V and(final V rhs);
+  }
 }

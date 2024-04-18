@@ -1,6 +1,6 @@
 package zfg.ast.expr;
 
-import zfg.ast.types.Type;
+import zfg.ast.type.Type;
 
 public class ImplCastExpr implements Expr {
   private final Expr expr;

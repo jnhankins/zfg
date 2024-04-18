@@ -1,6 +1,5 @@
 package zfg.core.operation;
 
-import zfg.core.primative.Bit;
 import zfg.core.primative.I08;
 import zfg.core.primative.I16;
 import zfg.core.primative.I32;
@@ -11,18 +10,16 @@ import zfg.core.primative.U32;
 import zfg.core.primative.U64;
 import zfg.core.primative.Val;
 
-public final class Not {
-  private Not() {}
-  private static final int    bit(final int    a) { return (~a) & 0x1; }
-  private static final int    u08(final int    a) { return (~a) & 0xFF; }
-  private static final int    u16(final int    a) { return (~a) & 0xFFFF; }
-  private static final int    u32(final int    a) { return ~a; }
-  private static final long   u64(final long   a) { return ~a; }
-  private static final int    i08(final int    a) { return ~a; }
-  private static final int    i16(final int    a) { return ~a; }
-  private static final int    i32(final int    a) { return ~a; }
-  private static final long   i64(final long   a) { return ~a; }
-  public static final Bit bit(final Bit a) { return Bit.of(bit(a.value)); }
+public final class Dec {
+  private Dec() {}
+  private static final int    u08(final int    a) { return (a - 1) & 0xFF; }
+  private static final int    u16(final int    a) { return (a - 1) & 0xFFF; }
+  private static final int    u32(final int    a) { return a - 1; }
+  private static final long   u64(final long   a) { return a - 1; }
+  private static final int    i08(final int    a) { return (byte)(a - 1); }
+  private static final int    i16(final int    a) { return (short)(a - 1); }
+  private static final int    i32(final int    a) { return a - 1; }
+  private static final long   i64(final long   a) { return a - 1; }
   public static final U08 u08(final U08 a) { return U08.of(u08(a.value)); }
   public static final U16 u16(final U16 a) { return U16.of(u16(a.value)); }
   public static final U32 u32(final U32 a) { return U32.of(u32(a.value)); }
@@ -34,6 +31,6 @@ public final class Not {
 
   @FunctionalInterface
   public static interface I<V extends Val> {
-    public V not();
+    public V dec();
   }
 }

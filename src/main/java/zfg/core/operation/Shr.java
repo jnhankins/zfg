@@ -8,6 +8,7 @@ import zfg.core.primative.U08;
 import zfg.core.primative.U16;
 import zfg.core.primative.U32;
 import zfg.core.primative.U64;
+import zfg.core.primative.Val;
 
 public final class Shr {
   private Shr() {}
@@ -28,4 +29,9 @@ public final class Shr {
   public static final I16 i16(final I16 a, final I32 b) { return I16.of(i16(a.value, b.value)); }
   public static final I32 i32(final I32 a, final I32 b) { return I32.of(i32(a.value, b.value)); }
   public static final I64 i64(final I64 a, final I32 b) { return I64.of(i64(a.value, b.value)); }
+
+  @FunctionalInterface
+  public static interface I<V extends Val> {
+    public V shr(final I32 rhs);
+  }
 }

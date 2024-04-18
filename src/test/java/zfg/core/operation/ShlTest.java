@@ -18,7 +18,7 @@ import zfg.core.primative.U32;
 import zfg.core.primative.U64;
 
 public final class ShlTest {
-  
+
   @ParameterizedTest(name = "{index}: {0} shl {1} = {2}") @MethodSource("testU08")
   void testU08(final U08 a, final I32 b, final U08 e) { assertEquals(e, Shl.u08(a, b)); }
   static Stream<Arguments> testU08() {

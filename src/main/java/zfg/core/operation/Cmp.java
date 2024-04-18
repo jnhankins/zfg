@@ -11,29 +11,35 @@ import zfg.core.primative.U08;
 import zfg.core.primative.U16;
 import zfg.core.primative.U32;
 import zfg.core.primative.U64;
+import zfg.core.primative.Val;
 
 public final class Cmp {
   private Cmp() {}
-  private static final int    bit(final int    a, final int    b) { return a <= b ? 1 : 0; }
-  private static final int    u08(final int    a, final int    b) { return a <= b ? 1 : 0; }
-  private static final int    u16(final int    a, final int    b) { return a <= b ? 1 : 0; }
-  private static final int    u32(final int    a, final int    b) { return (a + 0x80000000) <= (b + 0x80000000) ? 1 : 0; }
-  private static final int    u64(final long   a, final long   b) { return (a + 0x80000000_00000000L) <= (b + 0x80000000_00000000L) ? 1 : 0; }
-  private static final int    i08(final int    a, final int    b) { return a <= b ? 1 : 0; }
-  private static final int    i16(final int    a, final int    b) { return a <= b ? 1 : 0; }
-  private static final int    i32(final int    a, final int    b) { return a <= b ? 1 : 0; }
-  private static final int    i64(final long   a, final long   b) { return a <= b ? 1 : 0; }
-  private static final int    f32(final float  a, final float  b) { return a <= b ? 1 : 0; }
-  private static final int    f64(final double a, final double b) { return a <= b ? 1 : 0; }
-  public static final Bit bit(final U08 a, final U08 b) { return Bit.of(bit(a.value, b.value)); }
-  public static final Bit u08(final U08 a, final U08 b) { return Bit.of(u08(a.value, b.value)); }
-  public static final Bit u16(final U16 a, final U16 b) { return Bit.of(u16(a.value, b.value)); }
-  public static final Bit u32(final U32 a, final U32 b) { return Bit.of(u32(a.value, b.value)); }
-  public static final Bit u64(final U64 a, final U64 b) { return Bit.of(u64(a.value, b.value)); }
-  public static final Bit i08(final I08 a, final I08 b) { return Bit.of(i08(a.value, b.value)); }
-  public static final Bit i16(final I16 a, final I16 b) { return Bit.of(i16(a.value, b.value)); }
-  public static final Bit i32(final I32 a, final I32 b) { return Bit.of(i32(a.value, b.value)); }
-  public static final Bit i64(final I64 a, final I64 b) { return Bit.of(i64(a.value, b.value)); }
-  public static final Bit f32(final F32 a, final F32 b) { return Bit.of(f32(a.value, b.value)); }
-  public static final Bit f64(final F64 a, final F64 b) { return Bit.of(f64(a.value, b.value)); }
+  private static final int    bit(final int    a, final int    b) { return a < b ? -1 : a > b ? 1 : 0; }
+  private static final int    u08(final int    a, final int    b) { return a < b ? -1 : a > b ? 1 : 0; }
+  private static final int    u16(final int    a, final int    b) { return a < b ? -1 : a > b ? 1 : 0; }
+  private static final int    u32(final int    a, final int    b) { final int c = a - b + 0x80000000; return c < 0 ? -1 : c > 0 ? 1 : 0; }
+  private static final int    u64(final long   a, final long   b) { final long c = a - b + 0x80000000_00000000L; return c < 0 ? -1 : c > 0 ? 1 : 0; }
+  private static final int    i08(final int    a, final int    b) { return a < b ? -1 : a > b ? 1 : 0; }
+  private static final int    i16(final int    a, final int    b) { return a < b ? -1 : a > b ? 1 : 0; }
+  private static final int    i32(final int    a, final int    b) { return a < b ? -1 : a > b ? 1 : 0; }
+  private static final int    i64(final long   a, final long   b) { return a < b ? -1 : a > b ? 1 : 0; }
+  private static final int    f32(final float  a, final float  b) { return Float.compare(a, b); }
+  private static final int    f64(final double a, final double b) { return Double.compare(a, b); }
+  public static final I32 bit(final Bit a, final Bit b) { return I32.of(bit(a.value, b.value)); }
+  public static final I32 u08(final U08 a, final U08 b) { return I32.of(u08(a.value, b.value)); }
+  public static final I32 u16(final U16 a, final U16 b) { return I32.of(u16(a.value, b.value)); }
+  public static final I32 u32(final U32 a, final U32 b) { return I32.of(u32(a.value, b.value)); }
+  public static final I32 u64(final U64 a, final U64 b) { return I32.of(u64(a.value, b.value)); }
+  public static final I32 i08(final I08 a, final I08 b) { return I32.of(i08(a.value, b.value)); }
+  public static final I32 i16(final I16 a, final I16 b) { return I32.of(i16(a.value, b.value)); }
+  public static final I32 i32(final I32 a, final I32 b) { return I32.of(i32(a.value, b.value)); }
+  public static final I32 i64(final I64 a, final I64 b) { return I32.of(i64(a.value, b.value)); }
+  public static final I32 f32(final F32 a, final F32 b) { return I32.of(f32(a.value, b.value)); }
+  public static final I32 f64(final F64 a, final F64 b) { return I32.of(f64(a.value, b.value)); }
+
+  @FunctionalInterface
+  public static interface I<V extends Val> {
+    public I32 cmp(final V rhs);
+  }
 }

@@ -1,7 +1,8 @@
-package zfg.ast.expr;
+package zfg.ast.node;
 
 import zfg.ast.type.Type;
 
 public interface Expr {
-  Type type();
+  public Type type();
 }
+

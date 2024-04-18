@@ -11,6 +11,7 @@ import zfg.core.primative.U08;
 import zfg.core.primative.U16;
 import zfg.core.primative.U32;
 import zfg.core.primative.U64;
+import zfg.core.primative.Val;
 
 public final class Geq {
   private Geq() {}
@@ -37,4 +38,9 @@ public final class Geq {
   public static final Bit i64(final I64 a, final I64 b) { return Bit.of(i64(a.value, b.value)); }
   public static final Bit f32(final F32 a, final F32 b) { return Bit.of(f32(a.value, b.value)); }
   public static final Bit f64(final F64 a, final F64 b) { return Bit.of(f64(a.value, b.value)); }
+
+  @FunctionalInterface
+  public static interface I<V extends Val> {
+    public Bit geq(final V rhs);
+  }
 }

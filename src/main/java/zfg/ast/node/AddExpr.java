@@ -1,8 +1,8 @@
-package zfg.ast.expr;
+package zfg.ast.node;
 
 import zfg.ast.type.Type;
 
-public class AddExpr implements Expr {
+public final class AddExpr implements BinExpr {
   private final Expr lhs;
   private final Expr rhs;
   private final Type type;
@@ -13,12 +13,7 @@ public class AddExpr implements Expr {
     this.type = type;
   }
 
-  public Expr lhs() { return lhs; }
-  public Expr rhs() { return rhs; }
-  public Type type() { return type; }
+  @Override public final Type type() { return type; }
+  @Override public final Expr lhs() { return lhs; }
+  @Override public final Expr rhs() { return rhs; }
 }
-
-// expr
-// node
-// pars
-// type

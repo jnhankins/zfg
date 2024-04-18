@@ -1,6 +1,6 @@
 package zfg.ast.expr;
 
-import zfg.ast.types.Type;
+import zfg.ast.type.Type;
 
 public class ConstExpr implements Expr {
   private final Type type;
