@@ -37,9 +37,5 @@ public final class Cmp {
   public static final I32 i64(final I64 a, final I64 b) { return I32.of(i64(a.value, b.value)); }
   public static final I32 f32(final F32 a, final F32 b) { return I32.of(f32(a.value, b.value)); }
   public static final I32 f64(final F64 a, final F64 b) { return I32.of(f64(a.value, b.value)); }
-
-  @FunctionalInterface
-  public static interface I<V extends Val> {
-    public I32 cmp(final V rhs);
-  }
+  public static interface I<V extends Val> { public I32 cmp(final V rhs); }
 }

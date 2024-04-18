@@ -20,8 +20,9 @@ import zfg.core.operation.Shl;
 import zfg.core.operation.Shr;
 import zfg.core.operation.Sub;
 import zfg.core.operation.Xor;
+import zfg.core.primative.Val.Ixx;
 
-public final class I08 implements Val,
+public final class I08 implements Ixx,
     Cmp.I<I08>, Ltn.I<I08>, Gtn.I<I08>, Leq.I<I08>, Geq.I<I08>, Eql.I<I08>, Neq.I<I08>,
     Neg.I<I08>, Add.I<I08>, Sub.I<I08>, Mul.I<I08>, Div.I<I08>, Rem.I<I08>, Mod.I<I08>,
     Not.I<I08>, And.I<I08>, Xor.I<I08>, Ior.I<I08>, Shl.I<I08>, Shr.I<I08> {

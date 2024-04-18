@@ -22,9 +22,5 @@ public final class Neg {
   public static final I64 i64(final I64 a) { return I64.of(i64(a.value)); }
   public static final F32 f32(final F32 a) { return F32.of(f32(a.value)); }
   public static final F64 f64(final F64 a) { return F64.of(f64(a.value)); }
-
-  @FunctionalInterface
-  public static interface I<V extends Val> {
-    public V neg();
-  }
+  public static interface I<V extends Val> { public V neg(); }
 }

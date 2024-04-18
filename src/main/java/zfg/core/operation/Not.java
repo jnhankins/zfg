@@ -31,9 +31,5 @@ public final class Not {
   public static final I16 i16(final I16 a) { return I16.of(i16(a.value)); }
   public static final I32 i32(final I32 a) { return I32.of(i32(a.value)); }
   public static final I64 i64(final I64 a) { return I64.of(i64(a.value)); }
-
-  @FunctionalInterface
-  public static interface I<V extends Val> {
-    public V not();
-  }
+  public static interface I<V extends Val> { public V not(); }
 }

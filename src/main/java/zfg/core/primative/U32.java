@@ -19,8 +19,9 @@ import zfg.core.operation.Shl;
 import zfg.core.operation.Shr;
 import zfg.core.operation.Sub;
 import zfg.core.operation.Xor;
+import zfg.core.primative.Val.Uxx;
 
-public final class U32 implements Val,
+public final class U32 implements Uxx,
     Cmp.I<U32>, Ltn.I<U32>, Gtn.I<U32>, Leq.I<U32>, Geq.I<U32>, Eql.I<U32>, Neq.I<U32>,
     Add.I<U32>, Sub.I<U32>, Mul.I<U32>, Div.I<U32>, Rem.I<U32>, Mod.I<U32>,
     Not.I<U32>, And.I<U32>, Xor.I<U32>, Ior.I<U32>, Shl.I<U32>, Shr.I<U32> {

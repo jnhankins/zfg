@@ -38,9 +38,5 @@ public final class Leq {
   public static final Bit i64(final I64 a, final I64 b) { return Bit.of(i64(a.value, b.value)); }
   public static final Bit f32(final F32 a, final F32 b) { return Bit.of(f32(a.value, b.value)); }
   public static final Bit f64(final F64 a, final F64 b) { return Bit.of(f64(a.value, b.value)); }
-
-  @FunctionalInterface
-  public static interface I<V extends Val> {
-    public Bit leq(final V rhs);
-  }
+  public static interface I<V extends Val> { public Bit leq(final V rhs); }
 }

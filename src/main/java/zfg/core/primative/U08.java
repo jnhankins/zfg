@@ -19,8 +19,9 @@ import zfg.core.operation.Shl;
 import zfg.core.operation.Shr;
 import zfg.core.operation.Sub;
 import zfg.core.operation.Xor;
+import zfg.core.primative.Val.Uxx;
 
-public final class U08 implements Val,
+public final class U08 implements Uxx,
     Cmp.I<U08>, Ltn.I<U08>, Gtn.I<U08>, Leq.I<U08>, Geq.I<U08>, Eql.I<U08>, Neq.I<U08>,
     Add.I<U08>, Sub.I<U08>, Mul.I<U08>, Div.I<U08>, Rem.I<U08>, Mod.I<U08>,
     Not.I<U08>, And.I<U08>, Xor.I<U08>, Ior.I<U08>, Shl.I<U08>, Shr.I<U08> {

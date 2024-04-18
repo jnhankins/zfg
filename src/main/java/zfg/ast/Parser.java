@@ -1,35 +1,33 @@
 package zfg.ast;
 
-import static zfg.antlr.ZfgLexer.BitLit;
-import static zfg.antlr.ZfgLexer.FltLit;
-import static zfg.antlr.ZfgLexer.IntLit;
-import static zfg.antlr.ZfgLexer.INC;
-import static zfg.antlr.ZfgLexer.DEC;
 import static zfg.antlr.ZfgLexer.ADD;
-import static zfg.antlr.ZfgLexer.SUB;
+import static zfg.antlr.ZfgLexer.AND;
+import static zfg.antlr.ZfgLexer.BitLit;
 import static zfg.antlr.ZfgLexer.CMP;
-import static zfg.antlr.ZfgLexer.GTN;
+import static zfg.antlr.ZfgLexer.DEC;
+import static zfg.antlr.ZfgLexer.DIV;
+import static zfg.antlr.ZfgLexer.EQL;
+import static zfg.antlr.ZfgLexer.EQR;
+import static zfg.antlr.ZfgLexer.FltLit;
 import static zfg.antlr.ZfgLexer.GEQ;
+import static zfg.antlr.ZfgLexer.GTN;
+import static zfg.antlr.ZfgLexer.INC;
+import static zfg.antlr.ZfgLexer.IOR;
+import static zfg.antlr.ZfgLexer.IntLit;
 import static zfg.antlr.ZfgLexer.LEQ;
 import static zfg.antlr.ZfgLexer.LTN;
-import static zfg.antlr.ZfgLexer.NOT;
-import static zfg.antlr.ZfgLexer.MUL;
-import static zfg.antlr.ZfgLexer.DIV;
-import static zfg.antlr.ZfgLexer.REM;
 import static zfg.antlr.ZfgLexer.MOD;
+import static zfg.antlr.ZfgLexer.MUL;
+import static zfg.antlr.ZfgLexer.NEQ;
+import static zfg.antlr.ZfgLexer.NER;
+import static zfg.antlr.ZfgLexer.NOT;
+import static zfg.antlr.ZfgLexer.REM;
 import static zfg.antlr.ZfgLexer.SHL;
 import static zfg.antlr.ZfgLexer.SHR;
-import static zfg.antlr.ZfgLexer.AND;
+import static zfg.antlr.ZfgLexer.SUB;
 import static zfg.antlr.ZfgLexer.XOR;
-import static zfg.antlr.ZfgLexer.IOR;
-import static zfg.antlr.ZfgLexer.EQL;
-import static zfg.antlr.ZfgLexer.NEQ;
-import static zfg.antlr.ZfgLexer.EQR;
-import static zfg.antlr.ZfgLexer.NER;
-
 
 import org.antlr.v4.runtime.ParserRuleContext;
-import org.antlr.v4.runtime.Token;
 
 import zfg.antlr.ZfgParser.AssignExprContext;
 import zfg.antlr.ZfgParser.ExpressionContext;
@@ -42,11 +40,12 @@ import zfg.antlr.ZfgParser.PostfixExprContext;
 import zfg.antlr.ZfgParser.PrefixExprContext;
 import zfg.ast.node.ConExpr;
 import zfg.ast.node.Expr;
-import zfg.ast.type.PriType;
 import zfg.ast.type.Type;
 import zfg.ast.type.ValType;
 import zfg.core.operation.Add;
+import zfg.core.primative.Bit;
 import zfg.core.primative.Val;
+import zfg.core.primative.Val.Int;
 
 public class Parser {
   public static class ParserException extends RuntimeException {
@@ -182,14 +181,27 @@ public class Parser {
     final Expr lhsExpr = visitExpression(ctx.lhs);
     final Expr rhsExpr = visitExpression(ctx.rhs);
     // Type checking
+    // - Both input types must be be bit, uxx, ixx, or fxx
+    // - Cannot both be bit
+    // - If one type is uxx and the other is ixx, than the ixx must be wider than the uxx
     final Type lhsType = lhsExpr.type();
     final Type rhsType = rhsExpr.type();
     if (!(lhsType instanceof ValType)) throw new RuntimeException();
     if (!(rhsType instanceof ValType)) throw new RuntimeException();
     final ValType lhsValType = (ValType) lhsType;
     final ValType rhsValType = (ValType) rhsType;
+    //
+    if (
+      (lhsValType == ValType.bit && rhsValType == ValType.bit)) ||
+      (lhsValType.flags & IXX != 0 == ValType.bit && rhsValType == ValType.bit))
+      {
+      throw new ParserException(ctx, String.format(
+        "Cannot apply operator \"%s\" to types: %s and %s", "add", lhsValType, rhsValType
+      ));
+    }
+
     final ValType outValType = lhsValType.compareTo(rhsValType) >= 0 ? lhsValType : rhsValType;
-    if (outValType.compareTo(ValType.bit) < 0) throw new RuntimeException();
+
     // Implicit type conversion
     final Expr lhs = implCast(lhsExpr, outValType);
     final Expr rhs = implCast(rhsExpr, outValType);

@@ -16,20 +16,22 @@ import zfg.core.primative.U64;
 import zfg.core.primative.Val;
 
 public enum ValType implements Type {
-  bit(Bit.class),
-  u08(U08.class),
-  u16(U16.class),
-  u32(U32.class),
-  u64(U64.class),
-  i08(I08.class),
-  i16(I16.class),
-  i32(I32.class),
-  i64(I64.class),
-  f32(F32.class),
-  f64(F64.class);
+  bit(Bit.class,  1),
+  u08(U08.class,  8),
+  u16(U16.class, 16),
+  u32(U32.class, 32),
+  u64(U64.class, 64),
+  i08(I08.class,  8),
+  i16(I16.class, 16),
+  i32(I32.class, 32),
+  i64(I64.class, 64),
+  f32(F32.class, 32),
+  f64(F64.class, 64);
 
   public final Class<? extends Val> clazz;
-  private ValType(final Class<? extends Val> clazz) {
+  public final int flags;
+  private ValType(final Class<? extends Val> clazz, final int flags) {
     this.clazz = clazz;
+    this.flags = flags;
   }
 }

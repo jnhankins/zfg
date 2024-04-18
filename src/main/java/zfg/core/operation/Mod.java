@@ -34,9 +34,5 @@ public final class Mod {
   public static final I64 i64(final I64 a, final I64 b) { return I64.of(i64(a.value, b.value)); }
   public static final F32 f32(final F32 a, final F32 b) { return F32.of(f32(a.value, b.value)); }
   public static final F64 f64(final F64 a, final F64 b) { return F64.of(f64(a.value, b.value)); }
-
-  @FunctionalInterface
-  public static interface I<V extends Val> {
-    public V mod(final V rhs);
-  }
+  public static interface I<V extends Val> { public V mod(final V rhs); }
 }
