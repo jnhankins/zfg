@@ -25,9 +25,14 @@ import static zfg.antlr.ZfgLexer.SHR;
 import static zfg.antlr.ZfgLexer.SUB;
 import static zfg.antlr.ZfgLexer.XOR;
 
+import org.antlr.v4.runtime.CharStream;
+import org.antlr.v4.runtime.CharStreams;
+import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.Token;
 
+import zfg.antlr.ZfgLexer;
+import zfg.antlr.ZfgParser;
 import zfg.antlr.ZfgParser.AssignExprContext;
 import zfg.antlr.ZfgParser.ExpressionContext;
 import zfg.antlr.ZfgParser.GroupExprContext;
@@ -37,6 +42,7 @@ import zfg.antlr.ZfgParser.PathContext;
 import zfg.antlr.ZfgParser.PathExprContext;
 import zfg.antlr.ZfgParser.PostfixExprContext;
 import zfg.antlr.ZfgParser.PrefixExprContext;
+import zfg.antlr.ZfgParser.StartContext;
 import zfg.ast.Expr.Const;
 import zfg.core.operation.Add;
 import zfg.core.operation.Mul;
@@ -55,11 +61,44 @@ import zfg.core.primative.U64;
 import zfg.core.primative.Val;
 
 public class Parser {
+
+  public static Node parse(final String source, final String sourceName) {
+    return parse(CharStreams.fromString(source, sourceName));
+  }
+
+  public static Node parse(final CharStream source) {
+    System.out.println("source: " + source.getSourceName());
+    System.out.println(">" + source.toString().replaceAll("\\r?\\n", "\n>"));
+
+    final ZfgLexer lexer = new ZfgLexer(source);
+    final CommonTokenStream tokens = new CommonTokenStream(lexer);
+    System.out.println("tokens: " + PrettyPrint.toPrettyTokensString(lexer, tokens));
+
+    final ZfgParser parser = new ZfgParser(tokens);
+    final StartContext start = parser.start();
+    System.out.println("parsed: " + start.toStringTree(parser));
+    System.out.println("tree:\n" + PrettyPrint.toPrettyTreeString(parser, start));
+
+    final Parser parser = new Parser();
+    final Node parsed = parser.visitStart(start);
+
+    return parsed;
+  }
+
   public static class ParserException extends RuntimeException {
     public ParserException(final ParserRuleContext ctx, final String message) { this(ctx, message, null); }
     public ParserException(final ParserRuleContext ctx, final Throwable cause) { this(ctx, null, cause); }
     public ParserException(final ParserRuleContext ctx, final String message, final Throwable cause) { super(message, cause); }
   }
+
+
+
+  public static Expr parse(final ExpressionContext ctx) {
+
+    return new Parser().visitExpression(ctx);
+  }
+
+
 
   public Expr visitExpression(final ExpressionContext ctx) {
     return switch (ctx) {

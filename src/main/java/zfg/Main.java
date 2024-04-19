@@ -12,6 +12,8 @@ import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 
+import zfg.ast.Parser;
+
 public class Main {
   public static void main(final String[] args) {
     System.out.println("main: " + Arrays.toString(args));
@@ -34,7 +36,7 @@ public class Main {
     System.out.println("compile: " + sourcePath + " -> " + targetPath);
 
     // TODO
-    //final Ast ast = Parser.parse(sourcePath);
+    Parser.parse(sourcePath);
 
     // TODO Generate JVM bytecode from ZFG AST
     final byte[] bytecode = generateBytecode();

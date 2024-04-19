@@ -5,6 +5,12 @@ import zfg.core.primative.Val;
 public sealed interface Expr {
   public Type type();
 
+  public static abstract class Base implements Expr {
+    private final Type type;
+    public Base(final Type type) { this.type = type; }
+    public final @Override Type type() { return type; }
+  }
+
   /** Constant expression. */
   public static final class Const implements Expr {
     private final Type type;

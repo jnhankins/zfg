@@ -88,12 +88,10 @@ public class ZfgLexerTest {
   public void testRelationalOperators() {
     assertTokens("<",   token(ZfgLexer.LTN));
     assertTokens(">",   token(ZfgLexer.GTN));
-    assertTokens("<=",  token(ZfgLexer.LEQ));
-    assertTokens(">=",  token(ZfgLexer.GEQ));
+    assertTokens("<=",  token(ZfgLexer.LTE));
+    assertTokens(">=",  token(ZfgLexer.GTE));
     assertTokens("==",  token(ZfgLexer.EQL));
     assertTokens("!=",  token(ZfgLexer.NEQ));
-    assertTokens("===", token(ZfgLexer.EQR));
-    assertTokens("!==", token(ZfgLexer.NER));
     assertTokens("<=>", token(ZfgLexer.CMP));
   }
 

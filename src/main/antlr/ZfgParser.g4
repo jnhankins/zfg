@@ -44,11 +44,11 @@ return
   : RET expr=expression
   ;
 
-expression
+expression // Path  Rvalue
   : path                                                     # PathExpr
   | lit=(BitLit | IntLit | FltLit)                           # LiteralExpr
   | LPAREN expression RPAREN                                 # GroupExpr
-  | lhs=expression op=(INC | DEC)                            # PostfixExpr
+  | lhs=expression op=(INC | DEC)                            # SuffixExpr
   | op=(INC | DEC | ADD | SUB | NOT) rhs=expression          # PrefixExpr
   | lhs=expression op=(MUL | DIV | REM | MOD) rhs=expression # InfixExpr
   | lhs=expression op=(ADD | SUB) rhs=expression             # InfixExpr
