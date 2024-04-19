@@ -35,4 +35,6 @@ public final class Div {
   public static final F32 f32(final F32 a, final F32 b) { return F32.of(f32(a.value, b.value)); }
   public static final F64 f64(final F64 a, final F64 b) { return F64.of(f64(a.value, b.value)); }
   public static interface I<V extends Val> { public V div(final V rhs); }
+  @SuppressWarnings("unchecked")
+  public static final Val apply(final Val x, final Val y) { return ((I<Val>)x).div(y); }
 }

@@ -25,7 +25,7 @@ public final class Add {
   private static final float  f32(final float  a, final float  b) { return a + b; }
   private static final double f64(final double a, final double b) { return a + b; }
   public static final U08 u08(final U08 a, final U08 b) { return U08.of(u08(a.value, b.value)); }
-  public static final U16 add(final U16 a, final U16 b) { return U16.of(u16(a.value, b.value)); }
+  public static final U16 u16(final U16 a, final U16 b) { return U16.of(u16(a.value, b.value)); }
   public static final U32 u32(final U32 a, final U32 b) { return U32.of(u32(a.value, b.value)); }
   public static final U64 u64(final U64 a, final U64 b) { return U64.of(u64(a.value, b.value)); }
   public static final I08 i08(final I08 a, final I08 b) { return I08.of(i08(a.value, b.value)); }
@@ -35,4 +35,6 @@ public final class Add {
   public static final F32 f32(final F32 a, final F32 b) { return F32.of(f32(a.value, b.value)); }
   public static final F64 f64(final F64 a, final F64 b) { return F64.of(f64(a.value, b.value)); }
   public static interface I<V extends Val> { public V add(final V rhs); }
+  @SuppressWarnings("unchecked")
+  public static final Val apply(final Val x, final Val y) { return ((I<Val>)x).add(y); }
 }

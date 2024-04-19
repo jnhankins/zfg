@@ -1,5 +1,7 @@
 package zfg.core.operation;
 
+import zfg.core.primative.F32;
+import zfg.core.primative.F64;
 import zfg.core.primative.I08;
 import zfg.core.primative.I16;
 import zfg.core.primative.I32;
@@ -9,8 +11,6 @@ import zfg.core.primative.U16;
 import zfg.core.primative.U32;
 import zfg.core.primative.U64;
 import zfg.core.primative.Val;
-import zfg.core.primative.F32;
-import zfg.core.primative.F64;
 
 public final class Sub {
   private Sub() {}
@@ -35,4 +35,6 @@ public final class Sub {
   public static final F32 f32(final F32 a, final F32 b) { return F32.of(f32(a.value, b.value)); }
   public static final F64 f64(final F64 a, final F64 b) { return F64.of(f64(a.value, b.value)); }
   public static interface I<V extends Val> { public V sub(final V rhs); }
+  @SuppressWarnings("unchecked")
+  public static final Val apply(final Val x, final Val y) { return ((I<Val>)x).sub(y); }
 }

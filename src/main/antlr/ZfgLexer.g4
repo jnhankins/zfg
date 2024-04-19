@@ -35,46 +35,57 @@ RBRACE: '}' ;
 LBRACK: '[' ; // Array literal, array access
 RBRACK: ']' ;
 
-// Arithmetic Operators
+// Prefix and Postfix Operators
 INC: '++' ; // Increment prefix or postfix operator, e.g. '++x' or 'x++'
 DEC: '--' ; // Decrement prefix or postfix operator, e.g. '--x' or 'x--'
+
+// Arithmetic Operators
 ADD: '+'  ; // Identity prefix or addition infix operator, e.g. '+x' or 'x + y'
 SUB: '-'  ; // Negation prefix or subtraction infix operator, e.g. '-x' or 'x - y'
 MUL: '*'  ; // Multiplication infix operator, e.g. 'x * y'
 DIV: '/'  ; // Division infix operator, e.g. 'x / y'
 REM: '%'  ; // Remainder infix operator, e.g. 'x % y'
 MOD: '%%' ; // Modulo infix operator, e.g. 'x %% y'
-NOT: '!'  ; // Bitwise NOT prefix operator, e.g. '!x'
+
+// Bitwise Operators
+NOT: '~'  ; // Bitwise NOT prefix operator, e.g. '~x'
 AND: '&'  ; // Bitwise AND infix operator, e.g. 'x & y'
 IOR: '|'  ; // Bitwise OR infix operator, e.g. 'x | y'
 XOR: '^'  ; // Bitwise XOR infix operator, e.g. 'x ^ y'
 SHL: '<<' ; // Shift left infix operator, e.g. 'x << y'
 SHR: '>>' ; // Shift right infix operator, e.g. 'x >> y'
 
-// Assignment Operators
+// Logical Operators
+LNT: '!'  ; // Logical NOT prefix operator, e.g. '!x'
+LCJ: '&&' ; // Short-circuiting logical conjunction (AND) infix operator, e.g. 'x && y'
+LDJ: '||' ; // Short-circuiting logical disjunction (OR) infix operator, e.g. 'x || y'
+
+// Relational Operators
+LTN: '<'   ; // Less than infix operator, e.g. 'x < y'
+GTN: '>'   ; // Greater than infix operator, e.g. 'x > y'
+LTE: '<='  ; // Less than or equal to infix operator, e.g. 'x <= y'
+GTE: '>='  ; // Greater than or equal to infix operator, e.g. 'x >= y'
+EQL: '=='  ; // Equal to infix operator, e.g. 'x == y'
+NEQ: '!='  ; // Not equal to infix operator, e.g. 'x != y'
+CMP: '<=>' ; // Compare infix operator, e.g. 'x <=> y'
+
+// Assignment Operator
 SETA: '='   ; // Assignment infix operator, e.g. 'x = y'
-ADDA: '+='  ; // Addition assignment infix operator, e.g. 'x += y'
-SUBA: '-='  ; // Subtraction assignment infix operator, e.g. 'x -= y'
-MULA: '*='  ; // Multiplication assignment infix operator, e.g. 'x *= y'
-DIVA: '/='  ; // Division assignment infix operator, e.g. 'x /= y'
-REMA: '%='  ; // Remainder assignment infix operator, e.g. 'x %= y'
-MODA: '%%=' ; // Modulo assignment infix operator, e.g. 'x %%= y'
+
+// Bitwise Assignment Operators
 ANDA: '&='  ; // Bitwise AND assignment infix operator, e.g. 'x &= y'
 IORA: '|='  ; // Bitwise OR assignment infix operator, e.g. 'x |= y'
 XORA: '^='  ; // Bitwise XOR assignment infix operator, e.g. 'x ^= y'
 SHLA: '<<=' ; // Shift left assignment infix operator, e.g. 'x <<= y'
 SHRA: '>>=' ; // Shift right assignment infix operator, e.g. 'x >>= y'
 
-// Relational Operators
-LTN: '<'   ; // Less than infix operator, e.g. 'x < y'
-GTN: '>'   ; // Greater than infix operator, e.g. 'x > y'
-LEQ: '<='  ; // Less than or equal to infix operator, e.g. 'x <= y'
-GEQ: '>='  ; // Greater than or equal to infix operator, e.g. 'x >= y'
-EQL: '=='  ; // Equal to infix operator, e.g. 'x == y'
-NEQ: '!='  ; // Not equal to infix operator, e.g. 'x != y'
-EQR: '===' ; // Equal references infix operator, e.g. 'x <?> y'
-NER: '!==' ; // Not equal references infix operator, e.g. 'x <!> y'
-CMP: '<=>' ; // Compare infix operator, e.g. 'x <=> y'
+// Arithmetic Assignment Operators
+ADDA: '+='  ; // Addition assignment infix operator, e.g. 'x += y'
+SUBA: '-='  ; // Subtraction assignment infix operator, e.g. 'x -= y'
+MULA: '*='  ; // Multiplication assignment infix operator, e.g. 'x *= y'
+DIVA: '/='  ; // Division assignment infix operator, e.g. 'x /= y'
+REMA: '%='  ; // Remainder assignment infix operator, e.g. 'x %= y'
+MODA: '%%=' ; // Modulo assignment infix operator, e.g. 'x %%= y'
 
 // Litearls
 BitLit: 'true' | 'false';

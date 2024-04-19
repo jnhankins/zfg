@@ -14,9 +14,9 @@ import zfg.core.operation.Ltn;
 import zfg.core.operation.Neq;
 import zfg.core.operation.Not;
 import zfg.core.operation.Xor;
-import zfg.core.primative.Val.Num;
+import zfg.core.primative.Val.Int;
 
-public final class Bit implements Num,
+public final class Bit implements Int,
     Cmp.I<Bit>, Ltn.I<Bit>, Leq.I<Bit>, Gtn.I<Bit>, Geq.I<Bit>, Eql.I<Bit>, Neq.I<Bit>,
     Not.I<Bit>, And.I<Bit>, Xor.I<Bit>, Ior.I<Bit>,
     Lnt.I<Bit>, Lcj.I<Bit>, Ldj.I<Bit> {

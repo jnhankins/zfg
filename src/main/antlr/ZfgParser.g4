@@ -57,8 +57,8 @@ expression
   | lhs=expression op=XOR rhs=expression                     # InfixExpr
   | lhs=expression op=IOR rhs=expression                     # InfixExpr
   | lhs=expression op=CMP rhs=expression                     # InfixExpr
-  | lhs=expression op=(LTN | GTN | LEQ | GEQ) rhs=expression # InfixExpr
-  | lhs=expression op=(EQL | NEQ | EQR | NER) rhs=expression # InfixExpr
+  | lhs=expression op=(LTN | GTN | LTE | GTE) rhs=expression # InfixExpr
+  | lhs=expression op=(EQL | NEQ)  rhs=expression            # InfixExpr
   | assignment                                               # AssignExpr
   ;
 

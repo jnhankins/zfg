@@ -7,19 +7,17 @@ import static zfg.antlr.ZfgLexer.CMP;
 import static zfg.antlr.ZfgLexer.DEC;
 import static zfg.antlr.ZfgLexer.DIV;
 import static zfg.antlr.ZfgLexer.EQL;
-import static zfg.antlr.ZfgLexer.EQR;
 import static zfg.antlr.ZfgLexer.FltLit;
-import static zfg.antlr.ZfgLexer.GEQ;
+import static zfg.antlr.ZfgLexer.GTE;
 import static zfg.antlr.ZfgLexer.GTN;
 import static zfg.antlr.ZfgLexer.INC;
 import static zfg.antlr.ZfgLexer.IOR;
 import static zfg.antlr.ZfgLexer.IntLit;
-import static zfg.antlr.ZfgLexer.LEQ;
+import static zfg.antlr.ZfgLexer.LTE;
 import static zfg.antlr.ZfgLexer.LTN;
 import static zfg.antlr.ZfgLexer.MOD;
 import static zfg.antlr.ZfgLexer.MUL;
 import static zfg.antlr.ZfgLexer.NEQ;
-import static zfg.antlr.ZfgLexer.NER;
 import static zfg.antlr.ZfgLexer.NOT;
 import static zfg.antlr.ZfgLexer.REM;
 import static zfg.antlr.ZfgLexer.SHL;
@@ -28,6 +26,7 @@ import static zfg.antlr.ZfgLexer.SUB;
 import static zfg.antlr.ZfgLexer.XOR;
 
 import org.antlr.v4.runtime.ParserRuleContext;
+import org.antlr.v4.runtime.Token;
 
 import zfg.antlr.ZfgParser.AssignExprContext;
 import zfg.antlr.ZfgParser.ExpressionContext;
@@ -38,14 +37,22 @@ import zfg.antlr.ZfgParser.PathContext;
 import zfg.antlr.ZfgParser.PathExprContext;
 import zfg.antlr.ZfgParser.PostfixExprContext;
 import zfg.antlr.ZfgParser.PrefixExprContext;
-import zfg.ast.node.ConExpr;
-import zfg.ast.node.Expr;
-import zfg.ast.type.Type;
-import zfg.ast.type.ValType;
+import zfg.ast.Expr.Const;
 import zfg.core.operation.Add;
+import zfg.core.operation.Mul;
+import zfg.core.operation.Sub;
 import zfg.core.primative.Bit;
+import zfg.core.primative.F32;
+import zfg.core.primative.F64;
+import zfg.core.primative.I08;
+import zfg.core.primative.I16;
+import zfg.core.primative.I32;
+import zfg.core.primative.I64;
+import zfg.core.primative.U08;
+import zfg.core.primative.U16;
+import zfg.core.primative.U32;
+import zfg.core.primative.U64;
 import zfg.core.primative.Val;
-import zfg.core.primative.Val.Int;
 
 public class Parser {
   public static class ParserException extends RuntimeException {
@@ -75,17 +82,24 @@ public class Parser {
   public Expr visitLiteralExpr(final LiteralExprContext ctx) {
     final String str = ctx.lit.getText();
     return switch (ctx.lit.getType()) {
-      case BitLit -> Bit.parseBit(str)
-        .map(val -> new LiteralExpr(ctx, val))
-        .orElseThrow(() -> new RuntimeException("Invalid bit literal: " + ctx));
-      case IntLit -> Int.parseInt(str)
-        .map(val -> new LiteralExpr(ctx, val))
-        .orElseThrow(() -> new RuntimeException("Invalid int literal: " + ctx));
-      case FltLit -> Flt.parseFlt(str)
-        .map(val -> new LiteralExpr(ctx, val))
-        .orElseThrow(() -> new RuntimeException("Invalid flt literal: " + ctx));
+      case BitLit -> Literal.parseBit(str)
+          .map(val -> new Const(val, Type.bit))
+          .orElseThrow(() -> new ParserException(ctx, "Invalid bit literal"));
+      case IntLit -> Literal.parseInt(str, hasContiguousNegPrefix(ctx))
+          .map(val -> new Const(val, Type.of(val)))
+          .orElseThrow(() -> new ParserException(ctx, "Invalid int literal"));
+      case FltLit -> Literal.parseFlt(str)
+          .map(val -> new Const(val, Type.of(val)))
+          .orElseThrow(() -> new ParserException(ctx, "Invalid flt literal"));
       default -> throw new AssertionError();
     };
+  }
+
+  /** @see Literal.parseInt */
+  private boolean hasContiguousNegPrefix(final LiteralExprContext ctx) {
+    if (!(ctx.parent instanceof PrefixExprContext)) return false;
+    final Token op = ((PrefixExprContext) ctx.parent).op;
+    return op.getType() == SUB && op.getStopIndex() == ctx.getStart().getStartIndex() - 1;
   }
 
   public Expr visitGroupExpr(final GroupExprContext ctx) {
@@ -126,13 +140,11 @@ public class Parser {
       case IOR -> visitIorExpr(ctx); // a | b
       case CMP -> visitCmpExpr(ctx); // a <=> b
       case LTN -> visitLtnExpr(ctx); // a < b
+      case LTE -> visitLteExpr(ctx); // a <= b
       case GTN -> visitGtnExpr(ctx); // a > b
-      case LEQ -> visitLeqExpr(ctx); // a <= b
-      case GEQ -> visitGeqExpr(ctx); // a >= b
+      case GTE -> visitGteExpr(ctx); // a >= b
       case EQL -> visitEqlExpr(ctx); // a == b
       case NEQ -> visitNeqExpr(ctx); // a != b
-      case EQR -> visitEqrExpr(ctx); // a === b
-      case NER -> visitNerExpr(ctx); // a !== b
       default -> throw new AssertionError();
     };
   }
@@ -176,57 +188,35 @@ public class Parser {
     throw new UnsupportedOperationException("TODO");
   }
 
+  static class Pair<A, B> {
+    public final A a;
+    public final B b;
+    public Pair(final A a, final B b) {
+      this.a = a;
+      this.b = b;
+    }
+  }
+
+
   public Expr visitAddExpr(final InfixExprContext ctx) {
-    // Post-order traversal
-    final Expr lhsExpr = visitExpression(ctx.lhs);
-    final Expr rhsExpr = visitExpression(ctx.rhs);
-    // Type checking
-    // - Both input types must be be bit, uxx, ixx, or fxx
-    // - Cannot both be bit
-    // - If one type is uxx and the other is ixx, than the ixx must be wider than the uxx
-    final Type lhsType = lhsExpr.type();
-    final Type rhsType = rhsExpr.type();
-    if (!(lhsType instanceof ValType)) throw new RuntimeException();
-    if (!(rhsType instanceof ValType)) throw new RuntimeException();
-    final ValType lhsValType = (ValType) lhsType;
-    final ValType rhsValType = (ValType) rhsType;
-    //
-    if (
-      (lhsValType == ValType.bit && rhsValType == ValType.bit)) ||
-      (lhsValType.flags & IXX != 0 == ValType.bit && rhsValType == ValType.bit))
-      {
-      throw new ParserException(ctx, String.format(
-        "Cannot apply operator \"%s\" to types: %s and %s", "add", lhsValType, rhsValType
-      ));
-    }
-
-    final ValType outValType = lhsValType.compareTo(rhsValType) >= 0 ? lhsValType : rhsValType;
-
-    // Implicit type conversion
-    final Expr lhs = implCast(lhsExpr, outValType);
-    final Expr rhs = implCast(rhsExpr, outValType);
-    // Constant folding
-    if (lhs instanceof ConExpr && rhs instanceof ConExpr) {
-      final Val lhsVal = ((ConExpr) lhs).val();
-      final Val rhsVal = ((ConExpr) rhs).val();
-      @SuppressWarnings("unchecked")
-      final Val outVal = ((Add.I<Val>)lhsVal).add(rhsVal);
-      return new ConExpr(outVal, outValType);
-    }
-    // Return
-    return new AddExpr(lhs, rhs, outValType);
+    return handleBinOpExpr(ctx, "add", Add::apply, (lhs, lhsVal, rhs, rhsVal, outType) -> {
+      // Simplification
+      return new Expr.AddOp(lhs, rhs, outType);
+    });
   }
 
   public Expr visitSubExpr(final InfixExprContext ctx) {
-    final Expr lhs = visitExpression(ctx.lhs);
-    final Expr rhs = visitExpression(ctx.rhs);
-    throw new UnsupportedOperationException("TODO");
+    return handleBinOpExpr(ctx, "subtract", Sub::apply, (lhs, lhsVal, rhs, rhsVal, outType) -> {
+      // Simplification
+      return new Expr.SubOp(lhs, rhs, outType);
+    });
   }
 
   public Expr visitMulExpr(final InfixExprContext ctx) {
-    final Expr lhs = visitExpression(ctx.lhs);
-    final Expr rhs = visitExpression(ctx.rhs);
-    throw new UnsupportedOperationException("TODO");
+    return handleBinOpExpr(ctx, "multiply", Mul::apply, (lhs, lhsVal, rhs, rhsVal, outType) -> {
+      // Simplification
+      return new Expr.MulOp(lhs, rhs, outType);
+    });
   }
 
   public Expr visitDivExpr(final InfixExprContext ctx) {
@@ -295,13 +285,13 @@ public class Parser {
     throw new UnsupportedOperationException("TODO");
   }
 
-  public Expr visitLeqExpr(final InfixExprContext ctx) {
+  public Expr visitLteExpr(final InfixExprContext ctx) {
     final Expr lhs = visitExpression(ctx.lhs);
     final Expr rhs = visitExpression(ctx.rhs);
     throw new UnsupportedOperationException("TODO");
   }
 
-  public Expr visitGeqExpr(final InfixExprContext ctx) {
+  public Expr visitGteExpr(final InfixExprContext ctx) {
     final Expr lhs = visitExpression(ctx.lhs);
     final Expr rhs = visitExpression(ctx.rhs);
     throw new UnsupportedOperationException("TODO");
@@ -330,55 +320,108 @@ public class Parser {
     final Expr rhs = visitExpression(ctx.rhs);
     throw new UnsupportedOperationException("TODO");
   }
+
+
+
+  public Expr handleBinOpExpr(
+    final InfixExprContext ctx,
+    final String name,
+    final BinConstEval eval,
+    final BinExprFactory factory
+  ) {
+    // Post-order traversal
+    final Expr lhsExpr = visitExpression(ctx.lhs);
+    final Expr rhsExpr = visitExpression(ctx.rhs);
+
+    // Type checking
+    final Type lhsType = lhsExpr.type();
+    final Type rhsType = rhsExpr.type();
+    if (
+      // Both input type must be numeric
+      !(lhsType instanceof Type.Num) ||
+      !(rhsType instanceof Type.Num) ||
+      // The input type must not both be bit
+      !(lhsType instanceof Type.Bit && lhsType instanceof Type.Bit) ||
+      // If one type is ixx and the other is uxx, than the ixx type must be wider than the uxx type
+      (rhsType instanceof Type.Ixx && lhsType instanceof Type.Uxx && rhsType.nbits() <= lhsType.nbits()) ||
+      (lhsType instanceof Type.Ixx && rhsType instanceof Type.Uxx && lhsType.nbits() <= rhsType.nbits())
+    ) throw new ParserException(ctx, String.format(
+      "Cannot apply operator \"%s\" to types: %s and %s", name, lhsType, rhsType
+    ));
+
+    // Determine output type
+    final Type outType = lhsType.order() >= rhsType.order() ? lhsType : rhsType;
+
+    // Implicit type conversion
+    final Expr lhs = lhsExpr.type().equals(outType) ? lhsExpr : new Expr.Widen(lhsExpr, outType);
+    final Expr rhs = rhsExpr.type().equals(outType) ? rhsExpr : new Expr.Widen(rhsExpr, outType);
+
+    // Constant folding
+    final Val lhsVal = lhs instanceof Const ? ((Const) lhs).val() : null;
+    final Val rhsVal = rhs instanceof Const ? ((Const) rhs).val() : null;
+    if (lhsVal != null && rhsVal != null) return new Const(eval.eval(lhsVal, rhsVal), outType);
+
+    // Simplification
+    // TODO: IEEE 754 floating point rules need to be applied here
+    // if (isZero(rhsVal)) return lhs; //   0 + rhs => rhs
+    // if (isZero(lhsVal)) return rhs; // lhs + 0   => rhs
+    // if (isNaN(rhsVal))  return rhs; // NaN + rhs => NaN
+    // if (isNaN(lhsVal))  return rhs; // lhs + NaN => NaN
+
+    // Return the expression
+    return new Expr.SubOp(lhs, rhs, outType);
+  }
+
+  @FunctionalInterface
+  private static interface BinConstEval {
+    Val eval(Val lhs, final Val rhs);
+  }
+
+  @FunctionalInterface
+  private static interface BinExprFactory {
+    Expr create(Expr lhs, final Val lhsVal, final Expr rhs, final Val rhsVal, final Type outType);
+  }
+
+
+  private boolean isZero(final Val val) {
+    return switch (val) {
+      case Bit v -> v.value == 0;
+      case U08 v -> v.value == 0;
+      case U16 v -> v.value == 0;
+      case U32 v -> v.value == 0;
+      case U64 v -> v.value == 0L;
+      case I08 v -> v.value == 0;
+      case I16 v -> v.value == 0;
+      case I32 v -> v.value == 0;
+      case I64 v -> v.value == 0L;
+      case F32 v -> v.value == 0.0f;
+      case F64 v -> v.value == 0.0d;
+      default -> throw new AssertionError();
+    };
+  }
+
+  private boolean isOne(final Val val) {
+    return switch (val) {
+      case Bit v -> v.value == 1;
+      case U08 v -> v.value == 1;
+      case U16 v -> v.value == 1;
+      case U32 v -> v.value == 1;
+      case U64 v -> v.value == 1L;
+      case I08 v -> v.value == 1;
+      case I16 v -> v.value == 1;
+      case I32 v -> v.value == 1;
+      case I64 v -> v.value == 1L;
+      case F32 v -> v.value == 1.0f;
+      case F64 v -> v.value == 1.0d;
+      default -> throw new AssertionError();
+    };
+  }
+
+  private boolean isNaN(final Val val) {
+    return switch (val) {
+      case F32 v -> Float.isNaN(v.value);
+      case F64 v -> Double.isNaN(v.value);
+      default -> false;
+    };
+  }
 }
-
-// Order
-// Logic
-// Arith
-// Shift
-
-
-// Ordered:     Cmp(<=>), Gtn(>), Geq(>=), Leq(<=), Ltn(<), Eql(==), Neq(!=)
-// Arithmetic:  Neg(-.), Add(+), Sub(-), Mul(*), Div(/), Rem(%), Mod(&&)
-// Bitwise:     Not(!), And(&), Xor(^), Ior(|), Shl(<<), Shr(>>)
-// ShortCircut: And(&&), Ior(||)
-
-// set bit n     a |  (1 << b)
-// unset bit n   a & ~(1 << b)
-// toggle bit n  a ^  (1 << b)
-// test bit n    (a >>> b) & 1 != 0
-
-// NOT      !a   ,    ~a
-// AND    a && b ,   a & b
-// NAND !(a && b), ~(a & b)
-// IOR    a || b ,   a | b
-// XOR    a != b ,   a ^ b
-// NOR  !(a || b), ~(a | b)
-// NXOR   a == b ,    a ^ b
-// XNOR ~(a ^ b)
-
-/**
- * a0b0 a0b1
- * a1b0 a1b1
-          nor
-  F                    !a
-  0 0    1 0    0 1    1 1
-  0 0    0 0    0 0    0 0
-  a&!b   !b     a^b  !(a&b)
-  0 0    1 0    0 1    1 1
-  1 0    1 0    1 0    1 0
-  a&b   !(a^b)  b      !a|b
-  0 0    1 0    0 1    1 1
-  0 1    0 1    0 1    0 1
-
-  a      a|!b   a|b    T
-  0 0    1 0    0 1    1 1
-  1 1    1 1    1 1    1 1
-
-  (!a && !b) || (a && b)
-  !(!(!a && !b) && !(a && b))
-  !((a || b) && (!a || !b))
-
-
-*/
-

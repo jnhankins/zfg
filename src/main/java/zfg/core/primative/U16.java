@@ -36,7 +36,7 @@ public final class U16 implements Uxx,
   @Override public final Bit geq(final U16 rhs) { return Geq.u16(this, rhs); }
   @Override public final Bit eql(final U16 rhs) { return Eql.u16(this, rhs); }
   @Override public final Bit neq(final U16 rhs) { return Neq.u16(this, rhs); }
-  @Override public final U16 add(final U16 rhs) { return Add.add(this, rhs); }
+  @Override public final U16 add(final U16 rhs) { return Add.u16(this, rhs); }
   @Override public final U16 sub(final U16 rhs) { return Sub.u16(this, rhs); }
   @Override public final U16 mul(final U16 rhs) { return Mul.u16(this, rhs); }
   @Override public final U16 div(final U16 rhs) { return Div.u16(this, rhs); }
