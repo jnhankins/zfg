@@ -2,6 +2,8 @@ package zfg.core.primative;
 
 /**
  * val         : value
+ * ├─void      : empty type
+ * ├─unit      :
  * ├─ref       : reference
  * │ ├─arr     : data accessed by offset
  * │ ├─obj     : data accessed by key

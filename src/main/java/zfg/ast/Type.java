@@ -25,15 +25,16 @@ package zfg.ast;
  *   └─fun     : function, no data
  */
 public sealed interface Type {
-  public int nbits();
-  public int order();
+  public int fsize(); // frame size
+  public int nbits(); // nominal number of bits
+  public int order(); // type-widening order
 
   public static sealed interface Wxx extends Type {}
-  public static sealed interface W01 extends Wxx { public default int nbits() { return 1; } }
-  public static sealed interface W08 extends Wxx { public default int nbits() { return 8; } }
-  public static sealed interface W16 extends Wxx { public default int nbits() { return 16; } }
-  public static sealed interface W32 extends Wxx { public default int nbits() { return 32; } }
-  public static sealed interface W64 extends Wxx { public default int nbits() { return 64; } }
+  public static sealed interface W01 extends Wxx { public default int fsize() { return 1; }; public default int nbits() { return 1; } }
+  public static sealed interface W08 extends Wxx { public default int fsize() { return 1; }; public default int nbits() { return 8; } }
+  public static sealed interface W16 extends Wxx { public default int fsize() { return 1; }; public default int nbits() { return 16; } }
+  public static sealed interface W32 extends Wxx { public default int fsize() { return 1; }; public default int nbits() { return 32; } }
+  public static sealed interface W64 extends Wxx { public default int fsize() { return 2; }; public default int nbits() { return 64; } }
 
   public static sealed interface Val extends    Type     {}
   public static sealed interface Num extends    Val      {}

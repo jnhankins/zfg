@@ -1,0 +1,26 @@
+
+
+let main() void = {
+  let x = 4
+  mut y var = 2.4  ; let z: i32 = x + y + y;
+  let a = z += x += y
+  ret a
+}
+
+let add(let x i32, let y i32) i32 = {
+  return x + y
+}
+let inc(x) = add(_, 1)
+let sub(x i32, y i32) var = x - y
+let
+
+
+fun fib(let x i32) i32 {
+  return match x {
+    case 0 { 0 }
+    case 1 { 1 }
+    case _ { fib(x-1, x-2) }
+  }
+}
+
+

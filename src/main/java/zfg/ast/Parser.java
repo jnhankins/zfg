@@ -1,66 +1,62 @@
 package zfg.ast;
 
-import static zfg.antlr.ZfgLexer.ADD;
-import static zfg.antlr.ZfgLexer.AND;
 import static zfg.antlr.ZfgLexer.BitLit;
-import static zfg.antlr.ZfgLexer.CMP;
-import static zfg.antlr.ZfgLexer.DEC;
-import static zfg.antlr.ZfgLexer.DIV;
-import static zfg.antlr.ZfgLexer.EQL;
 import static zfg.antlr.ZfgLexer.FltLit;
-import static zfg.antlr.ZfgLexer.GTE;
-import static zfg.antlr.ZfgLexer.GTN;
-import static zfg.antlr.ZfgLexer.INC;
-import static zfg.antlr.ZfgLexer.IOR;
 import static zfg.antlr.ZfgLexer.IntLit;
-import static zfg.antlr.ZfgLexer.LTE;
-import static zfg.antlr.ZfgLexer.LTN;
-import static zfg.antlr.ZfgLexer.MOD;
-import static zfg.antlr.ZfgLexer.MUL;
-import static zfg.antlr.ZfgLexer.NEQ;
-import static zfg.antlr.ZfgLexer.NOT;
-import static zfg.antlr.ZfgLexer.REM;
-import static zfg.antlr.ZfgLexer.SHL;
-import static zfg.antlr.ZfgLexer.SHR;
 import static zfg.antlr.ZfgLexer.SUB;
-import static zfg.antlr.ZfgLexer.XOR;
+
+import java.lang.foreign.MemorySegment.Scope;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Stack;
 
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.Token;
+import org.antlr.v4.runtime.tree.ParseTree;
+import org.antlr.v4.runtime.tree.RuleNode;
+import org.antlr.v4.runtime.tree.TerminalNode;
 
 import zfg.antlr.ZfgLexer;
 import zfg.antlr.ZfgParser;
-import zfg.antlr.ZfgParser.AssignExprContext;
-import zfg.antlr.ZfgParser.ExpressionContext;
-import zfg.antlr.ZfgParser.GroupExprContext;
-import zfg.antlr.ZfgParser.InfixExprContext;
+import zfg.antlr.ZfgParser.AssignmentExprContext;
+import zfg.antlr.ZfgParser.AssignmentStmtContext;
+import zfg.antlr.ZfgParser.CompilationUnitContext;
+import zfg.antlr.ZfgParser.DeclarationStmtContext;
+import zfg.antlr.ZfgParser.FunctionCallExprContext;
+import zfg.antlr.ZfgParser.FunctionCallStmtContext;
+import zfg.antlr.ZfgParser.FunctionReturnStmtContext;
+import zfg.antlr.ZfgParser.GroupedExprContext;
+import zfg.antlr.ZfgParser.IdentifierContext;
+import zfg.antlr.ZfgParser.IfElseStmtContext;
+import zfg.antlr.ZfgParser.InfixOpExprContext;
 import zfg.antlr.ZfgParser.LiteralExprContext;
-import zfg.antlr.ZfgParser.PathContext;
-import zfg.antlr.ZfgParser.PathExprContext;
-import zfg.antlr.ZfgParser.PostfixExprContext;
-import zfg.antlr.ZfgParser.PrefixExprContext;
-import zfg.antlr.ZfgParser.StartContext;
-import zfg.ast.Expr.Const;
-import zfg.core.operation.Add;
-import zfg.core.operation.Mul;
-import zfg.core.operation.Sub;
-import zfg.core.primative.Bit;
-import zfg.core.primative.F32;
-import zfg.core.primative.F64;
-import zfg.core.primative.I08;
-import zfg.core.primative.I16;
-import zfg.core.primative.I32;
-import zfg.core.primative.I64;
-import zfg.core.primative.U08;
-import zfg.core.primative.U16;
-import zfg.core.primative.U32;
-import zfg.core.primative.U64;
-import zfg.core.primative.Val;
+import zfg.antlr.ZfgParser.LoopBreakStmtContext;
+import zfg.antlr.ZfgParser.LoopContinueStmtContext;
+import zfg.antlr.ZfgParser.LoopForStmtContext;
+import zfg.antlr.ZfgParser.LoopStmtContext;
+import zfg.antlr.ZfgParser.LoopWhileStmtContext;
+import zfg.antlr.ZfgParser.PostfixOpExprContext;
+import zfg.antlr.ZfgParser.PrefixOpExprContext;
+import zfg.antlr.ZfgParser.StatementContext;
+import zfg.antlr.ZfgParser.VariableExprContext;
+import zfg.ast.Node.Const;
+import zfg.ast.Type.Val;
 
-public class Parser {
+public final class Parser {
+  public static final class ParserException extends RuntimeException {
+    public ParserException(final ParserRuleContext ctx, final String message) { this(ctx, message, null); }
+    public ParserException(final ParserRuleContext ctx, final Throwable cause) { this(ctx, null, cause); }
+    public ParserException(final ParserRuleContext ctx, final String message, final Throwable cause) { super(message, cause); }
+  }
+
+  public static Node parse(final Path path) {
+    try { return parse(CharStreams.fromPath(path)); }
+    catch (final Exception e) { throw new RuntimeException(e); }
+  }
 
   public static Node parse(final String source, final String sourceName) {
     return parse(CharStreams.fromString(source, sourceName));
@@ -70,55 +66,133 @@ public class Parser {
     System.out.println("source: " + source.getSourceName());
     System.out.println(">" + source.toString().replaceAll("\\r?\\n", "\n>"));
 
-    final ZfgLexer lexer = new ZfgLexer(source);
-    final CommonTokenStream tokens = new CommonTokenStream(lexer);
-    System.out.println("tokens: " + PrettyPrint.toPrettyTokensString(lexer, tokens));
+    // Lexical Analysis
+    final ZfgLexer zfgLexer = new ZfgLexer(source);
+    final CommonTokenStream tokens = new CommonTokenStream(zfgLexer);
+    System.out.println("tokens: " + PrettyPrint.toPrettyTokensString(zfgLexer, tokens));
 
-    final ZfgParser parser = new ZfgParser(tokens);
-    final StartContext start = parser.start();
-    System.out.println("parsed: " + start.toStringTree(parser));
-    System.out.println("tree:\n" + PrettyPrint.toPrettyTreeString(parser, start));
+    // Syntax Analysis
+    final ZfgParser zfgParser = new ZfgParser(tokens);
+    final CompilationUnitContext parsed = zfgParser.compilationUnit();
+    System.out.println("parsed: " + parsed.toStringTree(zfgParser));
+    System.out.println("tree:\n" + PrettyPrint.toPrettyTreeString(zfgParser, parsed));
 
+    // Semantic Analysis
     final Parser parser = new Parser();
-    final Node parsed = parser.visitStart(start);
+    final Node root = parser.visitCompilationUnit(parsed);
+    System.out.println("parsed: " + root);
+    System.out.println("tree: " + PrettyPrint.toPrettyTreeString(root));
 
-    return parsed;
+    return root;
   }
 
-  public static class ParserException extends RuntimeException {
-    public ParserException(final ParserRuleContext ctx, final String message) { this(ctx, message, null); }
-    public ParserException(final ParserRuleContext ctx, final Throwable cause) { this(ctx, null, cause); }
-    public ParserException(final ParserRuleContext ctx, final String message, final Throwable cause) { super(message, cause); }
+  private static sealed interface Symbol {}
+  private static final class LocVar implements Symbol {
+    private final String name;
+    private final Val type;
+    private final int offset;
+    LocVar(final String name, final Val type, final int offset) {
+      this.name = name;
+      this.type = type;
+      this.offset = offset;
+    }
+    private final String name() { return name; }
+    private final Val type() { return type; }
+    private final int offset() { return offset; }
   }
 
+  private static class SymbolTable {
+    private final Stack<Scope> scopes = new Stack<>();
 
-
-  public static Expr parse(final ExpressionContext ctx) {
-
-    return new Parser().visitExpression(ctx);
+    void pushScope() { scopes.push(null); }
+    void popScope() { scopes.pop(); }
+    void get(final String name) { throw new UnsupportedOperationException(); }
+    void define(final String name) { throw new UnsupportedOperationException(); }
   }
 
+  public final SymbolTable symbolTable = new SymbolTable();
 
+	public final Node visitCompilationUnit(final CompilationUnitContext ctx) {
+    final List<Node> children = new ArrayList<>();
+    for (final StatementContext statement : ctx.statement())
+      children.add(visitStatement(statement));
+    return new Node.CompilationUnit(children);
+  }
 
-  public Expr visitExpression(final ExpressionContext ctx) {
+  public final Node visitStatement(final StatementContext ctx) {
     return switch (ctx) {
-      case PathExprContext    sub -> visitPathExpr(sub);
-      case LiteralExprContext sub -> visitLiteralExpr(sub);
-      case GroupExprContext   sub -> visitGroupExpr(sub);
-      case PostfixExprContext sub -> visitPostfixExpr(sub);
-      case PrefixExprContext  sub -> visitPrefixExpr(sub);
-      case InfixExprContext   sub -> visitInfixExpr(sub);
-      case AssignExprContext  sub -> visitAssignExpr(sub);
+      case DeclarationStmtContext    stmt -> visitDeclarationStmt(stmt);
+      case AssignmentStmtContext     stmt -> visitAssignmentStmt(stmt);
+      case FunctionCallStmtContext   stmt -> visitFunctionCallStmt(stmt);
+      case IfElseStmtContext         stmt -> visitIfElseStmt(stmt);
+      case LoopStmtContext           stmt -> visitLoopStmt(stmt);
+      case LoopWhileStmtContext      stmt -> visitLoopWhileStmt(stmt);
+      case LoopForStmtContext        stmt -> visitLoopForStmt(stmt);
+      case LoopBreakStmtContext      stmt -> visitLoopBreakStmt(stmt);
+      case LoopContinueStmtContext   stmt -> visitLoopContinueStmt(stmt);
+      case FunctionReturnStmtContext stmt -> visitFunctionReturnStmt(stmt);
+      default -> throw new AssertionError();
+    };
+  }
+  private Node visitDeclarationStmt(DeclarationStmtContext stmt) {
+    throw new UnsupportedOperationException();
+  }
+  private Node visitAssignmentStmt(AssignmentStmtContext stmt) {
+    throw new UnsupportedOperationException();
+  }
+  private Node visitFunctionCallStmt(FunctionCallStmtContext stmt) {
+    throw new UnsupportedOperationException("todo later");
+  }
+  private Node visitIfElseStmt(IfElseStmtContext stmt) {
+    throw new UnsupportedOperationException("todo later");
+  }
+  private Node visitLoopStmt(LoopStmtContext stmt) {
+    throw new UnsupportedOperationException("todo later");
+  }
+  private Node visitLoopWhileStmt(LoopWhileStmtContext stmt) {
+    throw new UnsupportedOperationException("todo later");
+  }
+  private Node visitLoopForStmt(LoopForStmtContext stmt) {
+    throw new UnsupportedOperationException("todo later");
+  }
+  private Node visitLoopBreakStmt(LoopBreakStmtContext stmt) {
+    throw new UnsupportedOperationException("todo later");
+  }
+  private Node visitLoopContinueStmt(LoopContinueStmtContext stmt) {
+    throw new UnsupportedOperationException("todo later");
+  }
+  private Node visitFunctionReturnStmt(FunctionReturnStmtContext stmt) {
+    throw new UnsupportedOperationException();
+  }
+
+
+  public final Node visitExpression(final ZfgParser.ExpressionContext ctx) {
+    return switch (ctx) {
+      case FunctionCallExprContext expr -> visitFunctionCallExpr(expr);
+      case VariableExprContext     expr -> visitVariableExpr(expr);
+      case LiteralExprContext      expr -> visitLiteralExpr(expr);
+      case GroupedExprContext      expr -> visitGroupedExpr(expr);
+      case PostfixOpExprContext    expr -> visitPostfixOpExpr(expr);
+      case PrefixOpExprContext     expr -> visitPrefixOpExpr(expr);
+      case InfixOpExprContext      expr -> visitInfixOpExpr(expr);
+      case AssignmentExprContext   expr -> visitAssignmentExpr(expr);
       default -> throw new AssertionError();
     };
   }
 
-  public Expr visitPathExpr(final PathExprContext ctx) {
-    final PathContext pathCtx = ctx.path();
-    throw new UnsupportedOperationException("TODO");
+  public final Node visitFunctionCallExpr(final FunctionCallExprContext ctx) {
+    throw new UnsupportedOperationException("todo later");
   }
 
-  public Expr visitLiteralExpr(final LiteralExprContext ctx) {
+  public final Node visitVariableExpr(final VariableExprContext ctx) {
+    // Post-order traversal
+    final Symbol id = visitIdentifier(ctx.identifier());
+
+
+    throw new UnsupportedOperationException();
+  }
+
+  public final Node visitLiteralExpr(final LiteralExprContext ctx) {
     final String str = ctx.lit.getText();
     return switch (ctx.lit.getType()) {
       case BitLit -> Literal.parseBit(str)
@@ -136,331 +210,143 @@ public class Parser {
 
   /** @see Literal.parseInt */
   private boolean hasContiguousNegPrefix(final LiteralExprContext ctx) {
-    if (!(ctx.parent instanceof PrefixExprContext)) return false;
-    final Token op = ((PrefixExprContext) ctx.parent).op;
-    return op.getType() == SUB && op.getStopIndex() == ctx.getStart().getStartIndex() - 1;
+    if (!(ctx.parent instanceof PostfixOpExprContext)) return false;
+    final Token op = ((PostfixOpExprContext) ctx.parent).op;
+    return op.getType() == SUB && op.getStopIndex() + 1 == ctx.getStart().getStartIndex();
   }
 
-  public Expr visitGroupExpr(final GroupExprContext ctx) {
+  public final Node visitGroupedExpr(final GroupedExprContext ctx) {
     return visitExpression(ctx.expression());
   }
 
-  public Expr visitPostfixExpr(final PostfixExprContext ctx) {
-    return switch (ctx.op.getType()) {
-      case INC -> visitPostIncExpr(ctx); // a++
-      case DEC -> visitPostDecExpr(ctx); // a--
-      default -> throw new AssertionError();
-    };
+  public final Node visitPostfixOpExpr(final PostfixOpExprContext ctx) {
+    throw new UnsupportedOperationException("todo later");
   }
 
-  public Expr visitPrefixExpr(final PrefixExprContext ctx) {
-    return switch (ctx.op.getType()) {
-      case INC -> visitPreIncExpr(ctx); // ++a
-      case DEC -> visitPreDecExpr(ctx); // --a
-      case ADD -> visitPosExpr(ctx); // +a
-      case SUB -> visitNegExpr(ctx); // -a
-      case NOT -> visitNotExpr(ctx); // !a
-      default -> throw new AssertionError();
-    };
+  public final Node visitPrefixOpExpr(final PrefixOpExprContext ctx) {
+    throw new UnsupportedOperationException("todo later");
   }
 
-  public Expr visitInfixExpr(final InfixExprContext ctx) {
-    return switch (ctx.op.getType()) {
-      case MUL -> visitMulExpr(ctx); // a * b
-      case DIV -> visitDivExpr(ctx); // a / b
-      case REM -> visitRemExpr(ctx); // a % b
-      case MOD -> visitModExpr(ctx); // a %% b
-      case ADD -> visitAddExpr(ctx); // a + b
-      case SUB -> visitSubExpr(ctx); // a - b
-      case SHL -> visitShlExpr(ctx); // a << b
-      case SHR -> visitShrExpr(ctx); // a >> b
-      case AND -> visitAndExpr(ctx); // a & b
-      case XOR -> visitXorExpr(ctx); // a ^ b
-      case IOR -> visitIorExpr(ctx); // a | b
-      case CMP -> visitCmpExpr(ctx); // a <=> b
-      case LTN -> visitLtnExpr(ctx); // a < b
-      case LTE -> visitLteExpr(ctx); // a <= b
-      case GTN -> visitGtnExpr(ctx); // a > b
-      case GTE -> visitGteExpr(ctx); // a >= b
-      case EQL -> visitEqlExpr(ctx); // a == b
-      case NEQ -> visitNeqExpr(ctx); // a != b
-      default -> throw new AssertionError();
-    };
+  public final Node visitInfixOpExpr(final InfixOpExprContext ctx) {
+    throw new UnsupportedOperationException();
   }
 
-  public Expr visitAssignExpr(final AssignExprContext ctx) {
-    throw new UnsupportedOperationException("TODO");
+  public final Node visitAssignmentExpr(final AssignmentExprContext ctx) {
+    throw new UnsupportedOperationException();
   }
 
-  public Expr visitPostIncExpr(final PostfixExprContext ctx) {
-    final Expr lhs = visitExpression(ctx.lhs);
-    throw new UnsupportedOperationException("TODO");
-  }
+  public final Symbol visitIdentifier(final IdentifierContext ctx) {
+    final List<ParseTree> children = ctx.children;
+    final int nChildren = children.size();
 
-  public Expr visitPostDecExpr(final PostfixExprContext ctx) {
-    final Expr lhs = visitExpression(ctx.lhs);
-    throw new UnsupportedOperationException("TODO");
-  }
-
-  public Expr visitPreIncExpr(final PrefixExprContext ctx) {
-    final Expr rhs = visitExpression(ctx.rhs);
-    throw new UnsupportedOperationException("TODO");
-  }
-
-  public Expr visitPreDecExpr(final PrefixExprContext ctx) {
-    final Expr rhs = visitExpression(ctx.rhs);
-    throw new UnsupportedOperationException("TODO");
-  }
-
-  public Expr visitPosExpr(final PrefixExprContext ctx) {
-    final Expr rhs = visitExpression(ctx.rhs);
-    throw new UnsupportedOperationException("TODO");
-  }
-
-  public Expr visitNegExpr(final PrefixExprContext ctx) {
-    final Expr rhs = visitExpression(ctx.rhs);
-    throw new UnsupportedOperationException("TODO");
-  }
-
-  public Expr visitNotExpr(final PrefixExprContext ctx) {
-    final Expr rhs = visitExpression(ctx.rhs);
-    throw new UnsupportedOperationException("TODO");
-  }
-
-  static class Pair<A, B> {
-    public final A a;
-    public final B b;
-    public Pair(final A a, final B b) {
-      this.a = a;
-      this.b = b;
+    final List<String> path = new ArrayList<>(nChildren / 2 + 1);
+    for (int i = 0; i < nChildren; i += 2) {
+      path.add(((TerminalNode) children.get(i)).getSymbol().getText());
     }
-  }
 
+    return symbolTable.resolve(ctx, path);
 
-  public Expr visitAddExpr(final InfixExprContext ctx) {
-    return handleBinOpExpr(ctx, "add", Add::apply, (lhs, lhsVal, rhs, rhsVal, outType) -> {
-      // Simplification
-      return new Expr.AddOp(lhs, rhs, outType);
-    });
-  }
-
-  public Expr visitSubExpr(final InfixExprContext ctx) {
-    return handleBinOpExpr(ctx, "subtract", Sub::apply, (lhs, lhsVal, rhs, rhsVal, outType) -> {
-      // Simplification
-      return new Expr.SubOp(lhs, rhs, outType);
-    });
-  }
-
-  public Expr visitMulExpr(final InfixExprContext ctx) {
-    return handleBinOpExpr(ctx, "multiply", Mul::apply, (lhs, lhsVal, rhs, rhsVal, outType) -> {
-      // Simplification
-      return new Expr.MulOp(lhs, rhs, outType);
-    });
-  }
-
-  public Expr visitDivExpr(final InfixExprContext ctx) {
-    final Expr lhs = visitExpression(ctx.lhs);
-    final Expr rhs = visitExpression(ctx.rhs);
-    throw new UnsupportedOperationException("TODO");
-  }
-
-  public Expr visitRemExpr(final InfixExprContext ctx) {
-    final Expr lhs = visitExpression(ctx.lhs);
-    final Expr rhs = visitExpression(ctx.rhs);
-    throw new UnsupportedOperationException("TODO");
-  }
-
-  public Expr visitModExpr(final InfixExprContext ctx) {
-    final Expr lhs = visitExpression(ctx.lhs);
-    final Expr rhs = visitExpression(ctx.rhs);
-    throw new UnsupportedOperationException("TODO");
-  }
-
-  public Expr visitAndExpr(final InfixExprContext ctx) {
-    final Expr lhs = visitExpression(ctx.lhs);
-    final Expr rhs = visitExpression(ctx.rhs);
-    throw new UnsupportedOperationException("TODO");
-  }
-
-  public Expr visitXorExpr(final InfixExprContext ctx) {
-    final Expr lhs = visitExpression(ctx.lhs);
-    final Expr rhs = visitExpression(ctx.rhs);
-    throw new UnsupportedOperationException("TODO");
-  }
-
-  public Expr visitIorExpr(final InfixExprContext ctx) {
-    final Expr lhs = visitExpression(ctx.lhs);
-    final Expr rhs = visitExpression(ctx.rhs);
-    throw new UnsupportedOperationException("TODO");
-  }
-
-  public Expr visitCmpExpr(final InfixExprContext ctx) {
-    final Expr lhs = visitExpression(ctx.lhs);
-    final Expr rhs = visitExpression(ctx.rhs);
-    throw new UnsupportedOperationException("TODO");
-  }
-
-  public Expr visitShlExpr(final InfixExprContext ctx) {
-    final Expr lhs = visitExpression(ctx.lhs);
-    final Expr rhs = visitExpression(ctx.rhs);
-    throw new UnsupportedOperationException("TODO");
-  }
-
-  public Expr visitShrExpr(final InfixExprContext ctx) {
-    final Expr lhs = visitExpression(ctx.lhs);
-    final Expr rhs = visitExpression(ctx.rhs);
-    throw new UnsupportedOperationException("TODO");
-  }
-
-  public Expr visitLtnExpr(final InfixExprContext ctx) {
-    final Expr lhs = visitExpression(ctx.lhs);
-    final Expr rhs = visitExpression(ctx.rhs);
-    throw new UnsupportedOperationException("TODO");
-  }
-
-  public Expr visitGtnExpr(final InfixExprContext ctx) {
-    final Expr lhs = visitExpression(ctx.lhs);
-    final Expr rhs = visitExpression(ctx.rhs);
-    throw new UnsupportedOperationException("TODO");
-  }
-
-  public Expr visitLteExpr(final InfixExprContext ctx) {
-    final Expr lhs = visitExpression(ctx.lhs);
-    final Expr rhs = visitExpression(ctx.rhs);
-    throw new UnsupportedOperationException("TODO");
-  }
-
-  public Expr visitGteExpr(final InfixExprContext ctx) {
-    final Expr lhs = visitExpression(ctx.lhs);
-    final Expr rhs = visitExpression(ctx.rhs);
-    throw new UnsupportedOperationException("TODO");
-  }
-
-  public Expr visitEqlExpr(final InfixExprContext ctx) {
-    final Expr lhs = visitExpression(ctx.lhs);
-    final Expr rhs = visitExpression(ctx.rhs);
-    throw new UnsupportedOperationException("TODO");
-  }
-
-  public Expr visitNeqExpr(final InfixExprContext ctx) {
-    final Expr lhs = visitExpression(ctx.lhs);
-    final Expr rhs = visitExpression(ctx.rhs);
-    throw new UnsupportedOperationException("TODO");
-  }
-
-  public Expr visitEqrExpr(final InfixExprContext ctx) {
-    final Expr lhs = visitExpression(ctx.lhs);
-    final Expr rhs = visitExpression(ctx.rhs);
-    throw new UnsupportedOperationException("TODO");
-  }
-
-  public Expr visitNerExpr(final InfixExprContext ctx) {
-    final Expr lhs = visitExpression(ctx.lhs);
-    final Expr rhs = visitExpression(ctx.rhs);
-    throw new UnsupportedOperationException("TODO");
   }
 
 
 
-  public Expr handleBinOpExpr(
-    final InfixExprContext ctx,
-    final String name,
-    final BinConstEval eval,
-    final BinExprFactory factory
-  ) {
-    // Post-order traversal
-    final Expr lhsExpr = visitExpression(ctx.lhs);
-    final Expr rhsExpr = visitExpression(ctx.rhs);
 
-    // Type checking
-    final Type lhsType = lhsExpr.type();
-    final Type rhsType = rhsExpr.type();
-    if (
-      // Both input type must be numeric
-      !(lhsType instanceof Type.Num) ||
-      !(rhsType instanceof Type.Num) ||
-      // The input type must not both be bit
-      !(lhsType instanceof Type.Bit && lhsType instanceof Type.Bit) ||
-      // If one type is ixx and the other is uxx, than the ixx type must be wider than the uxx type
-      (rhsType instanceof Type.Ixx && lhsType instanceof Type.Uxx && rhsType.nbits() <= lhsType.nbits()) ||
-      (lhsType instanceof Type.Ixx && rhsType instanceof Type.Uxx && lhsType.nbits() <= rhsType.nbits())
-    ) throw new ParserException(ctx, String.format(
-      "Cannot apply operator \"%s\" to types: %s and %s", name, lhsType, rhsType
-    ));
+	// public final Node visitNonretBlock(final NonretBlockContext ctx) {
+  //   // Post-order traversal
+  //   final List<Node> children = new ArrayList<>();
+  //   for (final NonretStatementContext statement : ctx.nonretStatement())
+  //     children.add(visitNonretStatement(statement));
+  //   // Type inference
+  //   final Val
+  //   return new Block(children, Unit);
+  // }
+	// public final Node visitReturnBlock(final ReturnBlockContext ctx) {
+  //   final List<Node> children = new ArrayList<>();
+  //   for (final NonretStatementContext statement : ctx.nonretStatement())
+  //     children.add(visitNonretStatement(statement));
+  //   return new Block(children);
+  // }
+	// public final Node visitNonretStatement(final NonretStatementContext ctx) {
+  //   return visitChildren(ctx);
+  // }
+	// public final Node visitReturnStatement(final ReturnStatementContext ctx) {
+  //   return visitChildren(ctx);
+  // }
+	// public final Node visitVariableDeclaration(final VariableDeclarationContext ctx) {
+  //   return visitChildren(ctx);
+  // }
+	// public final Node visitFunctionDeclaration(final FunctionDeclarationContext ctx) {
+  //   return visitChildren(ctx);
+  // }
+	// public final Node visitExpression(final ExpressionContext ctx) {
+  //   return switch (ctx) {
+  //     case InvocationExprContext inv -> throw new UnsupportedOperationException();
+  //     case VariableExprContext   var -> throw new UnsupportedOperationException();
+  //     case LiteralExprContext    lit -> throw new UnsupportedOperationException();
+  //     case GroupedExprContext    grp -> visitExpression(grp.expression());
+  //     case PostfixOpExprContext  suf -> throw new UnsupportedOperationException();
+  //     case PrefixOpExprContext   pre -> throw new UnsupportedOperationException();
+  //     case InfixOpExprContext    inf -> throw new UnsupportedOperationException();
+  //     case AssignmentExprContext asn -> throw new UnsupportedOperationException();
+  //     default -> throw new AssertionError();
+  //   };
+  // }
 
-    // Determine output type
-    final Type outType = lhsType.order() >= rhsType.order() ? lhsType : rhsType;
+  /**
+   * class Node {
+   * if predicate { Node } elif q { y } then y else Node
+   * }
+   */
 
-    // Implicit type conversion
-    final Expr lhs = lhsExpr.type().equals(outType) ? lhsExpr : new Expr.Widen(lhsExpr, outType);
-    final Expr rhs = rhsExpr.type().equals(outType) ? rhsExpr : new Expr.Widen(rhsExpr, outType);
+	// public final Node visitInvocationExpr(final InvocationExprContext ctx) {
+  //   return visitChildren(ctx);
+  // }
+	// public final Node visitVariableExpr(final VariableExprContext ctx) {
+  //   return visitChildren(ctx);
+  // }
+	// public final Node visitLiteralExpr(final LiteralExprContext ctx) {
+  //   return visitChildren(ctx);
+  // }
 
-    // Constant folding
-    final Val lhsVal = lhs instanceof Const ? ((Const) lhs).val() : null;
-    final Val rhsVal = rhs instanceof Const ? ((Const) rhs).val() : null;
-    if (lhsVal != null && rhsVal != null) return new Const(eval.eval(lhsVal, rhsVal), outType);
+	// public final Node visitExpression(final ExpressionContext ctx) {
+  //   return visitChildren(ctx);
+  // }
 
-    // Simplification
-    // TODO: IEEE 754 floating point rules need to be applied here
-    // if (isZero(rhsVal)) return lhs; //   0 + rhs => rhs
-    // if (isZero(lhsVal)) return rhs; // lhs + 0   => rhs
-    // if (isNaN(rhsVal))  return rhs; // NaN + rhs => NaN
-    // if (isNaN(lhsVal))  return rhs; // lhs + NaN => NaN
+	// public final Node visitGroupedExpr(final GroupedExprContext ctx) {
+  //   return visitChildren(ctx);
+  // }
 
-    // Return the expression
-    return new Expr.SubOp(lhs, rhs, outType);
-  }
+	// public final Node visitPostfixOpExpr(final PostfixOpExprContext ctx) {
+  //   return visitChildren(ctx);
+  // }
 
-  @FunctionalInterface
-  private static interface BinConstEval {
-    Val eval(Val lhs, final Val rhs);
-  }
-
-  @FunctionalInterface
-  private static interface BinExprFactory {
-    Expr create(Expr lhs, final Val lhsVal, final Expr rhs, final Val rhsVal, final Type outType);
-  }
+	// public final Node visitPrefixOpExpr(final LiteralExprContext ctx) {
+  //   return visitChildren(ctx);
+  // }
+	// public final Node visitInfixOpExpr(final InfixOpExpr ctx) {
+  //   return visitChildren(ctx);
+  // }
 
 
-  private boolean isZero(final Val val) {
-    return switch (val) {
-      case Bit v -> v.value == 0;
-      case U08 v -> v.value == 0;
-      case U16 v -> v.value == 0;
-      case U32 v -> v.value == 0;
-      case U64 v -> v.value == 0L;
-      case I08 v -> v.value == 0;
-      case I16 v -> v.value == 0;
-      case I32 v -> v.value == 0;
-      case I64 v -> v.value == 0L;
-      case F32 v -> v.value == 0.0f;
-      case F64 v -> v.value == 0.0d;
-      default -> throw new AssertionError();
-    };
-  }
+	// public final Node visitPathExpr(final PathExprContext ctx) {
+  //   return visitChildren(ctx);
+  // }
+	// public final Node visitPrefixExpr(final PrefixExprContext ctx) {
+  //   return visitChildren(ctx);
+  // }
+	// public final Node visitAssignExpr(final AssignExprContext ctx) {
+  //   return visitChildren(ctx);
+  // }
+	// public final Node visitPath(final PathContext ctx) {
+  //   return visitChildren(ctx);
+  // }
+	// public final Node visitIdentifier(final IdentifierContext ctx) {
+  //   return visitChildren(ctx);
+  // }
 
-  private boolean isOne(final Val val) {
-    return switch (val) {
-      case Bit v -> v.value == 1;
-      case U08 v -> v.value == 1;
-      case U16 v -> v.value == 1;
-      case U32 v -> v.value == 1;
-      case U64 v -> v.value == 1L;
-      case I08 v -> v.value == 1;
-      case I16 v -> v.value == 1;
-      case I32 v -> v.value == 1;
-      case I64 v -> v.value == 1L;
-      case F32 v -> v.value == 1.0f;
-      case F64 v -> v.value == 1.0d;
-      default -> throw new AssertionError();
-    };
-  }
 
-  private boolean isNaN(final Val val) {
-    return switch (val) {
-      case F32 v -> Float.isNaN(v.value);
-      case F64 v -> Double.isNaN(v.value);
-      default -> false;
-    };
-  }
+  public final Node visit(final ParseTree tree) { throw new AssertionError(); }
+  public final Node visitChildren(final RuleNode node) { throw new AssertionError(); }
+  public Node visitTerminal(final TerminalNode node) { throw new AssertionError(); }
+
 }

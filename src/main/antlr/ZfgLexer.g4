@@ -1,14 +1,25 @@
 lexer grammar ZfgLexer;
 channels { WHITESPACE_CHANNEL, COMMENTS_CHANNEL }
 
-// Keywords
-LET: 'let'; // Immutable variable declaration, cannot be reassinged without redecalration
-MUT: 'mut'; // Mutable variable declaration, can be reassigned without redecalration
-FUN: 'fun'; // Function declaration
-RET: 'ret'; // Function return value
+// Declaration Keywords
+LET: 'let'; // Immutable symbol declaration, cannot be reassinged without redecalration
+MUT: 'mut'; // Mutable symbol declaration, can be reassigned without redecalration
+
+// Control Flow Keywords
+IF:       'if'      ; // Conditional statement
+ELSE:     'else'    ; // Conditional alternative
+LOOP:     'loop'    ; // Infinite loop, aka 'while(true)'
+WHILE:    'while'   ; // Conditional loop
+FOR:      'for'     ; // Iterative loop
+BREAK:    'break'   ; // Exits nearest enclosing loop
+CONTINUE: 'continue'; // Skip to the next step of the nearest enclosing loop
+RETURN:   'return'  ; // Return from function
+
+// Inferred Types
+FUN: 'fun'; // Inferred function type
+VAR: 'var'; // Inferred data type
 
 // Primitive Types
-VAR: 'var'; // Inferred type, aka 'auto'
 BIT: 'bit'; // Single bit, aka 'boolean'
 U08: 'u08'; // 8-bit unsigned integer, aka 'char'
 U16: 'u16'; // 16-bit unsigned integer, aka 'ushort'
