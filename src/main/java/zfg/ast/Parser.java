@@ -1,14 +1,11 @@
 package zfg.ast;
 
 import static zfg.antlr.ZfgLexer.BIT;
-import static zfg.antlr.ZfgLexer.BitLit;
 import static zfg.antlr.ZfgLexer.F32;
-import static zfg.antlr.ZfgLexer.FltLit;
 import static zfg.antlr.ZfgLexer.I08;
 import static zfg.antlr.ZfgLexer.I16;
 import static zfg.antlr.ZfgLexer.I32;
 import static zfg.antlr.ZfgLexer.I64;
-import static zfg.antlr.ZfgLexer.IntLit;
 import static zfg.antlr.ZfgLexer.LET;
 import static zfg.antlr.ZfgLexer.SUB;
 import static zfg.antlr.ZfgLexer.U08;
@@ -16,6 +13,9 @@ import static zfg.antlr.ZfgLexer.U16;
 import static zfg.antlr.ZfgLexer.U32;
 import static zfg.antlr.ZfgLexer.U64;
 import static zfg.antlr.ZfgLexer.VAR;
+import static zfg.antlr.ZfgLexer.BitLit;
+import static zfg.antlr.ZfgLexer.IntLit;
+import static zfg.antlr.ZfgLexer.FltLit;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -230,15 +230,18 @@ public final class Parser {
   public final Node visitLiteralExpr(final LiteralExprContext ctx) {
     final String str = ctx.lit.getText();
     return switch (ctx.lit.getType()) {
-      case BitLit -> Val.parseBit(str)
-          .map(val -> new Const(val, Type.bit))
-          .orElseThrow(() -> new ParserException(ctx, "Invalid bit literal"));
-      case IntLit -> Val.parseInt(str, hasContiguousNegPrefix(ctx))
-          .map(val -> new Const(val, Type.of(val)))
-          .orElseThrow(() -> new ParserException(ctx, "Invalid int literal"));
-      case FltLit -> Val.parseFlt(str)
-          .map(val -> new Const(val, Type.of(val)))
-          .orElseThrow(() -> new ParserException(ctx, "Invalid flt literal"));
+      case BitLit -> switch (zfg.lang.primitive.Parser.parseBit(str)) {
+        case Val val -> new Const(val, Type.bit);
+        case null -> throw new ParserException(ctx, "Invalid bit literal");
+      };
+      case IntLit -> switch (zfg.lang.primitive.Parser.parseInt(str, hasContiguousNegPrefix(ctx))) {
+        case Val val -> new Const(val, Type.of(val));
+        case null -> throw new ParserException(ctx, "Invalid int literal");
+      };
+      case FltLit -> switch (zfg.lang.primitive.Parser.parseFlt(str)) {
+        case Val val -> new Const(val, Type.of(val));
+        case null -> throw new ParserException(ctx, "Invalid flt literal");
+      };
       default -> throw new AssertionError();
     };
   }

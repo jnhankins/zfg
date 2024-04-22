@@ -20,7 +20,7 @@ import zfg.lang.operation.Shr;
 import zfg.lang.operation.Sub;
 import zfg.lang.operation.Xor;
 
-public final class U64 implements Val.Uxx,
+public final class U64 implements Val, Parser.Int,
     Cmp.I<U64>, Ltn.I<U64>, Gtn.I<U64>, Leq.I<U64>, Geq.I<U64>, Eql.I<U64>, Neq.I<U64>,
     Add.I<U64>, Sub.I<U64>, Mul.I<U64>, Div.I<U64>, Rem.I<U64>, Mod.I<U64>,
     Not.I<U64>, And.I<U64>, Xor.I<U64>, Ior.I<U64>, Shl.I<U64>, Shr.I<U64> {

@@ -15,7 +15,7 @@ import zfg.lang.operation.Neq;
 import zfg.lang.operation.Not;
 import zfg.lang.operation.Xor;
 
-public final class Bit implements Val.Int,
+public final class Bit implements Val, Parser.Int,
     Cmp.I<Bit>, Ltn.I<Bit>, Leq.I<Bit>, Gtn.I<Bit>, Geq.I<Bit>, Eql.I<Bit>, Neq.I<Bit>,
     Not.I<Bit>, And.I<Bit>, Xor.I<Bit>, Ior.I<Bit>,
     Lnt.I<Bit>, Lcj.I<Bit>, Ldj.I<Bit> {

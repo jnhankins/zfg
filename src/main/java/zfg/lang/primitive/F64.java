@@ -15,7 +15,7 @@ import zfg.lang.operation.Neq;
 import zfg.lang.operation.Rem;
 import zfg.lang.operation.Sub;
 
-public final class F64 implements Val.Fxx,
+public final class F64 implements Val, Parser.Flt,
     Cmp.I<F64>, Ltn.I<F64>, Gtn.I<F64>, Leq.I<F64>, Geq.I<F64>, Eql.I<F64>, Neq.I<F64>,
     Neg.I<F64>, Add.I<F64>, Sub.I<F64>, Mul.I<F64>, Div.I<F64>, Rem.I<F64>, Mod.I<F64> {
 
