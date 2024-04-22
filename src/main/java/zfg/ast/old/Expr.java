@@ -1,7 +1,7 @@
 package zfg.ast.old;
 
 import zfg.ast.Type;
-import zfg.core.primative.Val;
+import zfg.lang.primitive.Val;
 
 public sealed interface Expr {
   public Type type();

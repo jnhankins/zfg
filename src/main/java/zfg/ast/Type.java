@@ -68,19 +68,19 @@ public sealed interface Type {
   public static final F32 f32 = new F32();
   public static final F64 f64 = new F64();
 
-  public static Type of(final zfg.core.primative.Val val) {
+  public static Type of(final zfg.lang.primitive.Val val) {
     return switch (val) {
-      case zfg.core.primative.Bit x -> bit;
-      case zfg.core.primative.U08 x -> u08;
-      case zfg.core.primative.U16 x -> u16;
-      case zfg.core.primative.U32 x -> u32;
-      case zfg.core.primative.U64 x -> u64;
-      case zfg.core.primative.I08 x -> i08;
-      case zfg.core.primative.I16 x -> i16;
-      case zfg.core.primative.I32 x -> i32;
-      case zfg.core.primative.I64 x -> i64;
-      case zfg.core.primative.F32 x -> f32;
-      case zfg.core.primative.F64 x -> f64;
+      case zfg.lang.primitive.Bit x -> bit;
+      case zfg.lang.primitive.U08 x -> u08;
+      case zfg.lang.primitive.U16 x -> u16;
+      case zfg.lang.primitive.U32 x -> u32;
+      case zfg.lang.primitive.U64 x -> u64;
+      case zfg.lang.primitive.I08 x -> i08;
+      case zfg.lang.primitive.I16 x -> i16;
+      case zfg.lang.primitive.I32 x -> i32;
+      case zfg.lang.primitive.I64 x -> i64;
+      case zfg.lang.primitive.F32 x -> f32;
+      case zfg.lang.primitive.F64 x -> f64;
       default -> throw new AssertionError();
     };
   }

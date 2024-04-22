@@ -8,15 +8,16 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import zfg.core.primative.Bit;
-import zfg.core.primative.I08;
-import zfg.core.primative.I16;
-import zfg.core.primative.I32;
-import zfg.core.primative.I64;
-import zfg.core.primative.U08;
-import zfg.core.primative.U16;
-import zfg.core.primative.U32;
-import zfg.core.primative.U64;
+import zfg.lang.operation.Not;
+import zfg.lang.primitive.Bit;
+import zfg.lang.primitive.I08;
+import zfg.lang.primitive.I16;
+import zfg.lang.primitive.I32;
+import zfg.lang.primitive.I64;
+import zfg.lang.primitive.U08;
+import zfg.lang.primitive.U16;
+import zfg.lang.primitive.U32;
+import zfg.lang.primitive.U64;
 
 public final class NotTest {
 

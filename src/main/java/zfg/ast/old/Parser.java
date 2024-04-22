@@ -43,21 +43,21 @@ import zfg.ast.Type.Ixx;
 import zfg.ast.Type.Num;
 import zfg.ast.Type.Uxx;
 import zfg.ast.old.Expr.Const;
-import zfg.core.operation.Add;
-import zfg.core.operation.Mul;
-import zfg.core.operation.Sub;
-import zfg.core.primative.Bit;
-import zfg.core.primative.F32;
-import zfg.core.primative.F64;
-import zfg.core.primative.I08;
-import zfg.core.primative.I16;
-import zfg.core.primative.I32;
-import zfg.core.primative.I64;
-import zfg.core.primative.U08;
-import zfg.core.primative.U16;
-import zfg.core.primative.U32;
-import zfg.core.primative.U64;
-import zfg.core.primative.Val;
+import zfg.lang.operation.Add;
+import zfg.lang.operation.Mul;
+import zfg.lang.operation.Sub;
+import zfg.lang.primitive.Bit;
+import zfg.lang.primitive.F32;
+import zfg.lang.primitive.F64;
+import zfg.lang.primitive.I08;
+import zfg.lang.primitive.I16;
+import zfg.lang.primitive.I32;
+import zfg.lang.primitive.I64;
+import zfg.lang.primitive.U08;
+import zfg.lang.primitive.U16;
+import zfg.lang.primitive.U32;
+import zfg.lang.primitive.U64;
+import zfg.lang.primitive.Val;
 
 public class Parser {
   public static class ParserException extends RuntimeException {
