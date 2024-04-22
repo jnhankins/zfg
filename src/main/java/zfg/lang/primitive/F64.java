@@ -15,12 +15,12 @@ import zfg.lang.operation.Neq;
 import zfg.lang.operation.Rem;
 import zfg.lang.operation.Sub;
 
-public final class F64 implements Val,
+public final class F64 implements Val.Fxx,
     Cmp.I<F64>, Ltn.I<F64>, Gtn.I<F64>, Leq.I<F64>, Geq.I<F64>, Eql.I<F64>, Neq.I<F64>,
     Neg.I<F64>, Add.I<F64>, Sub.I<F64>, Mul.I<F64>, Div.I<F64>, Rem.I<F64>, Mod.I<F64> {
 
   public final double value;
-  public F64(final double value) { this.value = value; }
+  private F64(final double value) { this.value = value; }
 
   @Override public final I32 cmp(final F64 rhs) { return Cmp.f64(this, rhs); }
   @Override public final Bit ltn(final F64 rhs) { return Ltn.f64(this, rhs); }

@@ -21,13 +21,13 @@ import zfg.lang.operation.Shr;
 import zfg.lang.operation.Sub;
 import zfg.lang.operation.Xor;
 
-public final class I64 implements Val,
+public final class I64 implements Val.Ixx,
     Cmp.I<I64>, Ltn.I<I64>, Gtn.I<I64>, Leq.I<I64>, Geq.I<I64>, Eql.I<I64>, Neq.I<I64>,
     Neg.I<I64>, Add.I<I64>, Sub.I<I64>, Mul.I<I64>, Div.I<I64>, Rem.I<I64>, Mod.I<I64>,
     Not.I<I64>, And.I<I64>, Xor.I<I64>, Ior.I<I64>, Shl.I<I64>, Shr.I<I64> {
 
   public final long value;
-  public I64(final long value) { this.value = value; }
+  private I64(final long value) { this.value = value; }
 
   @Override public final I32 cmp(final I64 rhs) { return Cmp.i64(this, rhs); }
   @Override public final Bit ltn(final I64 rhs) { return Ltn.i64(this, rhs); }

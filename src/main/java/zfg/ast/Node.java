@@ -94,6 +94,20 @@ public sealed abstract class Node {
     @Override public final String getText() { return nodeText(this, val.toString()); }
   }
 
+  // Variable reference
+  public static final class VarRef extends Leaf {
+    private final String name;
+    private final Node referent;
+    public VarRef(final String name, final Node referent, final Type type) {
+      super(type);
+      this.name = name;
+      this.referent = referent;
+    }
+    public final String name() { return name; }
+    public final Node referent() { return referent; }
+    @Override public final String getText() { return nodeText(this, "\"" + name + "\""); }
+  }
+
   // Implicit type conversion from "smaller" type to "larger" type
   public static final class Widen extends Unary {
     public Widen(final Node child, final Type type) {

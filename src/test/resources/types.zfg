@@ -1,0 +1,11 @@
+
+let Pair(let A type, let B type) type = [A, B]
+
+let Node(let T type) type = [
+  value T,
+  left Node,
+  right Node,
+]
+
+let NumNode(let T i32 | f64) Node(T) = Node(T)
+let NumNode(let T i32 | f64) type = Node(T)

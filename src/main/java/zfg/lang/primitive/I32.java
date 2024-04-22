@@ -21,13 +21,13 @@ import zfg.lang.operation.Shr;
 import zfg.lang.operation.Sub;
 import zfg.lang.operation.Xor;
 
-public final class I32 implements Val,
+public final class I32 implements Val.Ixx,
     Cmp.I<I32>, Ltn.I<I32>, Gtn.I<I32>, Leq.I<I32>, Geq.I<I32>, Eql.I<I32>, Neq.I<I32>,
     Neg.I<I32>, Add.I<I32>, Sub.I<I32>, Mul.I<I32>, Div.I<I32>, Rem.I<I32>, Mod.I<I32>,
     Not.I<I32>, And.I<I32>, Xor.I<I32>, Ior.I<I32>, Shl.I<I32>, Shr.I<I32> {
 
   public final int value;
-  public I32(final int value) { this.value = value; }
+  private I32(final int value) { this.value = value; }
 
   @Override public final int hashCode() { return value; }
   @Override public final boolean equals(final Object that) { return this == that || (that instanceof I32 && this.value == ((I32)that).value); }

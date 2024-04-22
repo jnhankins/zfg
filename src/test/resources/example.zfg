@@ -12,7 +12,6 @@ let add(let x i32, let y i32) i32 = {
 }
 let inc(x) = add(_, 1)
 let sub(x i32, y i32) var = x - y
-let
 
 
 fun fib(let x i32) i32 {

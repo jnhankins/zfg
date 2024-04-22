@@ -27,15 +27,15 @@ compilationUnit
   : (statement (SEMIC | {EOL()}?))*
   ;
 
-declaration
-  : modifier=(LET | MUT) id=LowerId
-  ;
-
+// TODO type alias, e.g. "Node"
+// TODO comptime dynamic type, e.g. "Pair(i32, f64)"
+// TODO type inference, e.g. "var", "fun", "type", etc.
 type
-  : (VAR | FUN)                                                       # InferredType
-  | (BIT | U08 | U16 | U32 | U64 | I08 | I16 | I32 | I64 | F32 | F64) # PrimitiveType
-  | UpperId                                                           # NamedType
-  | LPAREN (declaration (COMMA declaration)* COMMA?)? RPAREN type     # FunctionType
+  : token=(BIT | U08 | U16 | U32 | U64 | I08 | I16 | I32 | I64 | F32 | F64)   # PrimitiveType
+  | LPAREN (functionParameter (COMMA functionParameter)* COMMA?)? RPAREN type # FunctionType
+  ;
+functionParameter
+  : modifier=(LET | MUT) id=LowerId type
   ;
 
 statement

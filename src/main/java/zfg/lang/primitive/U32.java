@@ -20,13 +20,13 @@ import zfg.lang.operation.Shr;
 import zfg.lang.operation.Sub;
 import zfg.lang.operation.Xor;
 
-public final class U32 implements Val,
+public final class U32 implements Val.Uxx,
     Cmp.I<U32>, Ltn.I<U32>, Gtn.I<U32>, Leq.I<U32>, Geq.I<U32>, Eql.I<U32>, Neq.I<U32>,
     Add.I<U32>, Sub.I<U32>, Mul.I<U32>, Div.I<U32>, Rem.I<U32>, Mod.I<U32>,
     Not.I<U32>, And.I<U32>, Xor.I<U32>, Ior.I<U32>, Shl.I<U32>, Shr.I<U32> {
 
   public final int value;
-  public U32(final int value) { this.value = value; }
+  private U32(final int value) { this.value = value; }
 
   @Override public final I32 cmp(final U32 rhs) { return Cmp.u32(this, rhs); }
   @Override public final Bit ltn(final U32 rhs) { return Ltn.u32(this, rhs); }

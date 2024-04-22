@@ -21,13 +21,13 @@ import zfg.lang.operation.Shr;
 import zfg.lang.operation.Sub;
 import zfg.lang.operation.Xor;
 
-public final class I08 implements Val,
+public final class I08 implements Val.Ixx,
     Cmp.I<I08>, Ltn.I<I08>, Gtn.I<I08>, Leq.I<I08>, Geq.I<I08>, Eql.I<I08>, Neq.I<I08>,
     Neg.I<I08>, Add.I<I08>, Sub.I<I08>, Mul.I<I08>, Div.I<I08>, Rem.I<I08>, Mod.I<I08>,
     Not.I<I08>, And.I<I08>, Xor.I<I08>, Ior.I<I08>, Shl.I<I08>, Shr.I<I08> {
 
   public final int value;
-  public I08(final int value) { this.value = value; }
+  private I08(final int value) { this.value = value; }
 
   @Override public final I32 cmp(final I08 rhs) { return Cmp.i08(this, rhs); }
   @Override public final Bit ltn(final I08 rhs) { return Ltn.i08(this, rhs); }

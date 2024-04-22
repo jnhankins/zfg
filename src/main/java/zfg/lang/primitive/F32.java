@@ -15,12 +15,12 @@ import zfg.lang.operation.Neq;
 import zfg.lang.operation.Rem;
 import zfg.lang.operation.Sub;
 
-public final class F32 implements Val,
+public final class F32 implements Val.Fxx,
     Cmp.I<F32>, Ltn.I<F32>, Gtn.I<F32>, Leq.I<F32>, Geq.I<F32>, Eql.I<F32>, Neq.I<F32>,
     Neg.I<F32>, Add.I<F32>, Sub.I<F32>, Mul.I<F32>, Div.I<F32>, Rem.I<F32>, Mod.I<F32> {
 
   public final float value;
-  public F32(final float value) { this.value = value; }
+  private F32(final float value) { this.value = value; }
 
   @Override public final I32 cmp(final F32 rhs) { return Cmp.f32(this, rhs); }
   @Override public final Bit ltn(final F32 rhs) { return Ltn.f32(this, rhs); }

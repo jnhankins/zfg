@@ -1,7 +1,7 @@
 package zfg.ast;
 
 /**
- * val          : value
+ * val         : value
  * ├─num       : number
  * │ ├─int     : integeral
  * │ │ ├─bit   : 0 or 1
@@ -20,8 +20,8 @@ package zfg.ast;
  * │     ├─f32 : 32-bit floating point
  * │     └─f64 : 64-bit floating point
  * └─ref       : reference
- *   ├─arr     : data accessed by offset
- *   ├─obj     : data accessed by key
+ *   ├─arr     : data accessed by integer offset
+ *   ├─rec     : data accessed by key
  *   └─fun     : function, no data
  */
 public sealed interface Type {
@@ -36,26 +36,24 @@ public sealed interface Type {
   public static sealed interface W32 extends Wxx { public default int fsize() { return 1; }; public default int nbits() { return 32; } }
   public static sealed interface W64 extends Wxx { public default int fsize() { return 2; }; public default int nbits() { return 64; } }
 
-  public static sealed interface Val extends    Type     {}
-  public static sealed interface Num extends    Val      {}
-  public static sealed interface Int extends    Num      {}
-  public static final  class     Bit implements Int, W01 { private Bit() {} public int order() { return 0; } }
-  public static sealed interface Uxx extends    Int, Wxx {}
-  public static final  class     U08 implements Uxx, W08 { private U08() {} public int order() { return 1; } }
-  public static final  class     U16 implements Uxx, W16 { private U16() {} public int order() { return 2; } }
-  public static final  class     U32 implements Uxx, W32 { private U32() {} public int order() { return 3; } }
-  public static final  class     U64 implements Uxx, W64 { private U64() {} public int order() { return 4; } }
-  public static sealed interface Ixx extends    Int, Wxx {}
-  public static final  class     I08 implements Ixx, W08 { private I08() {} public int order() { return 5; } }
-  public static final  class     I16 implements Ixx, W16 { private I16() {} public int order() { return 6; } }
-  public static final  class     I32 implements Ixx, W32 { private I32() {} public int order() { return 7; } }
-  public static final  class     I64 implements Ixx, W64 { private I64() {} public int order() { return 8; } }
-  public static sealed interface Flt extends    Num      {}
-  public static sealed interface Fxx extends    Flt, Wxx {}
-  public static final  class     F32 implements Fxx, W32 { private F32() {} public int order() { return 9; } }
-  public static final  class     F64 implements Fxx, W64 { private F64() {} public int order() { return 10; } }
-  public static non-sealed interface Ref extends    Val {} // TODO
-
+  public static sealed interface Val extends Type     {}
+  public static sealed interface Num extends Val      {}
+  public static sealed interface Int extends Num      {}
+  public static sealed interface Flt extends Num      {}
+  public static sealed interface Uxx extends Int, Wxx {}
+  public static sealed interface Ixx extends Int, Wxx {}
+  public static sealed interface Fxx extends Flt, Wxx {}
+  public static final class Bit implements Int, W01 { private Bit() {} public int order() { return 0; } }
+  public static final class U08 implements Uxx, W08 { private U08() {} public int order() { return 1; } }
+  public static final class U16 implements Uxx, W16 { private U16() {} public int order() { return 2; } }
+  public static final class U32 implements Uxx, W32 { private U32() {} public int order() { return 3; } }
+  public static final class U64 implements Uxx, W64 { private U64() {} public int order() { return 4; } }
+  public static final class I08 implements Ixx, W08 { private I08() {} public int order() { return 5; } }
+  public static final class I16 implements Ixx, W16 { private I16() {} public int order() { return 6; } }
+  public static final class I32 implements Ixx, W32 { private I32() {} public int order() { return 7; } }
+  public static final class I64 implements Ixx, W64 { private I64() {} public int order() { return 8; } }
+  public static final class F32 implements Fxx, W32 { private F32() {} public int order() { return 9; } }
+  public static final class F64 implements Fxx, W64 { private F64() {} public int order() { return 10; } }
   public static final Bit bit = new Bit();
   public static final U08 u08 = new U08();
   public static final U16 u16 = new U16();

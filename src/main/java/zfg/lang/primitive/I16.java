@@ -21,13 +21,13 @@ import zfg.lang.operation.Shr;
 import zfg.lang.operation.Sub;
 import zfg.lang.operation.Xor;
 
-public final class I16 implements Val,
+public final class I16 implements Val.Ixx,
     Cmp.I<I16>, Ltn.I<I16>, Gtn.I<I16>, Leq.I<I16>, Geq.I<I16>, Eql.I<I16>, Neq.I<I16>,
     Neg.I<I16>, Add.I<I16>, Sub.I<I16>, Mul.I<I16>, Div.I<I16>, Rem.I<I16>, Mod.I<I16>,
     Not.I<I16>, And.I<I16>, Xor.I<I16>, Ior.I<I16>, Shl.I<I16>, Shr.I<I16> {
 
   public final int value;
-  public I16(final int value) { this.value = value; }
+  private I16(final int value) { this.value = value; }
 
   @Override public final I32 cmp(final I16 rhs) { return Cmp.i16(this, rhs); }
   @Override public final Bit ltn(final I16 rhs) { return Ltn.i16(this, rhs); }
