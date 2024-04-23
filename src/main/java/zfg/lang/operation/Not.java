@@ -9,11 +9,11 @@ import zfg.lang.primitive.U08;
 import zfg.lang.primitive.U16;
 import zfg.lang.primitive.U32;
 import zfg.lang.primitive.U64;
+import zfg.lang.primitive.Val;
 
 public final class Not {
   private Not() {}
-  public static interface I<T extends I<T>> { public T not(); }
-  public static final <T extends I<T>> T neg(final T a) { return a.not(); }
+  
   public static final int    bit(final int    a) { return a ^ 1; }
   public static final int    u08(final int    a) { return a ^ 0xFF; }
   public static final int    u16(final int    a) { return a ^ 0xFFFF; }
@@ -32,4 +32,8 @@ public final class Not {
   public static final I16 i16(final I16 a) { return I16.of(i16(a.value)); }
   public static final I32 i32(final I32 a) { return I32.of(i32(a.value)); }
   public static final I64 i64(final I64 a) { return I64.of(i64(a.value)); }
+
+  @SuppressWarnings("unchecked")
+  public static final Val not(final Val a) { return ((I<Val>)a).not(); }
+  public static interface I<T extends Val> { public Val not(); }
 }

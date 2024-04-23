@@ -65,11 +65,8 @@ import zfg.ast.Node.VarRef;
 import zfg.lang.primitive.Val;
 
 public final class Parser {
-  public static final class ParserException extends RuntimeException {
-    public ParserException(final ParserRuleContext ctx, final String message) { this(ctx, message, null); }
-    public ParserException(final ParserRuleContext ctx, final Throwable cause) { this(ctx, null, cause); }
-    public ParserException(final ParserRuleContext ctx, final String message, final Throwable cause) { super(message, cause); }
-  }
+
+  public static final record Error(ParserRuleContext ctx, String msg) {}
 
   public static Node parse(final Path path) {
     try { return parse(CharStreams.fromPath(path)); }
@@ -104,236 +101,17 @@ public final class Parser {
     return root;
   }
 
-  // TODO: fully qualified names (i.e. id.size() > 1
-  // TODO: use before declaration (i.e. fun f(): i32 = g(); fun g() i32 = 1; }
-  private static sealed abstract class Scope {
-    private final Map<String, Node> table = new HashMap<>();
-    final Node resolve(final String name) { return table.get(name); }
-    static final class Module extends Scope {}
-    static final class Function extends Scope {}
-    static final class Block extends Scope {}
-  }
-  private final Stack<Scope> scopes = new Stack<>();
-  private final Node resolveSymbol(final String name) {
-    for (int s = scopes.size() - 1; s >= 0; s -= 1) {
-      final Scope scope = scopes.get(s);
-      final Node node = scope.resolve(name);
-      if (node != null) return node;
-    }
-    return null;
-  }
 
-	public final Node visitCompilationUnit(final CompilationUnitContext ctx) {
-    // Push scope
-    final Scope.Module moduleScope = new Scope.Module();
-    scopes.push(moduleScope);
-    // Post-order traversal
-    final List<Node> children = new ArrayList<>();
-    for (final StatementContext statement : ctx.statement())
-      children.add(visitStatement(statement));
-    // Pop scope
-    scopes.pop();
-    // Return
-    return new CompilationUnit(children);
-  }
+  // List of errors encountered during parsing
+  private final List<Error> errors = new ArrayList<>();
 
-  public final Node visitStatement(final StatementContext ctx) {
-    return switch (ctx) {
-      case DeclarationStmtContext    stmt -> visitDeclarationStmt(stmt);
-      case AssignmentStmtContext     stmt -> visitAssignmentStmt(stmt);
-      case FunctionCallStmtContext   stmt -> visitFunctionCallStmt(stmt);
-      case IfElseStmtContext         stmt -> visitIfElseStmt(stmt);
-      case LoopStmtContext           stmt -> visitLoopStmt(stmt);
-      case LoopWhileStmtContext      stmt -> visitLoopWhileStmt(stmt);
-      case LoopForStmtContext        stmt -> visitLoopForStmt(stmt);
-      case LoopBreakStmtContext      stmt -> visitLoopBreakStmt(stmt);
-      case LoopContinueStmtContext   stmt -> visitLoopContinueStmt(stmt);
-      case FunctionReturnStmtContext stmt -> visitFunctionReturnStmt(stmt);
-      default -> throw new AssertionError();
-    };
-  }
-  private Node visitDeclarationStmt(DeclarationStmtContext stmt) {
-    // Post-order traversal
-    final Node child = visitExpression(stmt.expression());
-    final Type childType = child.type();
+  public Parser() {}
 
-    // Type checking
-    final Type outType = visitType(stmt.type());
-    // Check muttable/immutable
-    final boolean immu = switch (stmt.modifier.getType()) {
-      case LET -> true;
-      case VAR -> false;
-      default -> throw new AssertionError();
-    };
-  }
-  private Node visitAssignmentStmt(AssignmentStmtContext stmt) {
-    throw new UnsupportedOperationException();
-  }
-  private Node visitFunctionCallStmt(FunctionCallStmtContext stmt) {
-    throw new UnsupportedOperationException("todo later");
-  }
-  private Node visitIfElseStmt(IfElseStmtContext stmt) {
-    throw new UnsupportedOperationException("todo later");
-  }
-  private Node visitLoopStmt(LoopStmtContext stmt) {
-    throw new UnsupportedOperationException("todo later");
-  }
-  private Node visitLoopWhileStmt(LoopWhileStmtContext stmt) {
-    throw new UnsupportedOperationException("todo later");
-  }
-  private Node visitLoopForStmt(LoopForStmtContext stmt) {
-    throw new UnsupportedOperationException("todo later");
-  }
-  private Node visitLoopBreakStmt(LoopBreakStmtContext stmt) {
-    throw new UnsupportedOperationException("todo later");
-  }
-  private Node visitLoopContinueStmt(LoopContinueStmtContext stmt) {
-    throw new UnsupportedOperationException("todo later");
-  }
-  private Node visitFunctionReturnStmt(FunctionReturnStmtContext stmt) {
-    throw new UnsupportedOperationException("todo later");
-  }
+  // Returns list of errors encountered during parsing
+  public final List<Error> errors() { return errors; }
 
-
-  public final Node visitExpression(final ZfgParser.ExpressionContext ctx) {
-    return switch (ctx) {
-      case FunctionCallExprContext expr -> visitFunctionCallExpr(expr);
-      case VariableExprContext     expr -> visitVariableExpr(expr);
-      case LiteralExprContext      expr -> visitLiteralExpr(expr);
-      case GroupedExprContext      expr -> visitGroupedExpr(expr);
-      case PostfixOpExprContext    expr -> visitPostfixOpExpr(expr);
-      case PrefixOpExprContext     expr -> visitPrefixOpExpr(expr);
-      case InfixOpExprContext      expr -> visitInfixOpExpr(expr);
-      case AssignmentExprContext   expr -> visitAssignmentExpr(expr);
-      default -> throw new AssertionError();
-    };
+  // Reports an error and returns an error node
+  public final void error(final ParserRuleContext ctx, final String msg) {
+    errors.add(new Error(ctx, msg));
   }
-
-  public final Node visitFunctionCallExpr(final FunctionCallExprContext ctx) {
-    throw new UnsupportedOperationException("todo later");
-  }
-
-  public final Node visitVariableExpr(final VariableExprContext ctx) {
-    // Post-order traversal
-    final String name = ctx.getText();
-    // Resolve the symbol
-    final Node referent = resolveSymbol(name);
-    if (referent == null) throw new ParserException(ctx, "Unresolved symbol");
-    // Type checking
-    final Type outType = referent.type();
-    // Constant folding
-    if (referent instanceof Const) return referent;
-    // Return
-    return new VarRef(name, referent, outType);
-  }
-
-  public final Node visitLiteralExpr(final LiteralExprContext ctx) {
-    final String str = ctx.lit.getText();
-    return switch (ctx.lit.getType()) {
-      case BitLit -> switch (zfg.lang.primitive.Parser.parseBit(str)) {
-        case Val val -> new Const(val, Type.bit);
-        case null -> throw new ParserException(ctx, "Invalid bit literal");
-      };
-      case IntLit -> switch (zfg.lang.primitive.Parser.parseInt(str, hasContiguousNegPrefix(ctx))) {
-        case Val val -> new Const(val, Type.of(val));
-        case null -> throw new ParserException(ctx, "Invalid int literal");
-      };
-      case FltLit -> switch (zfg.lang.primitive.Parser.parseFlt(str)) {
-        case Val val -> new Const(val, Type.of(val));
-        case null -> throw new ParserException(ctx, "Invalid flt literal");
-      };
-      default -> throw new AssertionError();
-    };
-  }
-
-  /** @see Literal.parseInt */
-  private boolean hasContiguousNegPrefix(final LiteralExprContext ctx) {
-    if (!(ctx.parent instanceof PostfixOpExprContext)) return false;
-    final Token op = ((PostfixOpExprContext) ctx.parent).op;
-    return op.getType() == SUB && op.getStopIndex() + 1 == ctx.getStart().getStartIndex();
-  }
-
-  public final Node visitGroupedExpr(final GroupedExprContext ctx) {
-    return visitExpression(ctx.expression());
-  }
-
-  public final Node visitPostfixOpExpr(final PostfixOpExprContext ctx) {
-    throw new UnsupportedOperationException("todo later");
-  }
-
-  public final Node visitPrefixOpExpr(final PrefixOpExprContext ctx) {
-    throw new UnsupportedOperationException("todo later");
-  }
-
-  public final Node visitInfixOpExpr(final InfixOpExprContext ctx) {
-    throw new UnsupportedOperationException();
-  }
-
-  public final Node visitAssignmentExpr(final AssignmentExprContext ctx) {
-    throw new UnsupportedOperationException();
-  }
-
-
-
-  public final List<String> visitIdentifier(final IdentifierContext ctx) {
-    final List<ParseTree> children = ctx.children;
-    final int nChildren = children.size();
-    final List<String> path = new ArrayList<>(nChildren / 2 + 1);
-    for (int i = 0; i < nChildren; i += 2)
-      path.add(children.get(i).getText());
-    return path;
-  }
-
-
-
-  public final Type visitType(final TypeContext ctx) {
-    // Note: type-checking must be done in the parent node for implicit casting
-    return switch (ctx) {
-      case PrimitiveTypeContext t -> visitPrimativeType(t);
-      case FunctionTypeContext t -> visitFunctionType(t)
-      case NamedTypeContext t -> {
-        // Named types are resolved aginst the symbol table
-        throw new UnsupportedOperationException();
-      }
-      default -> throw new AssertionError();
-    };
-  }
-
-  public final Type visitPrimativeType(final PrimitiveTypeContext ctx) {
-    return switch (ctx.token.getType()) {
-      case BIT -> Type.bit;
-      case U08 -> Type.u08;
-      case U16 -> Type.u16;
-      case U32 -> Type.u32;
-      case U64 -> Type.u64;
-      case I08 -> Type.i08;
-      case I16 -> Type.i16;
-      case I32 -> Type.i32;
-      case I64 -> Type.i64;
-      case F32 -> Type.f32;
-      default -> throw new AssertionError();
-    };
-  }
-
-  public final Type visitFunctionType(final FunctionTypeContext ctx, final Type childType) {
-    // Function argument types
-    for (final DeclarationContext arg : ctx.declaration()) {
-      final String  argName = arg.id.getText();
-      final Type    argType = visitType(arg.type(), null); // do not allow infered types
-      final boolean argImmu = switch (arg.modifier.getType()) {
-        case LET -> true;
-        case VAR -> false;
-        default -> throw new AssertionError();
-      };
-      // TODO add arg to function scope
-    }
-
-    // Function return type
-    final Type retType = visitType(ctx.type(), childType);
-
-    //
-    return new Type.Fun(retType);
-  }
-
-
 }

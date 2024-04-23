@@ -29,6 +29,9 @@ public sealed interface Type {
   public int nbits(); // nominal number of bits
   public int order(); // type-widening order
 
+  public static final class Err implements Type { public int fsize() { return -1; } public int nbits() { return -1; } public int order() { return -1; } }
+  public static final Err err = new Err();
+
   public static sealed interface Wxx extends Type {}
   public static sealed interface W01 extends Wxx { public default int fsize() { return 1; }; public default int nbits() { return 1; } }
   public static sealed interface W08 extends Wxx { public default int fsize() { return 1; }; public default int nbits() { return 8; } }

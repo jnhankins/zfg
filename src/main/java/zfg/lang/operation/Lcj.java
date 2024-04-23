@@ -1,11 +1,15 @@
 package zfg.lang.operation;
 
 import zfg.lang.primitive.Bit;
+import zfg.lang.primitive.Val;
 
 public final class Lcj {
   private Lcj() {}
-  public static interface I<T extends I<T>> { public Bit lcj(final T that); }
-  public static final <T extends I<T>> Bit lcj(final T a, final T b) { return a.lcj(b); }
+
   public static final int    bit(final int    a, final int    b) { return a & b; }
   public static final Bit bit(final Bit a, final Bit b) { return Bit.of(bit(a.value, b.value)); }
+
+  @SuppressWarnings("unchecked")
+  public static final Bit lcj(final Val a, final Val b) { return ((I<Val>)a).lcj(b); }
+  public static interface I<T extends Val> { public Bit lcj(final T that); }
 }

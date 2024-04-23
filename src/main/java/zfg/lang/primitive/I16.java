@@ -2,7 +2,6 @@ package zfg.lang.primitive;
 
 import zfg.lang.operation.Add;
 import zfg.lang.operation.And;
-import zfg.lang.operation.Cmp;
 import zfg.lang.operation.Div;
 import zfg.lang.operation.Eql;
 import zfg.lang.operation.Geq;
@@ -19,17 +18,18 @@ import zfg.lang.operation.Rem;
 import zfg.lang.operation.Shl;
 import zfg.lang.operation.Shr;
 import zfg.lang.operation.Sub;
+import zfg.lang.operation.Twc;
 import zfg.lang.operation.Xor;
 
 public final class I16 implements Val, Parser.Int,
-    Cmp.I<I16>, Ltn.I<I16>, Gtn.I<I16>, Leq.I<I16>, Geq.I<I16>, Eql.I<I16>, Neq.I<I16>,
+    Twc.I<I16>, Ltn.I<I16>, Gtn.I<I16>, Leq.I<I16>, Geq.I<I16>, Eql.I<I16>, Neq.I<I16>,
     Neg.I<I16>, Add.I<I16>, Sub.I<I16>, Mul.I<I16>, Div.I<I16>, Rem.I<I16>, Mod.I<I16>,
     Not.I<I16>, And.I<I16>, Xor.I<I16>, Ior.I<I16>, Shl.I<I16>, Shr.I<I16> {
 
   public final int value;
-  private I16(final int value) { this.value = value; }
+  protected I16(final int value) { this.value = value; }
 
-  @Override public final I32 cmp(final I16 rhs) { return Cmp.i16(this, rhs); }
+  @Override public final I32 twc(final I16 rhs) { return Twc.i16(this, rhs); }
   @Override public final Bit ltn(final I16 rhs) { return Ltn.i16(this, rhs); }
   @Override public final Bit gtn(final I16 rhs) { return Gtn.i16(this, rhs); }
   @Override public final Bit leq(final I16 rhs) { return Leq.i16(this, rhs); }

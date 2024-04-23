@@ -11,11 +11,11 @@ import zfg.lang.primitive.U08;
 import zfg.lang.primitive.U16;
 import zfg.lang.primitive.U32;
 import zfg.lang.primitive.U64;
+import zfg.lang.primitive.Val;
 
-public final class Cmp {
-  private Cmp() {}
-  public static interface I<T extends I<T>> { public I32 cmp(final T that); }
-  public static final <T extends I<T>> I32 cmp(final T a, final T b) { return a.cmp(b); }
+public final class Twc {
+  private Twc() {}
+
   public static final int    bit(final int    a, final int    b) { return a < b ? -1 : a > b ? 1 : 0; }
   public static final int    u08(final int    a, final int    b) { return a < b ? -1 : a > b ? 1 : 0; }
   public static final int    u16(final int    a, final int    b) { return a < b ? -1 : a > b ? 1 : 0; }
@@ -38,4 +38,8 @@ public final class Cmp {
   public static final I32 i64(final I64 a, final I64 b) { return I32.of(i64(a.value, b.value)); }
   public static final I32 f32(final F32 a, final F32 b) { return I32.of(f32(a.value, b.value)); }
   public static final I32 f64(final F64 a, final F64 b) { return I32.of(f64(a.value, b.value)); }
+
+  @SuppressWarnings("unchecked")
+  public static final I32 twc(final Val a, final Val b) { return ((I<Val>)a).twc(b); }
+  public static interface I<T extends Val> { public I32 twc(final T that); }
 }

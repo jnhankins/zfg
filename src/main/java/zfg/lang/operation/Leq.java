@@ -11,11 +11,11 @@ import zfg.lang.primitive.U08;
 import zfg.lang.primitive.U16;
 import zfg.lang.primitive.U32;
 import zfg.lang.primitive.U64;
+import zfg.lang.primitive.Val;
 
 public final class Leq {
   private Leq() {}
-  public static interface I<T extends I<T>> { public Bit leq(final T that); }
-  public static final <T extends I<T>> Bit leq(final T a, final T b) { return a.leq(b); }
+
   // TODO: Test performance difference: (b - a) >>> 31
   public static final int    bit(final int    a, final int    b) { return a <= b ? 1 : 0; }
   public static final int    u08(final int    a, final int    b) { return a <= b ? 1 : 0; }
@@ -39,4 +39,8 @@ public final class Leq {
   public static final Bit i64(final I64 a, final I64 b) { return Bit.of(i64(a.value, b.value)); }
   public static final Bit f32(final F32 a, final F32 b) { return Bit.of(f32(a.value, b.value)); }
   public static final Bit f64(final F64 a, final F64 b) { return Bit.of(f64(a.value, b.value)); }
+
+  @SuppressWarnings("unchecked")
+  public static final Bit leq(final Val a, final Val b) { return ((I<Val>)a).leq(b); }
+  public static interface I<T extends Val> { public Bit leq(final T that); }
 }

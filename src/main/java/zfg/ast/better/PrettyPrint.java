@@ -85,7 +85,7 @@ public class PrettyPrint {
       buf.append(indent);
       buf.append(isLastChild ? "\u2514" : "\u251C");
     }
-    buf.append(node.selfString());
+    buf.append(node.getText());
     final String childIndent = indent + (isLastChild ? " " : "\u2502");
     switch (node) {
       case Leaf n:

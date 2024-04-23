@@ -9,11 +9,11 @@ import zfg.lang.primitive.U08;
 import zfg.lang.primitive.U16;
 import zfg.lang.primitive.U32;
 import zfg.lang.primitive.U64;
+import zfg.lang.primitive.Val;
 
 public final class Ior {
   private Ior() {}
-  public static interface I<T extends I<T>> { public T ior(final T that); }
-  public static final <T extends I<T>> T ior(final T a, final T b) { return a.ior(b); }
+
   public static final int    bit(final int    a, final int    b) { return a | b; }
   public static final int    u08(final int    a, final int    b) { return a | b; }
   public static final int    u16(final int    a, final int    b) { return a | b; }
@@ -32,4 +32,8 @@ public final class Ior {
   public static final I16 i16(final I16 a, final I16 b) { return I16.of(i16(a.value, b.value)); }
   public static final I32 i32(final I32 a, final I32 b) { return I32.of(i32(a.value, b.value)); }
   public static final I64 i64(final I64 a, final I64 b) { return I64.of(i64(a.value, b.value)); }
+
+  @SuppressWarnings("unchecked")
+  public static final Val ior(final Val a, final Val b) { return ((I<Val>)a).ior(b); }
+  public static interface I<T extends Val> { public T ior(final T that); }
 }

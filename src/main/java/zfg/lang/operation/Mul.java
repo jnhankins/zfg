@@ -10,11 +10,11 @@ import zfg.lang.primitive.U08;
 import zfg.lang.primitive.U16;
 import zfg.lang.primitive.U32;
 import zfg.lang.primitive.U64;
+import zfg.lang.primitive.Val;
 
 public final class Mul {
   private Mul() {}
-  public static interface I<T extends I<T>> { public T mul(final T that); }
-  public static final <T extends I<T>> T mul(final T a, final T b) { return a.mul(b); }
+
   public static final int    u08(final int    a, final int    b) { return (a * b) & 0xFF; }
   public static final int    u16(final int    a, final int    b) { return (a * b) & 0xFFFF; }
   public static final int    u32(final int    a, final int    b) { return a * b; }
@@ -35,4 +35,8 @@ public final class Mul {
   public static final I64 i64(final I64 a, final I64 b) { return I64.of(i64(a.value, b.value)); }
   public static final F32 f32(final F32 a, final F32 b) { return F32.of(f32(a.value, b.value)); }
   public static final F64 f64(final F64 a, final F64 b) { return F64.of(f64(a.value, b.value)); }
+
+  @SuppressWarnings("unchecked")
+  public static final Val mul(final Val a, final Val b) { return ((I<Val>)a).mul(b); }
+  public static interface I<T extends Val> { public T mul(final T that); }
 }

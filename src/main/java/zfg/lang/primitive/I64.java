@@ -2,7 +2,6 @@ package zfg.lang.primitive;
 
 import zfg.lang.operation.Add;
 import zfg.lang.operation.And;
-import zfg.lang.operation.Cmp;
 import zfg.lang.operation.Div;
 import zfg.lang.operation.Eql;
 import zfg.lang.operation.Geq;
@@ -19,17 +18,18 @@ import zfg.lang.operation.Rem;
 import zfg.lang.operation.Shl;
 import zfg.lang.operation.Shr;
 import zfg.lang.operation.Sub;
+import zfg.lang.operation.Twc;
 import zfg.lang.operation.Xor;
 
 public final class I64 implements Val, Parser.Int,
-    Cmp.I<I64>, Ltn.I<I64>, Gtn.I<I64>, Leq.I<I64>, Geq.I<I64>, Eql.I<I64>, Neq.I<I64>,
+    Twc.I<I64>, Ltn.I<I64>, Gtn.I<I64>, Leq.I<I64>, Geq.I<I64>, Eql.I<I64>, Neq.I<I64>,
     Neg.I<I64>, Add.I<I64>, Sub.I<I64>, Mul.I<I64>, Div.I<I64>, Rem.I<I64>, Mod.I<I64>,
     Not.I<I64>, And.I<I64>, Xor.I<I64>, Ior.I<I64>, Shl.I<I64>, Shr.I<I64> {
 
   public final long value;
-  private I64(final long value) { this.value = value; }
+  protected I64(final long value) { this.value = value; }
 
-  @Override public final I32 cmp(final I64 rhs) { return Cmp.i64(this, rhs); }
+  @Override public final I32 twc(final I64 rhs) { return Twc.i64(this, rhs); }
   @Override public final Bit ltn(final I64 rhs) { return Ltn.i64(this, rhs); }
   @Override public final Bit gtn(final I64 rhs) { return Gtn.i64(this, rhs); }
   @Override public final Bit leq(final I64 rhs) { return Leq.i64(this, rhs); }

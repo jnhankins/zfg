@@ -74,8 +74,8 @@ LDJ: '||' ; // Short-circuiting logical disjunction (OR) infix operator, e.g. 'x
 // Relational Operators
 LTN: '<'   ; // Less than infix operator, e.g. 'x < y'
 GTN: '>'   ; // Greater than infix operator, e.g. 'x > y'
-LTE: '<='  ; // Less than or equal to infix operator, e.g. 'x <= y'
-GTE: '>='  ; // Greater than or equal to infix operator, e.g. 'x >= y'
+LEQ: '<='  ; // Less than or equal to infix operator, e.g. 'x <= y'
+GEQ: '>='  ; // Greater than or equal to infix operator, e.g. 'x >= y'
 EQL: '=='  ; // Equal to infix operator, e.g. 'x == y'
 NEQ: '!='  ; // Not equal to infix operator, e.g. 'x != y'
 CMP: '<=>' ; // Compare infix operator, e.g. 'x <=> y'

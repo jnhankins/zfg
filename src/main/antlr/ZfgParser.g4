@@ -65,9 +65,10 @@ expression
   | lhs=expression op=XOR rhs=expression                     # InfixOpExpr
   | lhs=expression op=IOR rhs=expression                     # InfixOpExpr
   | lhs=expression op=CMP rhs=expression                     # InfixOpExpr
-  | lhs=expression op=(LTN | GTN | LTE | GTE) rhs=expression # InfixOpExpr
+  | lhs=expression op=(LTN | GTN | LEQ | GEQ) rhs=expression # InfixOpExpr
   | lhs=expression op=(EQL | NEQ)  rhs=expression            # InfixOpExpr
   | assignment                                               # AssignmentExpr
+  | lhs=expression op=(LCJ | LDJ) rhs=expression             # InfixOpExpr
   ;
 
 block

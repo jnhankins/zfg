@@ -1,7 +1,6 @@
 package zfg.lang.primitive;
 
 import zfg.lang.operation.Add;
-import zfg.lang.operation.Cmp;
 import zfg.lang.operation.Div;
 import zfg.lang.operation.Eql;
 import zfg.lang.operation.Geq;
@@ -14,15 +13,16 @@ import zfg.lang.operation.Neg;
 import zfg.lang.operation.Neq;
 import zfg.lang.operation.Rem;
 import zfg.lang.operation.Sub;
+import zfg.lang.operation.Twc;
 
 public final class F64 implements Val, Parser.Flt,
-    Cmp.I<F64>, Ltn.I<F64>, Gtn.I<F64>, Leq.I<F64>, Geq.I<F64>, Eql.I<F64>, Neq.I<F64>,
+    Twc.I<F64>, Ltn.I<F64>, Gtn.I<F64>, Leq.I<F64>, Geq.I<F64>, Eql.I<F64>, Neq.I<F64>,
     Neg.I<F64>, Add.I<F64>, Sub.I<F64>, Mul.I<F64>, Div.I<F64>, Rem.I<F64>, Mod.I<F64> {
 
   public final double value;
-  private F64(final double value) { this.value = value; }
+  protected F64(final double value) { this.value = value; }
 
-  @Override public final I32 cmp(final F64 rhs) { return Cmp.f64(this, rhs); }
+  @Override public final I32 twc(final F64 rhs) { return Twc.f64(this, rhs); }
   @Override public final Bit ltn(final F64 rhs) { return Ltn.f64(this, rhs); }
   @Override public final Bit gtn(final F64 rhs) { return Gtn.f64(this, rhs); }
   @Override public final Bit leq(final F64 rhs) { return Leq.f64(this, rhs); }

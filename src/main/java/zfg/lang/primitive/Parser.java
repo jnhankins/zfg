@@ -56,15 +56,15 @@ public final class Parser {
     // ... subtract I08(-128), which should then throw an exception, while "x = -128i08" will be
     // parsed as ... negate I08(-128), which is allowed and should simplify to I(-128).
     return switch (type) {
-      case zfg.ast.Type.Bit x -> v >= 0 && v <=          1L ? Bit.of((int) v) : null;
-      case zfg.ast.Type.U08 x -> v >= 0 && v <=       0xFFL ? U08.of((int) v) : null;
-      case zfg.ast.Type.U16 x -> v >= 0 && v <=     0xFFFFL ? U16.of((int) v) : null;
-      case zfg.ast.Type.U32 x -> v >= 0 && v <= 0xFFFFFFFFL ? U32.of((int) v) : null;
-      case zfg.ast.Type.U64 x -> U64.of(v);
-      case zfg.ast.Type.I08 x -> v >= 0 && v <= (radix != 10 ?       0xFFL : neg ?       0x80L :       0x7FL) ? I08.of((int)v) : null;
-      case zfg.ast.Type.I16 x -> v >= 0 && v <= (radix != 10 ?     0xFFFFL : neg ?     0x8000L :     0x7FFFL) ? I16.of((int)v) : null;
-      case zfg.ast.Type.I32 x -> v >= 0 && v <= (radix != 10 ? 0xFFFFFFFFL : neg ? 0x80000000L : 0x7FFFFFFFL) ? I32.of((int)v) : null;
-      case zfg.ast.Type.I64 x -> v >= 0 || radix != 10 || (neg && v == 0x8000000000000000L)                   ? I64.of(v)      : null;
+      case zfg.ast.Type.Bit x -> v >= 0 && v <=          1L ? new Bit((int) v) : null;
+      case zfg.ast.Type.U08 x -> v >= 0 && v <=       0xFFL ? new U08((int) v) : null;
+      case zfg.ast.Type.U16 x -> v >= 0 && v <=     0xFFFFL ? new U16((int) v) : null;
+      case zfg.ast.Type.U32 x -> v >= 0 && v <= 0xFFFFFFFFL ? new U32((int) v) : null;
+      case zfg.ast.Type.U64 x -> new U64(v);
+      case zfg.ast.Type.I08 x -> v >= 0 && v <= (radix != 10 ?       0xFFL : neg ?       0x80L :       0x7FL) ? new I08((int)v) : null;
+      case zfg.ast.Type.I16 x -> v >= 0 && v <= (radix != 10 ?     0xFFFFL : neg ?     0x8000L :     0x7FFFL) ? new I16((int)v) : null;
+      case zfg.ast.Type.I32 x -> v >= 0 && v <= (radix != 10 ? 0xFFFFFFFFL : neg ? 0x80000000L : 0x7FFFFFFFL) ? new I32((int)v) : null;
+      case zfg.ast.Type.I64 x -> v >= 0 || radix != 10 || (neg && v == 0x8000000000000000L)                   ? new I64(v)      : null;
       default -> throw new AssertionError();
     };
   }
@@ -90,8 +90,8 @@ public final class Parser {
     final String t = s.substring(beg, end).replace("_", "");
     try {
       return switch (type) {
-        case zfg.ast.Type.F32 x -> F32.of(Float.parseFloat(t));
-        case zfg.ast.Type.F64 x -> F64.of(Double.parseDouble(t));
+        case zfg.ast.Type.F32 x -> new F32(Float.parseFloat(t));
+        case zfg.ast.Type.F64 x -> new F64(Double.parseDouble(t));
         default -> throw new AssertionError();
       };
     } catch (final NumberFormatException e) {

@@ -1,7 +1,6 @@
 package zfg.lang.primitive;
 
 import zfg.lang.operation.And;
-import zfg.lang.operation.Cmp;
 import zfg.lang.operation.Eql;
 import zfg.lang.operation.Geq;
 import zfg.lang.operation.Gtn;
@@ -13,21 +12,22 @@ import zfg.lang.operation.Lnt;
 import zfg.lang.operation.Ltn;
 import zfg.lang.operation.Neq;
 import zfg.lang.operation.Not;
+import zfg.lang.operation.Twc;
 import zfg.lang.operation.Xor;
 
 public final class Bit implements Val, Parser.Int,
-    Cmp.I<Bit>, Ltn.I<Bit>, Leq.I<Bit>, Gtn.I<Bit>, Geq.I<Bit>, Eql.I<Bit>, Neq.I<Bit>,
+    Twc.I<Bit>, Ltn.I<Bit>, Leq.I<Bit>, Gtn.I<Bit>, Geq.I<Bit>, Eql.I<Bit>, Neq.I<Bit>,
     Not.I<Bit>, And.I<Bit>, Xor.I<Bit>, Ior.I<Bit>,
     Lnt.I<Bit>, Lcj.I<Bit>, Ldj.I<Bit> {
 
   public final int value;
-  private Bit(final int value) { this.value = value; }
+  protected Bit(final int value) { this.value = value; }
 
   @Override public final Bit not() { return Not.bit(this); }
   @Override public final Bit and(final Bit rhs) { return And.bit(this, rhs); }
   @Override public final Bit xor(final Bit rhs) { return Xor.bit(this, rhs); }
   @Override public final Bit ior(final Bit rhs) { return Ior.bit(this, rhs); }
-  @Override public final I32 cmp(final Bit rhs) { return Cmp.bit(this, rhs); }
+  @Override public final I32 twc(final Bit rhs) { return Twc.bit(this, rhs); }
   @Override public final Bit ltn(final Bit rhs) { return Ltn.bit(this, rhs); }
   @Override public final Bit leq(final Bit rhs) { return Leq.bit(this, rhs); }
   @Override public final Bit gtn(final Bit rhs) { return Gtn.bit(this, rhs); }
