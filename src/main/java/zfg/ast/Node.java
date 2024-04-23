@@ -2,7 +2,7 @@ package zfg.ast;
 
 import java.util.List;
 
-import zfg.lang.primitive.Val;
+import zfg.lang.val.Val;
 
 public sealed interface Node {
   public Type type();

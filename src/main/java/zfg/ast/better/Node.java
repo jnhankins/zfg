@@ -2,7 +2,7 @@ package zfg.ast;
 
 import java.util.List;
 
-import zfg.lang.primitive.Val;
+import zfg.lang.val.Val;
 
 public sealed abstract class Node {
   protected final Type type;

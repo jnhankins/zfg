@@ -8,15 +8,15 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import zfg.lang.operation.Shr;
-import zfg.lang.primitive.I08;
-import zfg.lang.primitive.I16;
-import zfg.lang.primitive.I32;
-import zfg.lang.primitive.I64;
-import zfg.lang.primitive.U08;
-import zfg.lang.primitive.U16;
-import zfg.lang.primitive.U32;
-import zfg.lang.primitive.U64;
+import zfg.lang.ops.Shr;
+import zfg.lang.val.I08;
+import zfg.lang.val.I16;
+import zfg.lang.val.I32;
+import zfg.lang.val.I64;
+import zfg.lang.val.U08;
+import zfg.lang.val.U16;
+import zfg.lang.val.U32;
+import zfg.lang.val.U64;
 
 public final class ShrTest {
 

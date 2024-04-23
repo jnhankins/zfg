@@ -41,7 +41,7 @@ import zfg.antlr.ZfgParser.PostfixOpExprContext;
 import zfg.antlr.ZfgParser.PrefixOpExprContext;
 import zfg.antlr.ZfgParser.VariableExprContext;
 import zfg.ast.Node.Leaf;
-import zfg.lang.primitive.Val;
+import zfg.lang.val.Val;
 
 public final class ParseExpr {
   private ParseExpr() {}
@@ -63,9 +63,9 @@ public final class ParseExpr {
   public static final Node visitLiteralExpr(final Parser parser, final LiteralExprContext ctx) {
     final String str = ctx.lit.getText();
     return switch (ctx.lit.getType()) {
-      case BitLit -> switch (zfg.lang.primitive.Parser.parseBit(str)) {
+      case BitLit -> switch (zfg.lang.val.Parser.parseBit(str)) {
         case null -> {
-          parser.error(ctx, "Invalid bit literal: \"" + str + "\"");
+          parser.errors(ctx, "Invalid bit literal: \"" + str + "\"");
           yield new Leaf.Error(Node.Const.class, str);
         }
         case Val val -> new Node.Const(Type.bit, val);
@@ -77,17 +77,17 @@ public final class ParseExpr {
             parent.op.getStopIndex() + 1 == ctx.getStart().getStartIndex();
           default -> false;
         };
-        yield switch (zfg.lang.primitive.Parser.parseInt(str, hasNegativeSignPrefix)) {
+        yield switch (zfg.lang.val.Parser.parseInt(str, hasNegativeSignPrefix)) {
           case null -> {
-            parser.error(ctx, "Invalid int literal: \"" + str + "\"");
+            parser.errors(ctx, "Invalid int literal: \"" + str + "\"");
             yield new Leaf.Error(Node.Const.class, str);
           }
           case Val val -> new Node.Const(Type.of(val), val);
         };
       }
-      case FltLit -> switch (zfg.lang.primitive.Parser.parseFlt(str)) {
+      case FltLit -> switch (zfg.lang.val.Parser.parseFlt(str)) {
         case null -> {
-          parser.error(ctx, "Invalid flt literal: \"" + str + "\"");
+          parser.errors(ctx, "Invalid flt literal: \"" + str + "\"");
           yield new Leaf.Error(Node.Const.class, str);
         }
         case Val val -> new Node.Const(Type.of(val), val);
@@ -301,7 +301,7 @@ public final class ParseExpr {
     // Type checking
     final Type outType = typeCheck.apply(childType);
     if (outType == Type.err) {
-      parser.error(ctx, String.format(
+      parser.errors(ctx, String.format(
         "Invalid operand type for %s (%s) operator: %s",
         opName, opToken.getText(), childType
       ));
@@ -331,7 +331,7 @@ public final class ParseExpr {
     // Type checking
     final Type outType = typeCheck.apply(lhsType, rhsType);
     if (outType == Type.err) {
-      parser.error(ctx, String.format(
+      parser.errors(ctx, String.format(
         "Invalid operand types for %s (%s) operator: %s and %s",
         opName, ctx.op.getText(), lhsType, rhsType
       ));

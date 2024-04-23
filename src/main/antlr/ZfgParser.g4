@@ -39,20 +39,20 @@ functionParameter
   ;
 
 statement
-  : modifier=(LET | MUT) id=LowerId type SETA expression          # DeclarationStmt
-  | assignment                                                    # AssignmentStmt
-  | invocation                                                    # FunctionCallStmt
-  | IF expression block (ELSE IF expression block)* (ELSE block)? # IfElseStmt
-  | LOOP block                                                    # LoopStmt
-  | WHILE expression block                                        # LoopWhileStmt
-  | FOR expression SEMIC expression SEMIC expression block        # LoopForStmt
-  | BREAK                                                         # LoopBreakStmt
-  | CONTINUE                                                      # LoopContinueStmt
-  | RETURN expression?                                            # FunctionReturnStmt
+  : modifier=(LET | MUT) id=LowerId type SETA (expression | block) # DeclarationStmt
+  | assignment                                                     # AssignmentStmt
+  | invocation                                                     # InvocationStmt
+  | IF expression block (ELSE IF expression block)* (ELSE block)?  # IfElseStmt
+  | LOOP block                                                     # LoopStmt
+  | WHILE expression block                                         # LoopWhileStmt
+  | FOR expression SEMIC expression SEMIC expression block         # LoopForStmt
+  | BREAK                                                          # LoopBreakStmt
+  | CONTINUE                                                       # LoopContinueStmt
+  | RETURN expression?                                             # FunctionReturnStmt
   ;
 
 expression
-  : invocation                                               # FunctionCallExpr
+  : invocation                                               # InvocationExpr
   | identifier                                               # VariableExpr
   | lit=(BitLit | IntLit | FltLit)                           # LiteralExpr
   | LPAREN expression RPAREN                                 # GroupedExpr
@@ -86,77 +86,3 @@ invocation
 identifier
   : part=(UpperId | LowerId) ('.' part=(UpperId | LowerId))*
   ;
-
-// x
-// x, x
-// x, x,
-
-// compilationUnit
-//   : nonretBlock EOF
-//   ;
-
-// nonretBlock
-//   : (nonretStatement (SEMIC | {EOL()}?))*
-//   ;
-
-// returnBlock
-//   : (nonretStatement (SEMIC | {EOL()}?))* returnStatement (SEMIC | {EOL()}?)
-//   ;
-
-// nonretStatement
-//   : functionDeclaration
-//   | variableDeclaration
-//   | assignment
-//   | invocation
-//   ;
-
-// returnStatement
-//   : RET expression
-//   ;
-
-// variableDeclaration
-//   : mod=(LET | MUT) id=LowerId (COLON type=(VAR | I08 | I16 | I32 | I64 | F32 | F64))? SETA rhs=expression
-//   ;
-
-// functionDeclaration
-//   : FUN id=LowerId LPAREN RPAREN LBRACE returnBlock RBRACE // todo: parameters and return type
-//   ;
-
-// expression
-//   : invocation                                               # InvocationExpr
-//   | path                                                     # VariableExpr
-//   | lit=(BitLit | IntLit | FltLit)                           # LiteralExpr
-//   | LPAREN expression RPAREN                                 # GroupedExpr
-//   | lhs=expression op=(INC | DEC)                            # PostfixOpExpr
-//   | op=(INC | DEC | ADD | SUB | NOT) rhs=expression          # PrefixOpExpr
-//   | lhs=expression op=(MUL | DIV | REM | MOD) rhs=expression # InfixOpExpr
-//   | lhs=expression op=(ADD | SUB) rhs=expression             # InfixOpExpr
-//   | lhs=expression op=(SHL | SHR) rhs=expression             # InfixOpExpr
-//   | lhs=expression op=AND rhs=expression                     # InfixOpExpr
-//   | lhs=expression op=XOR rhs=expression                     # InfixOpExpr
-//   | lhs=expression op=IOR rhs=expression                     # InfixOpExpr
-//   | lhs=expression op=CMP rhs=expression                     # InfixOpExpr
-//   | lhs=expression op=(LTN | GTN | LTE | GTE) rhs=expression # InfixOpExpr
-//   | lhs=expression op=(EQL | NEQ)  rhs=expression            # InfixOpExpr
-//   | assignment                                               # AssignmentExpr
-//   ;
-
-// assignment
-//   : lhs=path op=(SETA | ADDA | SUBA | MULA | DIVA | REMA | MODA | ANDA | IORA | XORA | SHLA | SHRA) rhs=expression
-//   ;
-
-// invocation
-//   : path LPAREN RPAREN // todo: parameters
-//   ;
-
-// path
-//   : part=(UpperId | LowerId) ('.' part=(UpperId | LowerId))*
-//   ;
-
-/**
- * fun main(x: i32): i32 {
- *   let y: i32 = x + 1
- *   if (x <)
- *   ret y
- * }
- */

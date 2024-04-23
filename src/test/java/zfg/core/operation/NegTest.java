@@ -8,13 +8,13 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import zfg.lang.operation.Neg;
-import zfg.lang.primitive.F32;
-import zfg.lang.primitive.F64;
-import zfg.lang.primitive.I08;
-import zfg.lang.primitive.I16;
-import zfg.lang.primitive.I32;
-import zfg.lang.primitive.I64;
+import zfg.lang.ops.Neg;
+import zfg.lang.val.F32;
+import zfg.lang.val.F64;
+import zfg.lang.val.I08;
+import zfg.lang.val.I16;
+import zfg.lang.val.I32;
+import zfg.lang.val.I64;
 
 public final class NegTest {
 
