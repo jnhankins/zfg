@@ -227,8 +227,38 @@ public final class type {
   public static final F32 f32 = new F32();
   public static final F64 f64 = new F64();
 
+
   // enumeration of primitive types
   public static enum Kind { BIT, U08, U16, U32, U64, I08, I16, I32, I64, F32, F64 }
+
+  /** Type of function */
+  public static final class Fun {
+    public final Type   returnType;
+    public final Type[] paramTypes;
+
+    public Fun(final Type returnType, final Type... paramTypes) {
+      this.returnType = returnType;
+      this.paramTypes = paramTypes;
+    }
+
+    // toString, equals, and hashCode
+    public String toString() {
+      final StringBuilder buf = new StringBuilder();
+      buf.append("(");
+      for (int i = 0; i < paramTypes.length; i++) {
+        if (i > 0) sb.append(", ");
+        buf.append(paramTypes[i]);
+      }
+      buf.append(")");
+      buf.append(returnType);
+      return buf.toString();
+    }
+
+  }
+
+  public static Fun fun(final Type returnType, final Type... parameterTypes) {
+    return new Fun(returnType, parameterTypes);
+  }
 
   // module
   private type() {}

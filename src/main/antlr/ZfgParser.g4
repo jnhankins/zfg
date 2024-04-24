@@ -39,17 +39,16 @@ functionParameter
   ;
 
 statement
-  //: fwd=(PUB | USE) imu=(LET | MUT) id=LowerId type SETA (expression | block)      # DeclarationStmt
-  : imu=(LET | MUT) id=LowerId type SETA (expression | block)      # DeclarationStmt
-  | assignment                                                     # AssignmentStmt
-  | functionCall                                                   # FunctionCallStmt
-  | RETURN expression?                                             # FunctionReturnStmt
-  | IF expression block (ELSE IF expression block)* (ELSE block)?  # IfElseStmt
-  | LOOP block                                                     # LoopStmt
-  | WHILE expression block                                         # LoopWhileStmt
-  | FOR expression SEMIC expression SEMIC expression block         # LoopForStmt
-  | BREAK                                                          # LoopBreakStmt
-  | CONTINUE                                                       # LoopContinueStmt
+  : mod=(LET | MUT | PUB | USE) id=LowerId type SETA (expression | block)      # DeclarationStmt
+  | assignment                                                                 # AssignmentStmt
+  | functionCall                                                               # FunctionCallStmt
+  | RETURN expression?                                                         # FunctionReturnStmt
+  | IF expression block (ELSE IF expression block)* (ELSE block)?              # IfElseStmt
+  | LOOP block                                                                 # LoopStmt
+  | WHILE expression block                                                     # LoopWhileStmt
+  | FOR expression SEMIC expression SEMIC expression block                     # LoopForStmt
+  | BREAK                                                                      # LoopBreakStmt
+  | CONTINUE                                                                   # LoopContinueStmt
   ;
 block
   : LBRACE (statement (SEMIC | {EOL()}?))* RBRACE

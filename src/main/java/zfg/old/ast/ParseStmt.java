@@ -1,4 +1,4 @@
-package zfg.ast;
+package zfg.old.ast;
 
 import zfg.antlr.ZfgParser;
 import zfg.antlr.ZfgParser.AssignmentStmtContext;

@@ -8,7 +8,7 @@ public final class maybe {
 
   /** A data type that contains a value */
   public static final class Some<T> implements Maybe<T> {
-    private final T value;
+    public final T value;
     private Some(final T value) { this.value = value; }
     public T value() { return value; }
   }

@@ -1,27 +1,47 @@
 package zfg.parse;
 
+import static zfg.antlr.ZfgLexer.BIT;
 import static zfg.antlr.ZfgLexer.BitLit;
+import static zfg.antlr.ZfgLexer.F32;
+import static zfg.antlr.ZfgLexer.F64;
 import static zfg.antlr.ZfgLexer.FltLit;
+import static zfg.antlr.ZfgLexer.I08;
+import static zfg.antlr.ZfgLexer.I16;
+import static zfg.antlr.ZfgLexer.I32;
+import static zfg.antlr.ZfgLexer.I64;
 import static zfg.antlr.ZfgLexer.IntLit;
+import static zfg.antlr.ZfgLexer.LET;
+import static zfg.antlr.ZfgLexer.MUT;
+import static zfg.antlr.ZfgLexer.PUB;
 import static zfg.antlr.ZfgLexer.SUB;
+import static zfg.antlr.ZfgLexer.U08;
+import static zfg.antlr.ZfgLexer.U16;
+import static zfg.antlr.ZfgLexer.U32;
+import static zfg.antlr.ZfgLexer.U64;
+import static zfg.antlr.ZfgLexer.USE;
 import static zfg.parse.parse_literal.parseBitLit;
 import static zfg.parse.parse_literal.parseFltLit;
 import static zfg.parse.parse_literal.parseIntLit;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.antlr.v4.runtime.ParserRuleContext;
-import org.antlr.v4.runtime.Token;
 
 import zfg.antlr.ZfgParser.AssignmentExprContext;
 import zfg.antlr.ZfgParser.AssignmentStmtContext;
+import zfg.antlr.ZfgParser.BlockContext;
 import zfg.antlr.ZfgParser.DeclarationStmtContext;
 import zfg.antlr.ZfgParser.ExpressionContext;
 import zfg.antlr.ZfgParser.FunctionCallExprContext;
 import zfg.antlr.ZfgParser.FunctionCallStmtContext;
+import zfg.antlr.ZfgParser.FunctionParameterContext;
 import zfg.antlr.ZfgParser.FunctionReturnStmtContext;
+import zfg.antlr.ZfgParser.FunctionTypeContext;
 import zfg.antlr.ZfgParser.GroupedExprContext;
 import zfg.antlr.ZfgParser.IfElseStmtContext;
 import zfg.antlr.ZfgParser.InfixOpExprContext;
@@ -34,48 +54,106 @@ import zfg.antlr.ZfgParser.LoopWhileStmtContext;
 import zfg.antlr.ZfgParser.ModuleContext;
 import zfg.antlr.ZfgParser.PostfixOpExprContext;
 import zfg.antlr.ZfgParser.PrefixOpExprContext;
+import zfg.antlr.ZfgParser.PrimitiveTypeContext;
 import zfg.antlr.ZfgParser.StatementContext;
+import zfg.antlr.ZfgParser.TypeContext;
 import zfg.antlr.ZfgParser.VariableExprContext;
 import zfg.core.inst;
 import zfg.core.maybe.Some;
+import zfg.core.type;
+import zfg.core.type.Type;
 
 public final class Parser {
+
+  public Parser() {}
+
+  //// Errors
+
   /** Parser error */
-  public static final record Error(ParserRuleContext ctx, String msg) {
+  public static final record Error(
+    String msg,           // The error message
+    ParserRuleContext ctx // The context where the error occurred
+  ) {
     @Override public String toString() {
-      final Token start = ctx.getStart();
-      final int line = start.getLine();
-      final int column = start.getCharPositionInLine();
+      final int line = ctx.start.getLine();
+      final int column = ctx.start.getCharPositionInLine();
       return String.format("%d:%d: %s", line, column, msg);
     }
   }
 
-  private final List<Error> errors;
-  private final ArrayDeque<Scope> scopes;
-
-  static interface Scope {}
-  static final class ModuleScope implements Scope {}
-
-
-  public Parser() {
-    this.errors = new ArrayList<>();
-    this.scopes = new ArrayDeque<>();
-  }
+  /** List of errors */
+  private final List<Error> errors = new ArrayList<>();
 
   /** Get the list of errors */
   public List<Error> errors() { return errors; }
 
   /** Report an error */
   private void err(final ParserRuleContext ctx, final String msg) {
-    errors.add(new Error(ctx, msg));
+    errors.add(new Error(msg, ctx));
   }
 
+  //// Symbol Table and Scopes
 
+  // Symbol Modifier
+  private static enum SymbolMod { Let, Mut, Use, Pub }
+  // Symbol Table Record: modifier, identifier, type, scope, and null or node
+  private static record SymbolEntry(SymbolMod mod, String id, Type type, Scope scope, node.Node node) {}
+  // Symbol Table: identifier -> [scope 1 entry, scope 2 entry, ...]
+  private static final Map<String, Deque<SymbolEntry>> symbolTable = new HashMap<>();
+
+  // Scope
+  private static record Scope(List<SymbolEntry> symbols) {}
+  // Scope Stack
+  private final Deque<Scope> scopes = new ArrayDeque<>();
+  // Create a new scope and push it onto the stack
+  private Scope pushScope() {
+    final Scope scope = new Scope(new ArrayList<>());
+    scopes.push(scope);
+    return scope;
+  }
+  // Pop scope from the stack, removes its symbols from the symbol table, and returns it
+  private Scope popScope() {
+    final Scope scope = scopes.pop();
+    for (final SymbolEntry symbol : scope.symbols()) {
+      final Deque<SymbolEntry> entries = symbolTable.get(symbol.id);
+      if (entries.size() == 1) symbolTable.remove(symbol.id); else entries.pop();
+    }
+    return scope;
+  }
+
+  // Add a symbol to the symbol table. Returns true if the symbol was added, false otherwise.
+  private boolean addSymbol(final ParserRuleContext ctx, final SymbolEntry symbol) {
+    // Get the row for the symbol from the symbol table
+    final String id = symbol.id;
+    final Deque<SymbolEntry> entries = symbolTable.computeIfAbsent(id, k -> new ArrayDeque<>());
+    // Check if there is an existing symbol that
+    //  - has the same identifier
+    //  - is in the same scope
+    //  - has a modifier that disallows redeclaration
+    final SymbolEntry prev = entries.peek();
+    if (prev != null &&
+        prev.scope == scopes.peek() &&
+       (prev.mod == SymbolMod.Pub || prev.mod == SymbolMod.Use)
+    ) {
+      // Report an error and return false (failure)
+      err(ctx, String.format(
+        "Cannot redeclare symbol \"%s\" with modifier \"%s\" in the same scope",
+        symbol.id, prev.mod == SymbolMod.Pub ? "pub" : "use"
+      ));
+      return false;
+    }
+    // Add the symbol to the symbol table and return true (success)
+    entries.push(symbol);
+    return true;
+  }
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+  // Module
+  //////////////////////////////////////////////////////////////////////////////////////////////////
 
   public node.Node visitModule(final ModuleContext ctx) {
     // Push a new module scope
-    final Scope scope = new ModuleScope();
-    scopes.push(scope);
+    final Scope scope = pushScope();
 
     // Get all the statements
     final List<StatementContext> statement = ctx.statement();
@@ -94,7 +172,7 @@ public final class Parser {
     }
 
     // Pop the module scope
-    scopes.pop();
+    popScope();
 
     // Create and return the module node
     // TODO
@@ -125,10 +203,79 @@ public final class Parser {
   // DeclarationStmt
   //////////////////////////////////////////////////////////////////////////////////////////////////
 
-  public node.Node visitDeclarationStmt(DeclarationStmtContext stmt) {
-    // TODO Auto-generated method stub
-    throw new UnsupportedOperationException("Unimplemented method 'visitDeclarationStmt'");
+  public node.Node visitDeclarationStmt(final DeclarationStmtContext ctx) {
+    // Get the symbol modifier
+    final SymbolMod mod = switch (ctx.mod.getType()) {
+      case LET -> SymbolMod.Let;
+      case MUT -> SymbolMod.Mut;
+      case USE -> SymbolMod.Use;
+      case PUB -> SymbolMod.Pub;
+      default -> throw new AssertionError();
+    };
+    // Get the symbol name
+    final String id = ctx.id.getText();
+    // Visit the symbol type
+    final node.Node type = visitType(ctx.type());
+    // Add the symbol to the symbol table
+    final boolean hasSymbolErr = !addSymbol(ctx, null);
+    // If it's a function type, create a scope and add the argument symbols
+
+    // TODO ...
+
+    // Visit the symbol's definition (expression or block)
+    final ExpressionContext expr = ctx.expression();
+    final BlockContext block = ctx.block();
+    if ((expr == null) == (block == null)) throw new AssertionError();
+    if (expr != null) {
+      final node.Node child = visitExpression(expr);
+    } else {
+      // If it's a function type, add the argument symbols
+      final node.Node child = visitBlock(block);
+    }
   }
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+  // Type
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+
+  public type.Type visitType(final TypeContext ctx) {
+    return switch (ctx) {
+      case PrimitiveTypeContext  type -> visitPrimitiveType(type);
+      case FunctionTypeContext   type -> visitFunctionType(type);
+      default -> throw new AssertionError();
+    };
+  }
+
+  public type.Type visitPrimitiveType(final PrimitiveTypeContext ctx) {
+    return switch (ctx.token.getType()) {
+      case BIT -> type.bit;
+      case U08 -> type.u08;
+      case U16 -> type.u16;
+      case U32 -> type.u32;
+      case U64 -> type.u64;
+      case I08 -> type.i08;
+      case I16 -> type.i16;
+      case I32 -> type.i32;
+      case I64 -> type.i64;
+      case F32 -> type.f32;
+      case F64 -> type.f64;
+      default -> throw new AssertionError();
+    };
+  }
+
+  public type.Type visitFunctionType(final FunctionTypeContext ctx) {
+    // Get the argument types
+    final List<FunctionParameterContext> params = ctx.functionParameter();
+    final List<node.Type> args = new ArrayList<>(params.size());
+    for (final TypeContext argType : argTypes) {
+      args.add(visitType(argType));
+    }
+    // Get the return type
+    final type.Type returnType = visitType(ctx.type());
+    // Create and return the function type
+    return type.Type.fun(returnType, args);
+  }
+
 
   //////////////////////////////////////////////////////////////////////////////////////////////////
   // Expression
@@ -172,7 +319,7 @@ public final class Parser {
   private node.Node visitBitLit(final LiteralExprContext ctx) {
     final String text = ctx.lit.getText();
     return switch (parseBitLit(text)) {
-      case Some<inst.Bit> some -> node.Const.of(some.value());
+      case Some<inst.Bit> some -> node.Const.of(some.value);
       default -> {
         err(ctx, "Invalid bit literal: \"" + text + "\"");
         yield node.Const.err;
@@ -189,7 +336,7 @@ public final class Parser {
       default -> false;
     };
     return switch (parseIntLit(text, hasMinusPrefix)) {
-      case Some<inst.Inst<?>> some -> node.Const.of(some.value());
+      case Some<inst.Inst<?>> some -> node.Const.of(some.value);
       default -> {
         err(ctx, "Invalid int literal: \"" + text + "\"");
         yield node.Const.err;
@@ -200,7 +347,7 @@ public final class Parser {
   private node.Node visitFltLit(final LiteralExprContext ctx) {
     final String text = ctx.lit.getText();
     return switch (parseFltLit(text)) {
-      case Some<inst.Inst<?>> some -> node.Const.of(some.value());
+      case Some<inst.Inst<?>> some -> node.Const.of(some.value);
       default -> {
         err(ctx, "Invalid flt literal: \"" + text + "\"");
         yield node.Const.err;

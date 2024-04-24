@@ -1,4 +1,4 @@
-package zfg.ast;
+package zfg.old.ast.better;
 
 import static zfg.antlr.ZfgLexer.BIT;
 import static zfg.antlr.ZfgLexer.F32;

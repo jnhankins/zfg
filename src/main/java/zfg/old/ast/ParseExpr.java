@@ -1,4 +1,4 @@
-package zfg.ast;
+package zfg.old.ast;
 
 import static zfg.antlr.ZfgLexer.ADD;
 import static zfg.antlr.ZfgLexer.AND;
@@ -40,8 +40,8 @@ import zfg.antlr.ZfgParser.LiteralExprContext;
 import zfg.antlr.ZfgParser.PostfixOpExprContext;
 import zfg.antlr.ZfgParser.PrefixOpExprContext;
 import zfg.antlr.ZfgParser.VariableExprContext;
-import zfg.ast.Node.Leaf;
 import zfg.lang.val.Val;
+import zfg.old.ast.Node.Leaf;
 
 public final class ParseExpr {
   private ParseExpr() {}

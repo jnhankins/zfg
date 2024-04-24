@@ -12,7 +12,7 @@ import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 
-import zfg.ast.Parser;
+import zfg.old.ast.Parser;
 
 public class Main {
   public static void main(final String[] args) {

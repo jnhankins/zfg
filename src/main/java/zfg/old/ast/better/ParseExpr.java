@@ -1,4 +1,4 @@
-package zfg.ast;
+package zfg.old.ast.better;
 
 import static zfg.antlr.ZfgLexer.ADD;
 import static zfg.antlr.ZfgLexer.AND;

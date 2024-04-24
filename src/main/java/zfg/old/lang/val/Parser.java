@@ -23,18 +23,18 @@ public final class Parser {
     else if (s.startsWith("0x")) { radix = 16; beg = 2; }
     else                         { radix = 10; beg = 0; }
 
-    final zfg.ast.Type.Int type;
+    final zfg.old.ast.Type.Int type;
     final int end;
-    if      (s.endsWith("bit")) { type = zfg.ast.Type.bit; end = len - 3; }
-    else if (s.endsWith("i08")) { type = zfg.ast.Type.i08; end = len - 3; }
-    else if (s.endsWith("i16")) { type = zfg.ast.Type.i16; end = len - 3; }
-    else if (s.endsWith("i32")) { type = zfg.ast.Type.i32; end = len - 3; }
-    else if (s.endsWith("i64")) { type = zfg.ast.Type.i64; end = len - 3; }
-    else if (s.endsWith("u08")) { type = zfg.ast.Type.u08; end = len - 3; }
-    else if (s.endsWith("u16")) { type = zfg.ast.Type.u16; end = len - 3; }
-    else if (s.endsWith("u32")) { type = zfg.ast.Type.u32; end = len - 3; }
-    else if (s.endsWith("u64")) { type = zfg.ast.Type.u64; end = len - 3; }
-    else                        { type = zfg.ast.Type.i32; end = len; }
+    if      (s.endsWith("bit")) { type = zfg.old.ast.Type.bit; end = len - 3; }
+    else if (s.endsWith("i08")) { type = zfg.old.ast.Type.i08; end = len - 3; }
+    else if (s.endsWith("i16")) { type = zfg.old.ast.Type.i16; end = len - 3; }
+    else if (s.endsWith("i32")) { type = zfg.old.ast.Type.i32; end = len - 3; }
+    else if (s.endsWith("i64")) { type = zfg.old.ast.Type.i64; end = len - 3; }
+    else if (s.endsWith("u08")) { type = zfg.old.ast.Type.u08; end = len - 3; }
+    else if (s.endsWith("u16")) { type = zfg.old.ast.Type.u16; end = len - 3; }
+    else if (s.endsWith("u32")) { type = zfg.old.ast.Type.u32; end = len - 3; }
+    else if (s.endsWith("u64")) { type = zfg.old.ast.Type.u64; end = len - 3; }
+    else                        { type = zfg.old.ast.Type.i32; end = len; }
 
     final long v;
     final String t = s.substring(beg, end).replace("_", "");
@@ -56,15 +56,15 @@ public final class Parser {
     // ... subtract I08(-128), which should then throw an exception, while "x = -128i08" will be
     // parsed as ... negate I08(-128), which is allowed and should simplify to I(-128).
     return switch (type) {
-      case zfg.ast.Type.Bit x -> v >= 0 && v <=          1L ? new Bit((int) v) : null;
-      case zfg.ast.Type.U08 x -> v >= 0 && v <=       0xFFL ? new U08((int) v) : null;
-      case zfg.ast.Type.U16 x -> v >= 0 && v <=     0xFFFFL ? new U16((int) v) : null;
-      case zfg.ast.Type.U32 x -> v >= 0 && v <= 0xFFFFFFFFL ? new U32((int) v) : null;
-      case zfg.ast.Type.U64 x -> new U64(v);
-      case zfg.ast.Type.I08 x -> v >= 0 && v <= (radix != 10 ?       0xFFL : neg ?       0x80L :       0x7FL) ? new I08((int)v) : null;
-      case zfg.ast.Type.I16 x -> v >= 0 && v <= (radix != 10 ?     0xFFFFL : neg ?     0x8000L :     0x7FFFL) ? new I16((int)v) : null;
-      case zfg.ast.Type.I32 x -> v >= 0 && v <= (radix != 10 ? 0xFFFFFFFFL : neg ? 0x80000000L : 0x7FFFFFFFL) ? new I32((int)v) : null;
-      case zfg.ast.Type.I64 x -> v >= 0 || radix != 10 || (neg && v == 0x8000000000000000L)                   ? new I64(v)      : null;
+      case zfg.old.ast.Type.Bit x -> v >= 0 && v <=          1L ? new Bit((int) v) : null;
+      case zfg.old.ast.Type.U08 x -> v >= 0 && v <=       0xFFL ? new U08((int) v) : null;
+      case zfg.old.ast.Type.U16 x -> v >= 0 && v <=     0xFFFFL ? new U16((int) v) : null;
+      case zfg.old.ast.Type.U32 x -> v >= 0 && v <= 0xFFFFFFFFL ? new U32((int) v) : null;
+      case zfg.old.ast.Type.U64 x -> new U64(v);
+      case zfg.old.ast.Type.I08 x -> v >= 0 && v <= (radix != 10 ?       0xFFL : neg ?       0x80L :       0x7FL) ? new I08((int)v) : null;
+      case zfg.old.ast.Type.I16 x -> v >= 0 && v <= (radix != 10 ?     0xFFFFL : neg ?     0x8000L :     0x7FFFL) ? new I16((int)v) : null;
+      case zfg.old.ast.Type.I32 x -> v >= 0 && v <= (radix != 10 ? 0xFFFFFFFFL : neg ? 0x80000000L : 0x7FFFFFFFL) ? new I32((int)v) : null;
+      case zfg.old.ast.Type.I64 x -> v >= 0 || radix != 10 || (neg && v == 0x8000000000000000L)                   ? new I64(v)      : null;
       default -> throw new AssertionError();
     };
   }
@@ -81,17 +81,17 @@ public final class Parser {
     else if (s.startsWith("0x")) { radix =  2; beg = 0; }
     else                         { radix = 10; beg = 0; }
 
-    final zfg.ast.Type.Fxx type;
+    final zfg.old.ast.Type.Fxx type;
     final int end;
-    if      (s.endsWith("f32")) { type = zfg.ast.Type.f32; end = len - 3; }
-    else if (s.endsWith("f64")) { type = zfg.ast.Type.f64; end = len - 3; }
-    else                        { type = zfg.ast.Type.f64; end = len; }
+    if      (s.endsWith("f32")) { type = zfg.old.ast.Type.f32; end = len - 3; }
+    else if (s.endsWith("f64")) { type = zfg.old.ast.Type.f64; end = len - 3; }
+    else                        { type = zfg.old.ast.Type.f64; end = len; }
 
     final String t = s.substring(beg, end).replace("_", "");
     try {
       return switch (type) {
-        case zfg.ast.Type.F32 x -> new F32(Float.parseFloat(t));
-        case zfg.ast.Type.F64 x -> new F64(Double.parseDouble(t));
+        case zfg.old.ast.Type.F32 x -> new F32(Float.parseFloat(t));
+        case zfg.old.ast.Type.F64 x -> new F64(Double.parseDouble(t));
         default -> throw new AssertionError();
       };
     } catch (final NumberFormatException e) {

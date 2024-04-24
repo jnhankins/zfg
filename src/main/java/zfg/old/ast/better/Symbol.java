@@ -1,4 +1,4 @@
-package zfg.ast;
+package zfg.old.ast.better;
 
 import java.util.List;
 import java.util.ArrayList;
@@ -6,7 +6,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Stack;
 
-import zfg.ast.Type.Val;
+import zfg.old.ast.Type.Val;
 
 public sealed interface Symbol {
 

@@ -1,4 +1,4 @@
-package zfg.ast;
+package zfg.old.ast.better;
 
 import java.util.Arrays;
 import java.util.List;
@@ -12,10 +12,10 @@ import org.antlr.v4.runtime.misc.Utils;
 import org.antlr.v4.runtime.tree.Tree;
 import org.antlr.v4.runtime.tree.Trees;
 
-import zfg.ast.Node.Binary;
-import zfg.ast.Node.Leaf;
-import zfg.ast.Node.Nary;
-import zfg.ast.Node.Unary;
+import zfg.old.ast.Node.Binary;
+import zfg.old.ast.Node.Leaf;
+import zfg.old.ast.Node.Nary;
+import zfg.old.ast.Node.Unary;
 
 public class PrettyPrint {
 

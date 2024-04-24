@@ -4,6 +4,8 @@ channels { WHITESPACE_CHANNEL, COMMENTS_CHANNEL }
 // Declaration Keywords
 LET: 'let'; // Immutable symbol declaration, cannot be reassinged without redecalration
 MUT: 'mut'; // Mutable symbol declaration, can be reassigned without redecalration
+PUB: 'pub'; // Public symbol declaration, can be accessed from other modules
+USE: 'use'; // Use symbol declaration, can import from aother modudle or locally defined
 
 // Control Flow Keywords
 IF:       'if'      ; // Conditional statement

@@ -1,4 +1,4 @@
-package zfg.ast.old;
+package zfg.old.ast.old;
 
 import static zfg.antlr.ZfgLexer.ADD;
 import static zfg.antlr.ZfgLexer.AND;
@@ -37,12 +37,6 @@ import zfg.antlr.ZfgParser.PathContext;
 import zfg.antlr.ZfgParser.PathExprContext;
 import zfg.antlr.ZfgParser.PostfixExprContext;
 import zfg.antlr.ZfgParser.PrefixExprContext;
-import zfg.ast.Literal;
-import zfg.ast.Type;
-import zfg.ast.Type.Ixx;
-import zfg.ast.Type.Num;
-import zfg.ast.Type.Uxx;
-import zfg.ast.old.Expr.Const;
 import zfg.lang.ops.Add;
 import zfg.lang.ops.Mul;
 import zfg.lang.ops.Sub;
@@ -58,6 +52,12 @@ import zfg.lang.val.U16;
 import zfg.lang.val.U32;
 import zfg.lang.val.U64;
 import zfg.lang.val.Val;
+import zfg.old.ast.Literal;
+import zfg.old.ast.Type;
+import zfg.old.ast.Type.Ixx;
+import zfg.old.ast.Type.Num;
+import zfg.old.ast.Type.Uxx;
+import zfg.old.ast.old.Expr.Const;
 
 public class Parser {
   public static class ParserException extends RuntimeException {
