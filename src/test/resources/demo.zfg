@@ -1,0 +1,103 @@
+
+
+
+mut fib (let n i32) i32 = {
+  if n == 0 || n == 1 { return n }
+  return fib(n-1) + fib(n-2)
+}
+
+
+pub x = fib(2)
+
+
+
+public final class demo {
+  private demo() {}
+
+  public static final int x = 3;
+}
+
+
+
+
+
+use x from demo.helloworld
+
+
+
+let x i32 = 1
+print(x)
+
+mut x i32 = x
+x += 1;
+let x i32 = x
+
+pub x
+pub y i32 = x + 1
+
+
+pub main(let args str[]) void = {
+  system.out.println("hello world")
+}
+
+public final class demo {
+  private demo() {}
+
+  public static final int x = 2;
+  public static final int y = 3;
+
+  static {
+    System.out.println(1);
+  }
+
+  public static void main(final String[] args) {
+    int x = 5;
+  }
+}
+
+
+
+
+
+
+pub main(let args str[]) void = {
+  system.out.println("hello world")
+}
+
+public final class demo {
+  private demo() {}
+
+  public static final int x;
+  public static final int y;
+
+  static {
+    int x = 1;
+    System.out.println(x);
+    x += 1;
+    demo.x = x;
+    demo.y = demo.x;
+  }
+
+  public static void main(final String[] args) {
+    int x = 5;
+  }
+}
+
+
+enum AB  {
+  A,
+  B
+}
+enum XY  {
+  X,
+  Y
+}
+
+let product(let T0 type, let T1 type) type = {
+
+}
+
+let AB_XY = product(AB, XY)
+
+AB_XY.A_Y
+

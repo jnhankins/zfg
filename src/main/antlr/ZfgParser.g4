@@ -23,7 +23,7 @@ options { tokenVocab = ZfgLexer; }
 // TODO: match expression
 
 
-compilationUnit
+module
   : (statement (SEMIC | {EOL()}?))*
   ;
 
@@ -35,24 +35,28 @@ type
   | LPAREN (functionParameter (COMMA functionParameter)* COMMA?)? RPAREN type # FunctionType
   ;
 functionParameter
-  : modifier=(LET | MUT) id=LowerId type
+  : imu=(LET | MUT) id=LowerId type
   ;
 
 statement
-  : modifier=(LET | MUT) id=LowerId type SETA (expression | block) # DeclarationStmt
+  //: fwd=(PUB | USE) imu=(LET | MUT) id=LowerId type SETA (expression | block)      # DeclarationStmt
+  : imu=(LET | MUT) id=LowerId type SETA (expression | block)      # DeclarationStmt
   | assignment                                                     # AssignmentStmt
-  | invocation                                                     # InvocationStmt
+  | functionCall                                                   # FunctionCallStmt
+  | RETURN expression?                                             # FunctionReturnStmt
   | IF expression block (ELSE IF expression block)* (ELSE block)?  # IfElseStmt
   | LOOP block                                                     # LoopStmt
   | WHILE expression block                                         # LoopWhileStmt
   | FOR expression SEMIC expression SEMIC expression block         # LoopForStmt
   | BREAK                                                          # LoopBreakStmt
   | CONTINUE                                                       # LoopContinueStmt
-  | RETURN expression?                                             # FunctionReturnStmt
+  ;
+block
+  : LBRACE (statement (SEMIC | {EOL()}?))* RBRACE
   ;
 
 expression
-  : invocation                                               # InvocationExpr
+  : functionCall                                             # FunctionCallExpr
   | identifier                                               # VariableExpr
   | lit=(BitLit | IntLit | FltLit)                           # LiteralExpr
   | LPAREN expression RPAREN                                 # GroupedExpr
@@ -71,15 +75,11 @@ expression
   | lhs=expression op=(LCJ | LDJ) rhs=expression             # InfixOpExpr
   ;
 
-block
-  : LBRACE (statement (SEMIC | {EOL()}?))* RBRACE
-  ;
-
 assignment
   : lhs=identifier op=(SETA | ADDA | SUBA | MULA | DIVA | REMA | MODA | ANDA | IORA | XORA | SHLA | SHRA) rhs=expression
   ;
 
-invocation
+functionCall
   : identifier LPAREN (expression (COMMA expression)* COMMA?)? RPAREN
   ;
 
