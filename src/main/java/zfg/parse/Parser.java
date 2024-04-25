@@ -24,8 +24,10 @@ import static zfg.parse.parse_literal.parseFltLit;
 import static zfg.parse.parse_literal.parseIntLit;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 
 import org.antlr.v4.runtime.ParserRuleContext;
 
@@ -63,11 +65,6 @@ import zfg.core.maybe.Some;
 import zfg.core.type;
 
 public final class Parser {
-
-  public Parser() {}
-
-  //// Errors //////////////////////////////////////////////////////////////////////////////////////
-
   /** Parser error */
   public static final record Error(
     ParserRuleContext ctx, // The context where the error occurred
@@ -80,8 +77,11 @@ public final class Parser {
     }
   }
 
-  /** List of errors */
   private final List<Error> errors = new ArrayList<>();
+  private final symbol.Table symbolTable = new symbol.Table();
+  private final Map<TypeContext, type.Type> typeCache = new HashMap<>();
+
+  public Parser() {}
 
   /** Get the list of errors */
   public List<Error> errors() { return errors; }
@@ -89,10 +89,6 @@ public final class Parser {
   /** Report an error */
   private void err(final Error err) { errors.add(err); }
   private void err(final ParserRuleContext ctx, final String msg) { err(new Error(ctx, msg)); }
-
-  //// Symbol Table /////////////////////////////////////////////////////////////////////
-
-  final symbol.Table symbolTable = new symbol.Table();
 
   //////////////////////////////////////////////////////////////////////////////////////////////////
   // Module
@@ -109,8 +105,22 @@ public final class Parser {
     // Handle forward declarations
     for (int i = 0; i < size; i++) {
       final StatementContext stmt = statement.get(i);
+      // Find declaration statements
       if (stmt instanceof DeclarationStmtContext decl) {
-        // TODO
+        // Check if the symbol's modifier is pub or use
+        final symbol.Modifier mod;
+        switch (decl.mod.getType()) {
+          case PUB: mod = symbol.Modifier.Pub; break;
+          case USE: mod = symbol.Modifier.Use; break;
+          default: continue;
+        };
+        // Get the symbol's name
+        final String id = decl.id.getText();
+        // Get the symbol's type
+        final type.Type symbolType = visitType(decl.symbolType);
+        // Add the symbol to the symbol table
+        final Error err = symbolTable.addSymbol(decl, mod, id, symbolType, null);
+        if (err != null) err(err);
       }
     }
 
@@ -165,12 +175,16 @@ public final class Parser {
       case PUB -> symbol.Modifier.Pub;
       default -> throw new AssertionError();
     };
+
     // Get the symbol's name
     final String id = ctx.id.getText();
+
     // Get the symbol's type
     final type.Type symbolType = visitType(ctx.symbolType);
 
-
+    // Then add the symbol to the symbol table
+    final Error err = symbolTable.addSymbol(ctx, mod, id, symbolType, null);
+    if (err != null) err(err);
 
     // Add the symbol to the symbol table
     final Error err = symbolTable.addSymbol(ctx, mod, id, symbolType, null);
@@ -198,13 +212,13 @@ public final class Parser {
   //////////////////////////////////////////////////////////////////////////////////////////////////
 
   public type.Type visitType(final TypeContext ctx) {
-    return switch (ctx) {
+    return typeCache.computeIfAbsent(ctx, tc -> switch (ctx) {
       case PrimitiveTypeContext  type -> visitPrimitiveType(type);
       case ArrayTypeContext      type -> visitArrayType(type);
       case RecordType_Context    type -> visitRecordType(type.recordType_);
       case FunctionTypeContext   type -> visitFunctionType(type);
       default -> throw new AssertionError();
-    };
+    });
   }
 
   public type.Type visitPrimitiveType(final PrimitiveTypeContext ctx) {

@@ -33,13 +33,13 @@ public class symbol {
     private final Map<String, Deque<Entry>> table  = new HashMap<>();
     private final Deque<Scope>              scopes = new ArrayDeque<>();
 
-    // Create a new scope and push it onto the stack
+    // Creates a new scope and pushes it onto the stack
     public void pushScope() {
       final Scope scope = new Scope(new ArrayList<>());
       scopes.push(scope);
     }
 
-    // Pop a scope off the stack, remove its symbols from the symbol table, and return it
+    // Pops a scope off the stack, removes its symbols from the symbol table, and returns it
     public Scope popScope() {
       final Scope scope = scopes.pop();
       for (final Entry symbol : scope.symbols) {
@@ -51,7 +51,7 @@ public class symbol {
     }
 
     // Add a symbol to the current scope.
-    // Returns null on success, otherwise returns aparser error.
+    // Returns null if successfull, otherwise return an error.
     public Parser.Error addSymbol(
       final DeclarationStmtContext ctx,
       final Modifier mod,
@@ -62,18 +62,21 @@ public class symbol {
       // Get the row for the symbol's identifier
       final Deque<Entry> entries = table.computeIfAbsent(id, k -> new ArrayDeque<>());
 
-      // Check if there is an existing symbol that
-      //  (a) has the same identifier,
-      //  (b) is in the same scope, and
-      //  (c) has a modifier that disallows redeclaration.
       final Entry extant = entries.peek();
-      if (extant != null &&                                           // (a)
-          extant.scope == scopes.peek() &&                            // (b)
-          (extant.mod == Modifier.Pub || extant.mod == Modifier.Use)  // (c)
-      ) return new Parser.Error(ctx, String.format(
-        "cannot redeclare symbol \"%s\" previously declared with modifier \"%s\" in the same scope on line %d column %d",
-        id, extant.ctx.mod.getText(), extant.ctx.getStart().getLine(), extant.ctx.getStart().getCharPositionInLine()
-      ));
+      if (extant != null) {
+        // Check if this is an update to a symbol already in the table
+        if (extant.ctx == ctx) {
+        }
+        // Check for disallowed redeclarations:
+        // Pub and use symbols can only be declared once per scope and identifier.
+        if (extant.scope == scopes.peek() && (
+          mod == Modifier.Pub || extant.mod == Modifier.Pub ||
+          mod == Modifier.Use || extant.mod == Modifier.Use
+        )) return new Parser.Error(ctx, String.format(
+          "cannot declare symbol \"%s\" with modifier \"$s\" because it is also declared elsewhere in the same scope with modifier \"%s\" on line %d column %d",
+          id, ctx.mod.getText(), extant.ctx.mod.getText(), extant.ctx.getStart().getLine(), extant.ctx.getStart().getCharPositionInLine()
+        ));
+      }
 
       // Create the symbol entry, add it to the current scope, and add it to the symbol table
       final Scope scope = scopes.peek();
@@ -81,6 +84,13 @@ public class symbol {
       scope.symbols.add(symbol);
       entries.push(symbol);
       return null;
+    }
+
+    // Returns the symbol entry for the given identifier if one exists in the symbol table,
+    // otherwise returns null.
+    public Entry getSymbol(final String id) {
+      final Deque<Entry> entries = table.get(id);
+      return entries == null ? null : entries.peek();
     }
   }
 }
