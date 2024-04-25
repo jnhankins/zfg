@@ -67,12 +67,12 @@ public final class Parser {
 
   public Parser() {}
 
-  //// Errors
+  //// Errors //////////////////////////////////////////////////////////////////////////////////////
 
   /** Parser error */
   public static final record Error(
-    String msg,           // The error message
-    ParserRuleContext ctx // The context where the error occurred
+    ParserRuleContext ctx, // The context where the error occurred
+    String msg             // The error message
   ) {
     @Override public String toString() {
       final int line = ctx.start.getLine();
@@ -88,64 +88,12 @@ public final class Parser {
   public List<Error> errors() { return errors; }
 
   /** Report an error */
-  private void err(final ParserRuleContext ctx, final String msg) {
-    errors.add(new Error(msg, ctx));
-  }
+  private void err(final Error err) { errors.add(err); }
+  private void err(final ParserRuleContext ctx, final String msg) { err(new Error(ctx, msg)); }
 
-  //// Symbol Table and Scopes
+  //// Symbol Table /////////////////////////////////////////////////////////////////////
 
-  // Symbol Modifier
-  private static enum SymbolMod { Let, Mut, Use, Pub }
-  // Symbol Table Record: modifier, identifier, type, scope, and null or node
-  private static record SymbolEntry(SymbolMod mod, String id, Type type, Scope scope, node.Node node) {}
-  // Symbol Table: identifier -> [scope 1 entry, scope 2 entry, ...]
-  private static final Map<String, Deque<SymbolEntry>> symbolTable = new HashMap<>();
-
-  // Scope
-  private static record Scope(List<SymbolEntry> symbols) {}
-  // Scope Stack
-  private final Deque<Scope> scopes = new ArrayDeque<>();
-  // Create a new scope and push it onto the stack
-  private Scope pushScope() {
-    final Scope scope = new Scope(new ArrayList<>());
-    scopes.push(scope);
-    return scope;
-  }
-  // Pop scope from the stack, removes its symbols from the symbol table, and returns it
-  private Scope popScope() {
-    final Scope scope = scopes.pop();
-    for (final SymbolEntry symbol : scope.symbols()) {
-      final Deque<SymbolEntry> entries = symbolTable.get(symbol.id);
-      if (entries.size() == 1) symbolTable.remove(symbol.id); else entries.pop();
-    }
-    return scope;
-  }
-
-  // Add a symbol to the symbol table. Returns true if the symbol was added, false otherwise.
-  private boolean addSymbol(final ParserRuleContext ctx, final SymbolEntry symbol) {
-    // Get the row for the symbol from the symbol table
-    final String id = symbol.id;
-    final Deque<SymbolEntry> entries = symbolTable.computeIfAbsent(id, k -> new ArrayDeque<>());
-    // Check if there is an existing symbol that
-    //  - has the same identifier
-    //  - is in the same scope
-    //  - has a modifier that disallows redeclaration
-    final SymbolEntry prev = entries.peek();
-    if (prev != null &&
-        prev.scope == scopes.peek() &&
-       (prev.mod == SymbolMod.Pub || prev.mod == SymbolMod.Use)
-    ) {
-      // Report an error and return false (failure)
-      err(ctx, String.format(
-        "Cannot redeclare symbol \"%s\" with modifier \"%s\" in the same scope",
-        symbol.id, prev.mod == SymbolMod.Pub ? "pub" : "use"
-      ));
-      return false;
-    }
-    // Add the symbol to the symbol table and return true (success)
-    entries.push(symbol);
-    return true;
-  }
+  final symbol.Table symbolTable = new symbol.Table();
 
   //////////////////////////////////////////////////////////////////////////////////////////////////
   // Module
@@ -153,7 +101,7 @@ public final class Parser {
 
   public node.Node visitModule(final ModuleContext ctx) {
     // Push a new module scope
-    final Scope scope = pushScope();
+    symbolTable.pushScope();
 
     // Get all the statements
     final List<StatementContext> statement = ctx.statement();
@@ -172,7 +120,7 @@ public final class Parser {
     }
 
     // Pop the module scope
-    popScope();
+    final symbol.Scope scope = symbolTable.popScope();
 
     // Create and return the module node
     // TODO
@@ -205,19 +153,25 @@ public final class Parser {
 
   public node.Node visitDeclarationStmt(final DeclarationStmtContext ctx) {
     // Get the symbol modifier
-    final SymbolMod mod = switch (ctx.mod.getType()) {
-      case LET -> SymbolMod.Let;
-      case MUT -> SymbolMod.Mut;
-      case USE -> SymbolMod.Use;
-      case PUB -> SymbolMod.Pub;
+    final symbol.Modifier mod = switch (ctx.mod.getType()) {
+      case LET -> symbol.Modifier.Let;
+      case MUT -> symbol.Modifier.Mut;
+      case USE -> symbol.Modifier.Use;
+      case PUB -> symbol.Modifier.Pub;
       default -> throw new AssertionError();
     };
     // Get the symbol name
     final String id = ctx.id.getText();
     // Visit the symbol type
-    final node.Node type = visitType(ctx.type());
+    final type.Type type = visitType(ctx.type());
+
+    
+
     // Add the symbol to the symbol table
-    final boolean hasSymbolErr = !addSymbol(ctx, null);
+    final Error err = symbolTable.addSymbol(ctx, mod, id, type, null);
+    if (err != null) {
+      err(err);
+    }
     // If it's a function type, create a scope and add the argument symbols
 
     // TODO ...

@@ -1,18 +1,73 @@
 package zfg.core;
 
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Objects;
+
+/**
+ * Types
+ * ├─one   : unit (basically void when used as return type, equivalent to an empty record)
+ * ├─val   : primitive
+ * │ ├─bit : 1-bit unsigned integer (boolean, true or false, 0 or 1)
+ * │ ├─u08 : 8-bit unsigned integer
+ * │ ├─u16 : 16-bit unsigned integer
+ * │ ├─u32 : 32-bit unsigned integer
+ * │ ├─u64 : 64-bit unsigned integer
+ * │ ├─i08 : 8-bit signed integer
+ * │ ├─i16 : 16-bit signed integer
+ * │ ├─i32 : 32-bit signed integer
+ * │ ├─i64 : 64-bit signed integer
+ * │ ├─f32 : 32-bit floating-point number
+ * │ └─f64 : 64-bit floating-point number
+ * ├─ref   : reference, "points" to memory address
+ * │ ├─arr : data accessed by offset
+ * │ ├─rec : data accessed by key
+ * │ └─fun : function, no data
+ * ├─unk   : unknown type (virtual type used to indicate that type is not yet determined)
+ * └─err   : error type   (virtual type used to indicate an error determining type)
+ */
 public final class type {
 
   /** A data type */
-  public static sealed interface Type permits Err,
-    Bit, U08, U16, U32, U64, I08, I16, I32, I64, F32, F64
+  public static sealed interface Type permits
+    // Virtual types
+    One, Unk, Err,
+    // Primitive types
+    Bit, U08, U16, U32, U64, I08, I16, I32, I64, F32, F64,
+    // Reference types
+    Arr, Rec, Fun
     {}
 
+  /** Virtual type "unit" */
+  @SuppressWarnings("unused")
+  public static final class One extends Rec implements Type {
+    // singleton
+    private One() { super(); }
+
+    // toString, equals, and hashCode
+    public String toString() { return "one"; }
+    public boolean equals(final Object that) { return this == that; }
+    public int hashCode() { return System.identityHashCode(this); }
+  }
+
+  /** Virtual type "err": Used to indicate an error determining type */
   public static final class Err implements Type {
     // singleton
     private Err() {}
 
     // toString, equals, and hashCode
     public String toString() { return "err"; }
+    public boolean equals(final Object that) { return this == that; }
+    public int hashCode() { return System.identityHashCode(this); }
+  }
+
+  /** Virtual type "unk": Used to indicate that type has not been determined yet */
+  public static final class Unk implements Type {
+    // singleton
+    private Unk() {}
+
+    // toString, equals, and hashCode
+    public String toString() { return "unk"; }
     public boolean equals(final Object that) { return this == that; }
     public int hashCode() { return System.identityHashCode(this); }
   }
@@ -213,8 +268,77 @@ public final class type {
     public static inst.F64 of(final double value) { return ofUnchecked(value); }
   }
 
-  // primitive type singletons
+  /** Type "arr": Array type. Data accessed by offeset. May or may not have known length. */
+  public static final class Arr implements Type {
+    public final Type elemenType;
+    public final int length;
+    private Arr(final Type elemenType, final int length) {
+      this.elemenType = elemenType;
+      this.length = length;
+    }
+
+    // toString, equals, and hashCode
+    public String toString() { return "[" + elemenType + (length >= 0 ? "; " + length : "") + "]"; }
+    public int hashCode() { return elemenType.hashCode() ^ length; }
+    public boolean equals(final Object that) {
+      return (this == that || (that instanceof Arr other &&
+        elemenType.equals(other.elemenType) && length == other.length
+      ));
+    }
+  }
+
+  /** Type "rec": Record type. Data accessed by key. */
+  public static sealed class Rec implements Type {
+    public static final record Field(boolean immu, String name, Type type) {
+      public Field { Objects.requireNonNull(name); Objects.requireNonNull(type); }
+    }
+
+    public final Field[] fields;
+    private Rec(final Field... fields) {
+      this.fields = fields;
+    }
+
+    // toString, equals, and hashCode
+    public String toString() {
+      final StringBuilder buf = new StringBuilder();
+      buf.append("(");
+      for (int i = 0; i < fields.length; i++) {
+        if (i > 0) buf.append(", ");
+        buf.append(fields[i]);
+      }
+      buf.append(")");
+      return buf.toString();
+    }
+    public int hashCode() { return Arrays.hashCode(fields); }
+    public boolean equals(final Object that) {
+      return (this == that || (that instanceof Rec other && Arrays.equals(fields, other.fields)));
+    }
+  }
+
+  /** Type "fun": Function type. No data, just a function. */
+  public static final class Fun implements Type {
+    public final Type paramsType;
+    public final Type returnType;
+    private Fun(final Type paramsType, final Type returnType) {
+      this.paramsType = paramsType;
+      this.returnType = returnType;
+    }
+
+    // toString, equals, and hashCode
+    public String toString() { return paramsType + " " + returnType; }
+    public int hashCode() { return paramsType.hashCode() ^ returnType.hashCode(); }
+    public boolean equals(final Object that) {
+      return (this == that || (that instanceof Fun other &&
+        paramsType.equals(other.paramsType) && returnType.equals(other.returnType)
+      ));
+    }
+  }
+
+  // virtual types
+  public static final One one = new One();
+  public static final Unk unk = new Unk();
   public static final Err err = new Err();
+  // primitive types
   public static final Bit bit = new Bit();
   public static final U08 u08 = new U08();
   public static final U16 u16 = new U16();
@@ -226,39 +350,40 @@ public final class type {
   public static final I64 i64 = new I64();
   public static final F32 f32 = new F32();
   public static final F64 f64 = new F64();
+  // arr
+  public static Arr arr(final Type elementType) {
+    Objects.requireNonNull(elementType);
+    return new Arr(elementType, -1);
+  }
+  public static Arr arr(final Type elementType, final int length)  {
+    Objects.requireNonNull(elementType);
+    if (length < -1) throw new IllegalArgumentException("Invalid arr length: " + length);
+    return new Arr(elementType, length);
+  }
+  // rec
+  public static Type rec() { return one; }
+  public static Type rec(final Rec.Field... fields) {
+    if (fields == null || fields.length == 0) return one;
+    if (fields.length >= 2) {
+      final HashSet<String> names = new HashSet<>();
+      for (int i = 0; i < fields.length; i++) {
+        if (!names.add(fields[i].name)) {
+          throw new IllegalArgumentException("Duplicate rec field name: " + fields[i].name);
+        }
+      }
+    }
+    return new Rec(fields);
+  }
+  // fun
+  public static Fun fun(final Rec paramsType, final Type returnType) {
+    Objects.requireNonNull(paramsType);
+    Objects.requireNonNull(returnType);
+    return new Fun(paramsType, returnType);
+  }
 
 
   // enumeration of primitive types
   public static enum Kind { BIT, U08, U16, U32, U64, I08, I16, I32, I64, F32, F64 }
-
-  /** Type of function */
-  public static final class Fun {
-    public final Type   returnType;
-    public final Type[] paramTypes;
-
-    public Fun(final Type returnType, final Type... paramTypes) {
-      this.returnType = returnType;
-      this.paramTypes = paramTypes;
-    }
-
-    // toString, equals, and hashCode
-    public String toString() {
-      final StringBuilder buf = new StringBuilder();
-      buf.append("(");
-      for (int i = 0; i < paramTypes.length; i++) {
-        if (i > 0) sb.append(", ");
-        buf.append(paramTypes[i]);
-      }
-      buf.append(")");
-      buf.append(returnType);
-      return buf.toString();
-    }
-
-  }
-
-  public static Fun fun(final Type returnType, final Type... parameterTypes) {
-    return new Fun(returnType, parameterTypes);
-  }
 
   // module
   private type() {}
