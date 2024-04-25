@@ -23,15 +23,13 @@ import static zfg.parse.parse_literal.parseBitLit;
 import static zfg.parse.parse_literal.parseFltLit;
 import static zfg.parse.parse_literal.parseIntLit;
 
-import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Deque;
-import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 
 import org.antlr.v4.runtime.ParserRuleContext;
 
+import zfg.antlr.ZfgParser.ArrayTypeContext;
 import zfg.antlr.ZfgParser.AssignmentExprContext;
 import zfg.antlr.ZfgParser.AssignmentStmtContext;
 import zfg.antlr.ZfgParser.BlockContext;
@@ -39,7 +37,6 @@ import zfg.antlr.ZfgParser.DeclarationStmtContext;
 import zfg.antlr.ZfgParser.ExpressionContext;
 import zfg.antlr.ZfgParser.FunctionCallExprContext;
 import zfg.antlr.ZfgParser.FunctionCallStmtContext;
-import zfg.antlr.ZfgParser.FunctionParameterContext;
 import zfg.antlr.ZfgParser.FunctionReturnStmtContext;
 import zfg.antlr.ZfgParser.FunctionTypeContext;
 import zfg.antlr.ZfgParser.GroupedExprContext;
@@ -55,13 +52,15 @@ import zfg.antlr.ZfgParser.ModuleContext;
 import zfg.antlr.ZfgParser.PostfixOpExprContext;
 import zfg.antlr.ZfgParser.PrefixOpExprContext;
 import zfg.antlr.ZfgParser.PrimitiveTypeContext;
+import zfg.antlr.ZfgParser.RecordFieldContext;
+import zfg.antlr.ZfgParser.RecordTypeContext;
+import zfg.antlr.ZfgParser.RecordType_Context;
 import zfg.antlr.ZfgParser.StatementContext;
 import zfg.antlr.ZfgParser.TypeContext;
 import zfg.antlr.ZfgParser.VariableExprContext;
 import zfg.core.inst;
 import zfg.core.maybe.Some;
 import zfg.core.type;
-import zfg.core.type.Type;
 
 public final class Parser {
 
@@ -105,17 +104,20 @@ public final class Parser {
 
     // Get all the statements
     final List<StatementContext> statement = ctx.statement();
+    final int size = statement.size();
 
     // Handle forward declarations
-    for (final StatementContext stmt : statement) {
+    for (int i = 0; i < size; i++) {
+      final StatementContext stmt = statement.get(i);
       if (stmt instanceof DeclarationStmtContext decl) {
         // TODO
       }
     }
 
     // Post-order traversal
-    final List<node.Node> stmts = new ArrayList<>(statement.size());
-    for (final StatementContext stmt : statement) {
+    final List<node.Node> stmts = new ArrayList<>(size);
+    for (int i = 0; i < size; i++) {
+      final StatementContext stmt = statement.get(i);
       stmts.add(visitStatement(stmt));
     }
 
@@ -151,8 +153,11 @@ public final class Parser {
   // DeclarationStmt
   //////////////////////////////////////////////////////////////////////////////////////////////////
 
+  // TODO
+  // TODO
+  // TODO
   public node.Node visitDeclarationStmt(final DeclarationStmtContext ctx) {
-    // Get the symbol modifier
+    // Get the symbol's modifier
     final symbol.Modifier mod = switch (ctx.mod.getType()) {
       case LET -> symbol.Modifier.Let;
       case MUT -> symbol.Modifier.Mut;
@@ -160,15 +165,15 @@ public final class Parser {
       case PUB -> symbol.Modifier.Pub;
       default -> throw new AssertionError();
     };
-    // Get the symbol name
+    // Get the symbol's name
     final String id = ctx.id.getText();
-    // Visit the symbol type
-    final type.Type type = visitType(ctx.type());
+    // Get the symbol's type
+    final type.Type symbolType = visitType(ctx.symbolType);
 
-    
+
 
     // Add the symbol to the symbol table
-    final Error err = symbolTable.addSymbol(ctx, mod, id, type, null);
+    final Error err = symbolTable.addSymbol(ctx, mod, id, symbolType, null);
     if (err != null) {
       err(err);
     }
@@ -195,13 +200,15 @@ public final class Parser {
   public type.Type visitType(final TypeContext ctx) {
     return switch (ctx) {
       case PrimitiveTypeContext  type -> visitPrimitiveType(type);
+      case ArrayTypeContext      type -> visitArrayType(type);
+      case RecordType_Context    type -> visitRecordType(type.recordType_);
       case FunctionTypeContext   type -> visitFunctionType(type);
       default -> throw new AssertionError();
     };
   }
 
   public type.Type visitPrimitiveType(final PrimitiveTypeContext ctx) {
-    return switch (ctx.token.getType()) {
+    return switch (ctx.primitiveType.getType()) {
       case BIT -> type.bit;
       case U08 -> type.u08;
       case U16 -> type.u16;
@@ -217,19 +224,75 @@ public final class Parser {
     };
   }
 
-  public type.Type visitFunctionType(final FunctionTypeContext ctx) {
-    // Get the argument types
-    final List<FunctionParameterContext> params = ctx.functionParameter();
-    final List<node.Type> args = new ArrayList<>(params.size());
-    for (final TypeContext argType : argTypes) {
-      args.add(visitType(argType));
+  public type.Type visitArrayType(final ArrayTypeContext ctx) {
+    // Get the element type
+    final type.Type elementType = visitType(ctx.elementType);
+    // If there was error parsing the element type, propogate the error
+    if (elementType == type.err) return type.err;
+    // If the array length is not specified, return the array type with no specific length
+    if (ctx.length == null) return type.arr(elementType);
+    // If the array length was specified, parse it, validate it, and return the array type
+    final String text = ctx.length.getText();
+    if (parseIntLit(text, false) instanceof Some<inst.Inst<?>> some) {
+      if (some.value instanceof inst.I32 i32) {
+        if (i32.value > 0) return type.arr(elementType, i32.value);
+        err(ctx, "Invalid array length. Expected non-negative length, but found: " + i32.value);
+        return type.err;
+      }
+      err(ctx, "Invalid array length. Expected i32 but found: " + some.value.type());
+      return type.err;
     }
-    // Get the return type
-    final type.Type returnType = visitType(ctx.type());
-    // Create and return the function type
-    return type.Type.fun(returnType, args);
+    err(ctx, "Invalid array length. Expected i32 but was unable to parse: " + text);
+    return type.err;
   }
 
+  public type.Type visitFunctionType(final FunctionTypeContext ctx) {
+    // Get the parameter type
+    final type.Rec paramsType;
+    switch (visitRecordType(ctx.paramsType)) {
+      case type.Rec rec: paramsType = rec; break;
+      case type.Err err: return err;
+      default: throw new AssertionError();
+    }
+    // Get the return type
+    final type.Type returnType = visitType(ctx.returnType);
+    if (returnType == type.err) return type.err;
+    // Create and return the function type
+    return type.fun((type.Rec) paramsType, returnType);
+  }
+
+  public type.Type visitRecordType(final RecordTypeContext ctx) {
+    // Get the record field ast nodes
+    final List<RecordFieldContext> recordField = ctx.recordField();
+    final int size = recordField.size();
+    // Convert node to a record field
+    final type.Rec.Field[] fields = new type.Rec.Field[size];
+    // Create a set to check for duplicate field names
+    final HashSet<String> names = new HashSet<>(size);
+    // For each fied...
+    for (int i = 0; i < size; i++) {
+      final RecordFieldContext field = recordField.get(i);
+      // Get the field's immutability
+      final boolean fieldImmu = switch (field.mod.getType()) {
+        case LET -> true;
+        case MUT -> false;
+        default -> throw new AssertionError();
+      };
+      // Get the field's name
+      final String fieldName = field.id.getText();
+      if (!names.add(fieldName)) {
+        err(ctx, "Duplicate field name: " + fieldName);
+        return type.err;
+      }
+      // Get the field's type
+      final type.Type fieldType = visitType(field.fieldType);
+      if (fieldType == type.err) return type.err;
+      // Create the record field and add it the array
+      fields[i] = new type.Rec.Field(fieldImmu, fieldName, fieldType);
+    }
+    // Create and return the record type
+    return type.rec(fields);
+  }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////
   // Expression
@@ -254,7 +317,7 @@ public final class Parser {
   //////////////////////////////////////////////////////////////////////////////////////////////////
 
   public node.Node visitGroupedExpr(final GroupedExprContext ctx) {
-    return visitExpression(ctx.expression());
+    return visitExpression(ctx.inner);
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////

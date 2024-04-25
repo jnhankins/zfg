@@ -19,46 +19,71 @@ options { tokenVocab = ZfgLexer; }
   }
 }
 
-// TODO: more types, e.g. arrays, structs, algebraic data types, dynamic types, etc.
-// TODO: match expression
-
 
 module
   : (statement (SEMIC | {EOL()}?))*
   ;
 
-// TODO type alias, e.g. "Node"
-// TODO comptime dynamic type, e.g. "Pair(i32, f64)"
-// TODO type inference, e.g. "var", "fun", "type", etc.
+// TODO: named types
+// TODO: type inference, e.g. "var", "fun", "type", etc.
+// TODO: what about elided types, e.g. "_"? or "let x = 42"?
+// TODO: decide if record types can have private fields. maybe only if its assigned to a named type?
+// TODO: algebric types: enum, union, type && type, type || type, etc...
 type
-  : token=(BIT | U08 | U16 | U32 | U64 | I08 | I16 | I32 | I64 | F32 | F64)   # PrimitiveType
-  | LPAREN (functionParameter (COMMA functionParameter)* COMMA?)? RPAREN type # FunctionType
+  : primitiveType=(BIT | U08 | U16 | U32 | U64 | I08 | I16 | I32 | I64 | F32 | F64) # PrimitiveType
+  | LBRACK mod=(LET | MUT)? elementType=type (SEMIC length=IntLit)? RBRACK          # ArrayType
+  | recordType_=recordType                                                          # RecordType_
+  | paramsType=recordType returnType=type                                           # FunctionType
   ;
-functionParameter
-  : imu=(LET | MUT) id=LowerId type
+recordType
+  : LPAREN (recordField (COMMA recordField)* COMMA?)? RPAREN
   ;
+recordField
+  : mod=(LET | MUT)? id=LowerId fieldType=type
+  ;
+// recordInstance
+//   : LPAREN (         xpression (COMMA         expression)* COMMA?)? RPAREN
+//   | LPAREN (LowerId expression (COMMA LowerId expression)* COMMA?)? RPAREN
+//   ;
 
+// TODO: should we separate out different types of decl statements?
+//       mod=(LET | MUT | PUB | USE) id=LowerId symbolType=functionType SETA expr=expression # BlockFunctionDecl
+//       mod=(LET | MUT | PUB | USE) id=LowerId symbolType=functionType SETA expr=expression # InlineFunctionDecl
+//       mod=(LET | MUT | PUB | USE) id=LowerId symbolType=dataType SETA expr=expression # InlineFunctionDecl
+//       mod=(LET | MUT | PUB | USE) id=UperId  symbolType=typeType SETA expr=expression # InlineTypeDecl
+// TODO: for loop init header should allow multiple comma delimited seclaration or expressions
+// TODO: for loop incr header should allow multiple comma delimited expressions
+// TODO: for-each loops? probably requires some standard iterator interface
+// TODO: labeled for loops, with labeled 'break' and 'continue'
+// TODO: labeled blocks? do we allow breaking a block?
+// TODO: labeled functions and lableled returns? how would that work with lambdas?
+// TODO: destructuring assignment statements
+// TODO: match statments
+// TODO: defer statments
+// TODO: nit: do we really need separate 'loop', 'while', and 'for' keywords?
 statement
-  : mod=(LET | MUT | PUB | USE) id=LowerId type SETA (expression | block)      # DeclarationStmt
-  | assignment                                                                 # AssignmentStmt
-  | functionCall                                                               # FunctionCallStmt
-  | RETURN expression?                                                         # FunctionReturnStmt
-  | IF expression block (ELSE IF expression block)* (ELSE block)?              # IfElseStmt
-  | LOOP block                                                                 # LoopStmt
-  | WHILE expression block                                                     # LoopWhileStmt
-  | FOR expression SEMIC expression SEMIC expression block                     # LoopForStmt
-  | BREAK                                                                      # LoopBreakStmt
-  | CONTINUE                                                                   # LoopContinueStmt
+  : mod=(LET | MUT | PUB | USE) id=LowerId symbolType=type SETA (expression | block) # DeclarationStmt
+  | assign=assignment                                                           # AssignmentStmt
+  | funCall=functionCall                                                        # FunctionCallStmt
+  | RETURN expr=expression?                                                     # FunctionReturnStmt
+  | IF expression block (ELSE IF expression block)* (ELSE block)?               # IfElseStmt
+  | LOOP                                                            blk=block   # LoopStmt
+  | WHILE                     cond=expression                       blk=block   # LoopWhileStmt
+  | FOR init=expression SEMIC cond=expression SEMIC incr=expression blk=block   # LoopForStmt
+  | BREAK                                                                       # LoopBreakStmt
+  | CONTINUE                                                                    # LoopContinueStmt
   ;
 block
   : LBRACE (statement (SEMIC | {EOL()}?))* RBRACE
   ;
 
+// TODO: array instantiation
+// TODO: record instantiation
 expression
-  : functionCall                                             # FunctionCallExpr
-  | identifier                                               # VariableExpr
+  : funCall=functionCall                                     # FunctionCallExpr
+  | id=identifier                                            # VariableExpr
   | lit=(BitLit | IntLit | FltLit)                           # LiteralExpr
-  | LPAREN expression RPAREN                                 # GroupedExpr
+  | LPAREN inner=expression RPAREN                           # GroupedExpr
   | lhs=expression op=(INC | DEC)                            # PostfixOpExpr
   | op=(INC | DEC | ADD | SUB | NOT) rhs=expression          # PrefixOpExpr
   | lhs=expression op=(MUL | DIV | REM | MOD) rhs=expression # InfixOpExpr
@@ -70,7 +95,7 @@ expression
   | lhs=expression op=CMP rhs=expression                     # InfixOpExpr
   | lhs=expression op=(LTN | GTN | LEQ | GEQ) rhs=expression # InfixOpExpr
   | lhs=expression op=(EQL | NEQ)  rhs=expression            # InfixOpExpr
-  | assignment                                               # AssignmentExpr
+  | assign=assignment                                        # AssignmentExpr
   | lhs=expression op=(LCJ | LDJ) rhs=expression             # InfixOpExpr
   ;
 
