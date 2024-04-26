@@ -19,9 +19,9 @@ import static zfg.antlr.ZfgLexer.U16;
 import static zfg.antlr.ZfgLexer.U32;
 import static zfg.antlr.ZfgLexer.U64;
 import static zfg.antlr.ZfgLexer.USE;
-import static zfg.parse.parse_literal.parseBitLit;
-import static zfg.parse.parse_literal.parseFltLit;
-import static zfg.parse.parse_literal.parseIntLit;
+import static zfg.parse.literal.parseBitLit;
+import static zfg.parse.literal.parseFltLit;
+import static zfg.parse.literal.parseIntLit;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -61,7 +61,6 @@ import zfg.antlr.ZfgParser.StatementContext;
 import zfg.antlr.ZfgParser.TypeContext;
 import zfg.antlr.ZfgParser.VariableExprContext;
 import zfg.core.inst;
-import zfg.core.maybe.Some;
 import zfg.core.type;
 import zfg.parse.node.Statement;
 import zfg.parse.symbol.Symbol;
@@ -353,13 +352,13 @@ public final class Parser {
     if (ctx.length == null) return type.arr(elementType);
     // If the array length was specified, parse it, validate it, and return the array type
     final String text = ctx.length.getText();
-    if (parseIntLit(text, false) instanceof Some<inst.Inst<?>> some) {
-      if (some.value instanceof inst.I32 i32) {
+    if (parseIntLit(text, false) instanceof inst.Inst val) {
+      if (val instanceof inst.I32 i32) {
         if (i32.value > 0) return type.arr(elementType, i32.value);
         err(ctx, "Invalid array length. Expected non-negative length, but found: " + i32.value);
         return type.err;
       }
-      err(ctx, "Invalid array length. Expected i32 but found: " + some.value.type());
+      err(ctx, "Invalid array length. Expected i32 but found: " + val.type());
       return type.err;
     }
     err(ctx, "Invalid array length. Expected i32 but was unable to parse: " + text);
@@ -422,12 +421,12 @@ public final class Parser {
     return switch (ctx) {
       case GroupedExprContext      expr -> visitGroupedExpr(expr);
       case LiteralExprContext      expr -> visitLiteralExpr(expr);
+      case InfixOpExprContext      expr -> throw new UnsupportedOperationException(); //visitInfixOpExpr(expr);
       case VariableExprContext     expr -> throw new UnsupportedOperationException(); //visitVariableExpr(expr);
-      case FunctionCallExprContext expr -> throw new UnsupportedOperationException(); //visitInvocationExpr(expr);
       case PostfixOpExprContext    expr -> throw new UnsupportedOperationException(); //visitPostfixOpExpr(expr);
       case PrefixOpExprContext     expr -> throw new UnsupportedOperationException(); //visitPrefixOpExpr(expr);
-      case InfixOpExprContext      expr -> throw new UnsupportedOperationException(); //visitInfixOpExpr(expr);
       case AssignmentExprContext   expr -> throw new UnsupportedOperationException(); //visitAssignExpr(expr);
+      case FunctionCallExprContext expr -> throw new UnsupportedOperationException(); //visitInvocationExpr(expr);
       default -> throw new AssertionError();
     };
   }
@@ -455,13 +454,9 @@ public final class Parser {
 
   private node.Expression visitBitLit(final LiteralExprContext ctx) {
     final String text = ctx.lit.getText();
-    return switch (parseBitLit(text)) {
-      case Some<inst.Bit> some -> new node.ConstExpr(some.value);
-      default -> {
-        err(ctx, "Invalid bit literal: \"" + text + "\"");
-        yield node.ConstExpr.err;
-      }
-    };
+    if (parseBitLit(text) instanceof inst.Bit val) return new node.ConstExpr(val);
+    err(ctx, "Invalid bit literal: \"" + text + "\"");
+    return node.ConstExpr.err;
   }
 
   private node.Expression visitIntLit(final LiteralExprContext ctx) {
@@ -472,23 +467,19 @@ public final class Parser {
         parent.op.getStopIndex() + 1 == ctx.getStart().getStartIndex();
       default -> false;
     };
-    return switch (parseIntLit(text, hasMinusPrefix)) {
-      case Some<inst.Inst<?>> some -> new node.ConstExpr(some.value);
-      default -> {
-        err(ctx, "Invalid int literal: \"" + text + "\"");
-        yield node.ConstExpr.err;
-      }
-    };
+    if (parseIntLit(text, hasMinusPrefix) instanceof inst.Inst val) return new node.ConstExpr(val);
+    err(ctx, "Invalid int literal: \"" + text + "\"");
+    return node.ConstExpr.err;
   }
 
   private node.Expression visitFltLit(final LiteralExprContext ctx) {
     final String text = ctx.lit.getText();
-    return switch (parseFltLit(text)) {
-      case Some<inst.Inst<?>> some -> new node.ConstExpr(some.value);
-      default -> {
-        err(ctx, "Invalid flt literal: \"" + text + "\"");
-        yield node.ConstExpr.err;
-      }
-    };
+    if (parseFltLit(text) instanceof inst.Inst val) return new node.ConstExpr(val);
+    err(ctx, "Invalid flt literal: \"" + text + "\"");
+    return node.ConstExpr.err;
   }
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+  // InfixOpExpr
+  //////////////////////////////////////////////////////////////////////////////////////////////////
 }

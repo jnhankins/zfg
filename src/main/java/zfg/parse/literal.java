@@ -1,19 +1,15 @@
 package zfg.parse;
 
-import static zfg.core.maybe.none;
-import static zfg.core.maybe.some;
-
 import zfg.core.inst;
-import zfg.core.maybe.Maybe;
 import zfg.core.type;
 
-public final class parse_literal {
+public final class literal {
 
-  // Must be "true" or "false"; case-sensitive.
-  public static final Maybe<inst.Bit> parseBitLit(final String s) {
-    if (s.equals("false")) return some(type.Bit.of(0));
-    if (s.equals("true")) return some(type.Bit.of(1));
-    return none();
+  // Must be "true" or "false"; case-sensitive. Returns null if it could not be parsed as a Bit.
+  public static final inst.Bit parseBitLit(final String s) {
+    if (s.equals("false")) return type.Bit.of(0);
+    if (s.equals("true")) return type.Bit.of(1);
+    return null;
   }
 
   // Ixx literals have ranges that extend below zero, e.g. I08 has range [-128, 127], however at
@@ -30,7 +26,7 @@ public final class parse_literal {
   // if a NumberFormatException should be thrown. For example, "x = a - 128i08" will be parsed as
   // ... subtract I08(-128), which should then throw an exception, while "x = -128i08" will be
   // parsed as ... negate I08(-128), which is allowed and should simplify to I(-128).
-  public static final Maybe<inst.Inst<?>> parseIntLit(final String s, final boolean hasMinusPrefix) {
+  public static final inst.Inst<?> parseIntLit(final String s, final boolean hasMinusPrefix) {
     final boolean hmp = hasMinusPrefix;
     final int len = s.length();
 
@@ -58,23 +54,23 @@ public final class parse_literal {
     final long v;
     final String t = s.substring(beg, end).replace("_", "");
     try { v = Long.parseUnsignedLong(t, radix); }
-    catch (final NumberFormatException e) { return none(); }
+    catch (final NumberFormatException e) { return null; }
 
     switch (kind) {
-      case type.Kind.BIT: return v >= 0 && v <=          1L ? some(type.Bit.ofUnchecked((int) v)) : none();
-      case type.Kind.U08: return v >= 0 && v <=       0xFFL ? some(type.U08.ofUnchecked((int) v)) : none();
-      case type.Kind.U16: return v >= 0 && v <=     0xFFFFL ? some(type.U16.ofUnchecked((int) v)) : none();
-      case type.Kind.U32: return v >= 0 && v <= 0xFFFFFFFFL ? some(type.U32.ofUnchecked((int) v)) : none();
-      case type.Kind.U64: return                              some(type.U64.ofUnchecked(      v));
-      case type.Kind.I08: return v >= 0 && v <= (radix != 10 ?       0xFFL : hmp ?       0x80L :       0x7FL) ? some(type.I08.ofUnchecked((int) v)) : none();
-      case type.Kind.I16: return v >= 0 && v <= (radix != 10 ?     0xFFFFL : hmp ?     0x8000L :     0x7FFFL) ? some(type.I16.ofUnchecked((int) v)) : none();
-      case type.Kind.I32: return v >= 0 && v <= (radix != 10 ? 0xFFFFFFFFL : hmp ? 0x80000000L : 0x7FFFFFFFL) ? some(type.I32.ofUnchecked((int) v)) : none();
-      case type.Kind.I64: return v >= 0 || radix != 10 || (hmp && v == 0x8000000000000000L)                   ? some(type.I64.ofUnchecked(      v)) : none();
+      case type.Kind.BIT: return v >= 0 && v <=          1L ? type.Bit.ofUnchecked((int) v) : null;
+      case type.Kind.U08: return v >= 0 && v <=       0xFFL ? type.U08.ofUnchecked((int) v) : null;
+      case type.Kind.U16: return v >= 0 && v <=     0xFFFFL ? type.U16.ofUnchecked((int) v) : null;
+      case type.Kind.U32: return v >= 0 && v <= 0xFFFFFFFFL ? type.U32.ofUnchecked((int) v) : null;
+      case type.Kind.U64: return                              type.U64.ofUnchecked(      v);
+      case type.Kind.I08: return v >= 0 && v <= (radix != 10 ?       0xFFL : hmp ?       0x80L :       0x7FL) ? type.I08.ofUnchecked((int) v) : null;
+      case type.Kind.I16: return v >= 0 && v <= (radix != 10 ?     0xFFFFL : hmp ?     0x8000L :     0x7FFFL) ? type.I16.ofUnchecked((int) v) : null;
+      case type.Kind.I32: return v >= 0 && v <= (radix != 10 ? 0xFFFFFFFFL : hmp ? 0x80000000L : 0x7FFFFFFFL) ? type.I32.ofUnchecked((int) v) : null;
+      case type.Kind.I64: return v >= 0 || radix != 10 || (hmp && v == 0x8000000000000000L)                   ? type.I64.ofUnchecked(      v) : null;
       default: throw new AssertionError();
     }
   }
 
-  public static final Maybe<inst.Inst<?>> parseFltLit(final String s) {
+  public static final inst.Inst<?> parseFltLit(final String s) {
     final int len = s.length();
 
     @SuppressWarnings("unused")
@@ -95,19 +91,19 @@ public final class parse_literal {
       case type.Kind.F32: {
         final float v;
         try { v = Float.parseFloat(t); }
-        catch (final NumberFormatException e) { return none(); }
-        return some(type.F32.of(v));
+        catch (final NumberFormatException e) { return null; }
+        return type.F32.of(v);
       }
       case type.Kind.F64: {
         final double v;
         try { v = Double.parseDouble(t); }
-        catch (final NumberFormatException e) { return none(); }
-        return some(type.F64.of(v));
+        catch (final NumberFormatException e) { return null; }
+        return type.F64.of(v);
       }
       default: throw new AssertionError();
     }
   }
 
   // module
-  private parse_literal() {}
+  private literal() {}
 }

@@ -216,6 +216,10 @@ public final class node {
     public static final Expression err = new ErrorExpr();
     protected Expression(final Type type) { super(type); }
   }
+  /** An error expression */
+  private static final class ErrorExpr extends Expression {
+    private ErrorExpr() { super(zfg.core.type.err); }
+  }
   /** A expression with no children. */
   private static sealed abstract class LeafExpr<T> extends Expression implements Leaf<T> {
     public final T value;
@@ -224,10 +228,6 @@ public final class node {
       super(type);
       this.value = value;
     }
-  }
-  /** An error expression */
-  private static final class ErrorExpr extends LeafExpr<Void> {
-    private ErrorExpr() { super(zfg.core.type.err, null); }
   }
   // /** An expression with one child expression. */
   // private static sealed abstract class UnaryExpr extends Expression implements Unary<Expression> {
