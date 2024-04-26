@@ -1,24 +1,42 @@
 package zfg.parse;
 
+import static zfg.antlr.ZfgLexer.ADD;
+import static zfg.antlr.ZfgLexer.AND;
 import static zfg.antlr.ZfgLexer.BIT;
 import static zfg.antlr.ZfgLexer.BitLit;
+import static zfg.antlr.ZfgLexer.CMP;
+import static zfg.antlr.ZfgLexer.DIV;
+import static zfg.antlr.ZfgLexer.EQL;
 import static zfg.antlr.ZfgLexer.F32;
 import static zfg.antlr.ZfgLexer.F64;
 import static zfg.antlr.ZfgLexer.FltLit;
+import static zfg.antlr.ZfgLexer.GEQ;
+import static zfg.antlr.ZfgLexer.GTN;
 import static zfg.antlr.ZfgLexer.I08;
 import static zfg.antlr.ZfgLexer.I16;
 import static zfg.antlr.ZfgLexer.I32;
 import static zfg.antlr.ZfgLexer.I64;
+import static zfg.antlr.ZfgLexer.IOR;
 import static zfg.antlr.ZfgLexer.IntLit;
+import static zfg.antlr.ZfgLexer.LCJ;
+import static zfg.antlr.ZfgLexer.LDJ;
+import static zfg.antlr.ZfgLexer.LEQ;
 import static zfg.antlr.ZfgLexer.LET;
+import static zfg.antlr.ZfgLexer.LTN;
+import static zfg.antlr.ZfgLexer.MOD;
+import static zfg.antlr.ZfgLexer.MUL;
 import static zfg.antlr.ZfgLexer.MUT;
+import static zfg.antlr.ZfgLexer.NEQ;
 import static zfg.antlr.ZfgLexer.PUB;
+import static zfg.antlr.ZfgLexer.SHL;
+import static zfg.antlr.ZfgLexer.SHR;
 import static zfg.antlr.ZfgLexer.SUB;
 import static zfg.antlr.ZfgLexer.U08;
 import static zfg.antlr.ZfgLexer.U16;
 import static zfg.antlr.ZfgLexer.U32;
 import static zfg.antlr.ZfgLexer.U64;
 import static zfg.antlr.ZfgLexer.USE;
+import static zfg.antlr.ZfgLexer.XOR;
 import static zfg.parse.literal.parseBitLit;
 import static zfg.parse.literal.parseFltLit;
 import static zfg.parse.literal.parseIntLit;
@@ -417,7 +435,7 @@ public final class Parser {
   // Expression
   //////////////////////////////////////////////////////////////////////////////////////////////////
 
-  public node.Expression visitExpression(final ExpressionContext ctx) {
+  public node.Node visitExpression(final ExpressionContext ctx) {
     return switch (ctx) {
       case GroupedExprContext      expr -> visitGroupedExpr(expr);
       case LiteralExprContext      expr -> visitLiteralExpr(expr);
@@ -435,7 +453,7 @@ public final class Parser {
   // GroupedExpr
   //////////////////////////////////////////////////////////////////////////////////////////////////
 
-  public node.Expression visitGroupedExpr(final GroupedExprContext ctx) {
+  public node.Node visitGroupedExpr(final GroupedExprContext ctx) {
     return visitExpression(ctx.inner);
   }
 
@@ -443,43 +461,99 @@ public final class Parser {
   // LiteralExpr
   //////////////////////////////////////////////////////////////////////////////////////////////////
 
-  public node.Expression visitLiteralExpr(final LiteralExprContext ctx) {
-    return switch (ctx.lit.getType()) {
-      case BitLit -> visitBitLit(ctx);
-      case IntLit -> visitIntLit(ctx);
-      case FltLit -> visitFltLit(ctx);
-      default -> throw new AssertionError();
-    };
-  }
-
-  private node.Expression visitBitLit(final LiteralExprContext ctx) {
+  public node.Node visitLiteralExpr(final LiteralExprContext ctx) {
     final String text = ctx.lit.getText();
-    if (parseBitLit(text) instanceof inst.Bit val) return new node.ConstExpr(val);
-    err(ctx, "Invalid bit literal: \"" + text + "\"");
-    return node.ConstExpr.err;
-  }
-
-  private node.Expression visitIntLit(final LiteralExprContext ctx) {
-    final String text = ctx.lit.getText();
-    final boolean hasMinusPrefix = switch (ctx.parent) {
-      case PrefixOpExprContext parent ->
-        parent.op.getType() == SUB &&
-        parent.op.getStopIndex() + 1 == ctx.getStart().getStartIndex();
-      default -> false;
-    };
-    if (parseIntLit(text, hasMinusPrefix) instanceof inst.Inst val) return new node.ConstExpr(val);
-    err(ctx, "Invalid int literal: \"" + text + "\"");
-    return node.ConstExpr.err;
-  }
-
-  private node.Expression visitFltLit(final LiteralExprContext ctx) {
-    final String text = ctx.lit.getText();
-    if (parseFltLit(text) instanceof inst.Inst val) return new node.ConstExpr(val);
-    err(ctx, "Invalid flt literal: \"" + text + "\"");
-    return node.ConstExpr.err;
+    switch (ctx.lit.getType()) {
+      case BitLit: {
+        final inst.Inst<?> parsed = parseBitLit(text);
+        if (parsed != null) return new node.ConstExpr(parsed);
+        err(ctx, "Invalid bit literal: \"" + text + "\"");
+        return node.ConstExpr.err;
+      }
+      case IntLit: {
+        final boolean hasMinusPrefix =
+            ctx.parent instanceof PrefixOpExprContext parent &&
+            parent.op.getType() == SUB &&
+            parent.op.getStopIndex() + 1 == ctx.getStart().getStartIndex();
+        final inst.Inst<?> parsed = parseIntLit(text, hasMinusPrefix);
+        if (parsed != null) return new node.ConstExpr(parsed);
+        err(ctx, "Invalid int literal: \"" + text + "\"");
+        return node.ConstExpr.err;
+      }
+      case FltLit: {
+        final inst.Inst<?> parsed = parseFltLit(text);
+        if (parsed != null) return new node.ConstExpr(parsed);
+        err(ctx, "Invalid flt literal: \"" + text + "\"");
+        return node.ConstExpr.err;
+      }
+      default: throw new AssertionError();
+    }
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////
   // InfixOpExpr
   //////////////////////////////////////////////////////////////////////////////////////////////////
+
+  public node.Node visitInfixOpExpr(final InfixOpExprContext ctx) {
+    // Post-order traversal
+    node.Node lhs = visitExpression(ctx.lhs);
+    node.Node rhs = visitExpression(ctx.rhs);
+    type.Type lhsType = lhs.type();
+    type.Type rhsType = rhs.type();
+
+    // Type checking
+    final type.Type outType = switch (ctx.op.getType()) {
+      // Arithmetic
+      case ADD, SUB, MUL, DIV, MOD: {
+        yield type.err;
+      }
+      // Bitwise
+      case AND, IOR, XOR: {
+        if (!isIntType(lhsType)) yield type.err;
+        if (!isIntType(rhsType)) yield type.err;
+        yield type.err;
+      }
+      // Shift
+      case SHL, SHR: {
+        if (!isIntType(lhsType)) yield type.err;
+        yield type.err;
+      }
+      // Three-way comparison
+      case CMP: {
+
+      }
+      // Relational
+      case EQL, NEQ, LTN, LEQ, GTN, GEQ: {
+
+      }
+      // Logical
+      case LCJ, LDJ: {
+        if (lhsType != type.bit) yield type.err;
+        if (rhsType != type.bit) yield type.err;
+        yield type.bit;
+      }
+      default: throw new AssertionError();
+    };
+    if (outType == type.err) {
+      err(ctx, "invalid operand types for operator \"" + ctx.op + "\": " + lhsType + " and " + rhsType);
+      return null; // TODO
+    }
+  }
+
+  private final boolean isIntType(final type.Type t) {
+    return
+      t == type.u08 || t == type.u16 || t == type.u32 || t == type.u64 ||
+      t == type.i08 || t == type.i16 || t == type.i32 || t == type.i64;
+  }
+
+  private final int typeOrder(final type.Type t) {
+    if (t == type.bit) return 0;
+    if (t == type.u08 || t == type.i08) return 1;
+    if (t == type.u16 || t == type.i16) return 2;
+    if (t == type.u32 || t == type.i32) return 3;
+    if (t == type.u64 || t == type.i64) return 4;
+    if (t == type.f32) return 5;
+    if (t == type.f64) return 6;
+    return -1;
+  }
 }
