@@ -317,9 +317,9 @@ public final class type {
 
   /** Type "fun": Function type. No data, just a function. */
   public static final class Fun implements Type {
-    public final Type paramsType;
+    public final Rec  paramsType;
     public final Type returnType;
-    private Fun(final Type paramsType, final Type returnType) {
+    private Fun(final Rec paramsType, final Type returnType) {
       this.paramsType = paramsType;
       this.returnType = returnType;
     }

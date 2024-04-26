@@ -62,7 +62,7 @@ recordField
 // TODO: defer statments
 // TODO: nit: do we really need separate 'loop', 'while', and 'for' keywords?
 statement
-  : mod=(LET | MUT | PUB | USE) id=LowerId symbolType=type SETA (expression | block) # DeclarationStmt
+  : mod=(LET | MUT | PUB | USE) id=LowerId symbolType=type SETA (expr=expression | blk=block) # DeclarationStmt
   | assign=assignment                                                           # AssignmentStmt
   | funCall=functionCall                                                        # FunctionCallStmt
   | RETURN expr=expression?                                                     # FunctionReturnStmt

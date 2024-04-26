@@ -24,6 +24,7 @@ import static zfg.parse.parse_literal.parseFltLit;
 import static zfg.parse.parse_literal.parseIntLit;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -34,7 +35,6 @@ import org.antlr.v4.runtime.ParserRuleContext;
 import zfg.antlr.ZfgParser.ArrayTypeContext;
 import zfg.antlr.ZfgParser.AssignmentExprContext;
 import zfg.antlr.ZfgParser.AssignmentStmtContext;
-import zfg.antlr.ZfgParser.BlockContext;
 import zfg.antlr.ZfgParser.DeclarationStmtContext;
 import zfg.antlr.ZfgParser.ExpressionContext;
 import zfg.antlr.ZfgParser.FunctionCallExprContext;
@@ -63,6 +63,8 @@ import zfg.antlr.ZfgParser.VariableExprContext;
 import zfg.core.inst;
 import zfg.core.maybe.Some;
 import zfg.core.type;
+import zfg.parse.node.Statement;
+import zfg.parse.symbol.Modifier;
 
 public final class Parser {
   /** Parser error */
@@ -163,10 +165,8 @@ public final class Parser {
   // DeclarationStmt
   //////////////////////////////////////////////////////////////////////////////////////////////////
 
-  // TODO
-  // TODO
-  // TODO
-  public node.Node visitDeclarationStmt(final DeclarationStmtContext ctx) {
+  public node.Statement visitDeclarationStmt(final DeclarationStmtContext ctx) {
+
     // Get the symbol's modifier
     final symbol.Modifier mod = switch (ctx.mod.getType()) {
       case LET -> symbol.Modifier.Let;
@@ -181,30 +181,133 @@ public final class Parser {
 
     // Get the symbol's type
     final type.Type symbolType = visitType(ctx.symbolType);
+    if (symbolType == type.err) return Statement.err;
 
-    // Then add the symbol to the symbol table
-    final Error err = symbolTable.addSymbol(ctx, mod, id, symbolType, null);
-    if (err != null) err(err);
-
-    // Add the symbol to the symbol table
-    final Error err = symbolTable.addSymbol(ctx, mod, id, symbolType, null);
-    if (err != null) {
-      err(err);
+    // TODO: check type inferrencing
+    if (symbolType == type.unk) {
+      throw new UnsupportedOperationException();
     }
-    // If it's a function type, create a scope and add the argument symbols
 
-    // TODO ...
+    // If the symbol is a function type it needs special handling
+    if (symbolType instanceof type.Fun funType) return visitFunDecl(ctx, mod, id, funType);
 
-    // Visit the symbol's definition (expression or block)
-    final ExpressionContext expr = ctx.expression();
-    final BlockContext block = ctx.block();
-    if ((expr == null) == (block == null)) throw new AssertionError();
-    if (expr != null) {
-      final node.Node child = visitExpression(expr);
+    // Visit the RHS expression
+    final List<node.Statement> body = new ArrayList<>();
+    if ((ctx.expr == null) == (ctx.blk == null)) {
+      // Sanity check: they can't both be null or both be non-null
+      throw new AssertionError();
+    } else if (ctx.expr != null) {
+      // Visit the RHS expression
+      final node.Expression rhsExpr = visitExpression(ctx.expr);
+      //
+
+
+      // TODO: verify the return type of the expression matches the function's return type
+      // TODO: otherwise check if we can implicit cast to the function's return type
+
+      // Wrap the function's expression in a return node
+      final node.FunctionReturnStmt funRet = new node.FunctionReturnStmt(funExpr);
+      // Add the return statement to the body
+      body.add(funRet);
     } else {
-      // If it's a function type, add the argument symbols
-      final node.Node child = visitBlock(block);
+      // Visit the function's block
+      // TODO: need a way to find local declarations and return statements in the block
+      // visitBlock(ctx.blk);
+      throw new UnsupportedOperationException();
     }
+  }
+
+  private node.Statement visitFunDecl(
+    final DeclarationStmtContext ctx,
+    final Modifier funMod,
+    final String   funName,
+    final type.Fun funType
+  ) {
+
+    // Add the function to the symbol table so it can be referenced recursively
+    final Error funSymErr = symbolTable.addSymbol(ctx, funMod, funName, funType, null);
+    if (funSymErr != null) {
+      err(funSymErr);
+      return new node.Function(type.err, funName, Collections.emptyList(), Collections.emptyList());
+    }
+
+    // Create a scope for the function
+    symbolTable.pushScope();
+
+    // Get the function's arguments
+    final type.Rec.Field[] fields = funType.paramsType.fields;
+    final int arity = fields.length;
+
+    // For each argument...
+    for (int i = 0; i < arity; i++) {
+      final type.Rec.Field field = fields[i];
+      final Modifier  argMod  = field.immu() ? Modifier.Let : Modifier.Mut;
+      final String    argName = field.name();
+      final type.Type argType = field.type();
+      // Create a node for the argument
+      final node.FunctionArgument arg = new node.FunctionArgument(argType, argName);
+      // And add the argument to the symbol table
+      final Error argSymErr = symbolTable.addSymbol(ctx, funMod, argName, argType, arg);
+      if (argSymErr != null) {
+        err(argSymErr);
+        symbolTable.popScope();
+        return new node.Function(type.err, funName, Collections.emptyList(), Collections.emptyList());
+      }
+    }
+
+    // Visit the function's body and get the statements
+    final List<node.Statement> body = new ArrayList<>();
+    if ((ctx.expr == null) == (ctx.blk == null)) {
+      // Sanity check: they can't both be null or both be non-null
+      throw new AssertionError();
+    } else if (ctx.expr != null) {
+      // Visit the function's expression
+      final node.Expression funExpr = visitExpression(ctx.expr);
+      //
+
+
+      // TODO: verify the return type of the expression matches the function's return type
+      // TODO: otherwise check if we can implicit cast to the function's return type
+
+      // Wrap the function's expression in a return node
+      final node.FunctionReturnStmt funRet = new node.FunctionReturnStmt(funExpr);
+      // Add the return statement to the body
+      body.add(funRet);
+    } else {
+      // Visit the function's block
+      // TODO: need a way to find local declarations and return statements in the block
+      // visitBlock(ctx.blk);
+      throw new UnsupportedOperationException();
+    }
+
+    // Pop the function's scope
+    final symbol.Scope scope = symbolTable.popScope();
+
+    // Get the variables defined in the function's scope
+    final List<node.LocalVariable> vars = new ArrayList<>();
+    final List<symbol.Entry> symbols = scope.symbols();
+    final int symbolsSize = symbols.size();
+    for (int i = 0; i < symbolsSize; i++) {
+      final symbol.Entry symbol = symbols.get(i);
+      // Sanity check that the symbol has a resolved concrete type
+      switch (symbol.type()) {
+        case type.Unk unk: throw new AssertionError();
+        case type.Err err: throw new AssertionError();
+        default: break;
+      }
+      // Sanity check the the symbol has been resolved to an expected node type
+      // accumlate the variable nodes into a list
+      switch (symbol.node()) {
+        case node.LocalVariable var: vars.add(var); break;
+        case node.Function fun: break; // Ignore function nodes
+        // case node.Type type: break; // Ignore type nodes // TODO
+        case null: throw new AssertionError();
+        default: throw new AssertionError();
+      }
+    }
+
+    // Create the function node and return it
+    return new node.Function(funType, funName, vars, body);
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////
@@ -312,7 +415,7 @@ public final class Parser {
   // Expression
   //////////////////////////////////////////////////////////////////////////////////////////////////
 
-  public node.Node visitExpression(final ExpressionContext ctx) {
+  public node.Expression visitExpression(final ExpressionContext ctx) {
     return switch (ctx) {
       case GroupedExprContext      expr -> visitGroupedExpr(expr);
       case LiteralExprContext      expr -> visitLiteralExpr(expr);
@@ -330,7 +433,7 @@ public final class Parser {
   // GroupedExpr
   //////////////////////////////////////////////////////////////////////////////////////////////////
 
-  public node.Node visitGroupedExpr(final GroupedExprContext ctx) {
+  public node.Expression visitGroupedExpr(final GroupedExprContext ctx) {
     return visitExpression(ctx.inner);
   }
 
@@ -338,7 +441,7 @@ public final class Parser {
   // LiteralExpr
   //////////////////////////////////////////////////////////////////////////////////////////////////
 
-  public node.Node visitLiteralExpr(final LiteralExprContext ctx) {
+  public node.Expression visitLiteralExpr(final LiteralExprContext ctx) {
     return switch (ctx.lit.getType()) {
       case BitLit -> visitBitLit(ctx);
       case IntLit -> visitIntLit(ctx);
@@ -347,18 +450,18 @@ public final class Parser {
     };
   }
 
-  private node.Node visitBitLit(final LiteralExprContext ctx) {
+  private node.Expression visitBitLit(final LiteralExprContext ctx) {
     final String text = ctx.lit.getText();
     return switch (parseBitLit(text)) {
-      case Some<inst.Bit> some -> node.Const.of(some.value);
+      case Some<inst.Bit> some -> new node.ConstExpr(some.value);
       default -> {
         err(ctx, "Invalid bit literal: \"" + text + "\"");
-        yield node.Const.err;
+        yield node.ConstExpr.err;
       }
     };
   }
 
-  private node.Node visitIntLit(final LiteralExprContext ctx) {
+  private node.Expression visitIntLit(final LiteralExprContext ctx) {
     final String text = ctx.lit.getText();
     final boolean hasMinusPrefix = switch (ctx.parent) {
       case PrefixOpExprContext parent ->
@@ -367,21 +470,21 @@ public final class Parser {
       default -> false;
     };
     return switch (parseIntLit(text, hasMinusPrefix)) {
-      case Some<inst.Inst<?>> some -> node.Const.of(some.value);
+      case Some<inst.Inst<?>> some -> new node.ConstExpr(some.value);
       default -> {
         err(ctx, "Invalid int literal: \"" + text + "\"");
-        yield node.Const.err;
+        yield node.ConstExpr.err;
       }
     };
   }
 
-  private node.Node visitFltLit(final LiteralExprContext ctx) {
+  private node.Expression visitFltLit(final LiteralExprContext ctx) {
     final String text = ctx.lit.getText();
     return switch (parseFltLit(text)) {
-      case Some<inst.Inst<?>> some -> node.Const.of(some.value);
+      case Some<inst.Inst<?>> some -> new node.ConstExpr(some.value);
       default -> {
         err(ctx, "Invalid flt literal: \"" + text + "\"");
-        yield node.Const.err;
+        yield node.ConstExpr.err;
       }
     };
   }

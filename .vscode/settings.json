@@ -25,6 +25,7 @@
   "java.import.gradle.wrapper.enabled": true,
   "java.format.enabled": false,
   "java.format.settings.profile": "GoogleStyle",
+  "java.cleanup.actions": [ ],
 
   "antlr4.format": {
     "disabled": true

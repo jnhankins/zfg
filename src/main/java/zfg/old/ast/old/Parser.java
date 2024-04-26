@@ -37,27 +37,11 @@ import zfg.antlr.ZfgParser.PathContext;
 import zfg.antlr.ZfgParser.PathExprContext;
 import zfg.antlr.ZfgParser.PostfixExprContext;
 import zfg.antlr.ZfgParser.PrefixExprContext;
-import zfg.lang.ops.Add;
-import zfg.lang.ops.Mul;
-import zfg.lang.ops.Sub;
-import zfg.lang.val.Bit;
-import zfg.lang.val.F32;
-import zfg.lang.val.F64;
-import zfg.lang.val.I08;
-import zfg.lang.val.I16;
-import zfg.lang.val.I32;
-import zfg.lang.val.I64;
-import zfg.lang.val.U08;
-import zfg.lang.val.U16;
-import zfg.lang.val.U32;
-import zfg.lang.val.U64;
-import zfg.lang.val.Val;
 import zfg.old.ast.Literal;
 import zfg.old.ast.Type;
-import zfg.old.ast.Type.Ixx;
-import zfg.old.ast.Type.Num;
-import zfg.old.ast.Type.Uxx;
 import zfg.old.ast.old.Expr.Const;
+import zfg.old.ast.old.Parser.ParserException;
+import zfg.parse.node.ConstExpr;
 
 public class Parser {
   public static class ParserException extends RuntimeException {
@@ -88,13 +72,13 @@ public class Parser {
     final String str = ctx.lit.getText();
     return switch (ctx.lit.getType()) {
       case BitLit -> Literal.parseBit(str)
-          .map(val -> new Const(val, Type.bit))
+          .map(val -> new ConstExpr(val, Type.bit))
           .orElseThrow(() -> new ParserException(ctx, "Invalid bit literal"));
       case IntLit -> Literal.parseInt(str, hasContiguousNegPrefix(ctx))
-          .map(val -> new Const(val, Type.of(val)))
+          .map(val -> new ConstExpr(val, Type.of(val)))
           .orElseThrow(() -> new ParserException(ctx, "Invalid int literal"));
       case FltLit -> Literal.parseFlt(str)
-          .map(val -> new Const(val, Type.of(val)))
+          .map(val -> new ConstExpr(val, Type.of(val)))
           .orElseThrow(() -> new ParserException(ctx, "Invalid flt literal"));
       default -> throw new AssertionError();
     };

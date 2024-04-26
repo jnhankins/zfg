@@ -59,27 +59,41 @@ public class symbol {
       final Type type,
       final node.Node node // <-- nullable
     ) {
+
+      // Get the current scope
+      final Scope scope = scopes.peek();
+
       // Get the row for the symbol's identifier
       final Deque<Entry> entries = table.computeIfAbsent(id, k -> new ArrayDeque<>());
 
+      // Check if the symbol is already in the table
       final Entry extant = entries.peek();
-      if (extant != null) {
-        // Check if this is an update to a symbol already in the table
-        if (extant.ctx == ctx) {
-        }
-        // Check for disallowed redeclarations:
-        // Pub and use symbols can only be declared once per scope and identifier.
-        if (extant.scope == scopes.peek() && (
-          mod == Modifier.Pub || extant.mod == Modifier.Pub ||
-          mod == Modifier.Use || extant.mod == Modifier.Use
-        )) return new Parser.Error(ctx, String.format(
-          "cannot declare symbol \"%s\" with modifier \"$s\" because it is also declared elsewhere in the same scope with modifier \"%s\" on line %d column %d",
-          id, ctx.mod.getText(), extant.ctx.mod.getText(), extant.ctx.getStart().getLine(), extant.ctx.getStart().getCharPositionInLine()
-        ));
+
+      // Ensure pub symbols are declared at the root of a module
+      if (mod == Modifier.Pub && scopes.size() != 1) {
+        return new Parser.Error(ctx, "a public symbol can only be declared at the root of a module");
+      }
+
+      // Ensure that pub and use symbols are not redeclared in the same scope
+      if (extant != null && extant.scope == scope && extant.ctx != ctx && (
+          mod == Modifier.Pub || mod == Modifier.Use ||
+          extant.mod == Modifier.Pub || extant.mod == Modifier.Use
+      )) return new Parser.Error(ctx, String.format(
+        "cannot declare symbol \"%s\" with modifier \"%s\" because it is defined elsewhere in the same scope with modifier \"%s\" on line %d column %d",
+        id, ctx.mod.getText(), extant.ctx.mod.getText(), extant.ctx.getStart().getLine(), extant.ctx.getStart().getCharPositionInLine())
+      );
+
+      // Check if we're updating the extant symbol
+      if (extant != null && extant.ctx == ctx) {
+        // Sanity check
+        if (extant.mod != mod || extant.scope != scope) throw new AssertionError();
+        // Check if it's a no-op
+        if (extant.type == type && extant.node == node) return null;
+        // TODO: Update the symbol with the new type and/or node
+        throw new UnsupportedOperationException("TODO: implement symbol updates");
       }
 
       // Create the symbol entry, add it to the current scope, and add it to the symbol table
-      final Scope scope = scopes.peek();
       final Entry symbol = new Entry(ctx, mod, id, type, scope, node);
       scope.symbols.add(symbol);
       entries.push(symbol);
