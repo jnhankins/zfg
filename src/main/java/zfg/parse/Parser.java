@@ -64,7 +64,10 @@ import zfg.core.inst;
 import zfg.core.maybe.Some;
 import zfg.core.type;
 import zfg.parse.node.Statement;
-import zfg.parse.symbol.Modifier;
+import zfg.parse.symbol.Symbol;
+import zfg.parse.symbol.SymbolModifier;
+import zfg.parse.symbol.SymbolScope;
+import zfg.parse.symbol.SymbolTable;
 
 public final class Parser {
   /** Parser error */
@@ -80,7 +83,7 @@ public final class Parser {
   }
 
   private final List<Error> errors = new ArrayList<>();
-  private final symbol.Table symbolTable = new symbol.Table();
+  private final SymbolTable symbolTable = new SymbolTable();
   private final Map<TypeContext, type.Type> typeCache = new HashMap<>();
 
   public Parser() {}
@@ -110,10 +113,10 @@ public final class Parser {
       // Find declaration statements
       if (stmt instanceof DeclarationStmtContext decl) {
         // Check if the symbol's modifier is pub or use
-        final symbol.Modifier mod;
+        final SymbolModifier mod;
         switch (decl.mod.getType()) {
-          case PUB: mod = symbol.Modifier.Pub; break;
-          case USE: mod = symbol.Modifier.Use; break;
+          case PUB: mod = SymbolModifier.Pub; break;
+          case USE: mod = SymbolModifier.Use; break;
           default: continue;
         };
         // Get the symbol's name
@@ -134,7 +137,7 @@ public final class Parser {
     }
 
     // Pop the module scope
-    final symbol.Scope scope = symbolTable.popScope();
+    final SymbolScope scope = symbolTable.popScope();
 
     // Create and return the module node
     // TODO
@@ -168,11 +171,11 @@ public final class Parser {
   public node.Statement visitDeclarationStmt(final DeclarationStmtContext ctx) {
 
     // Get the symbol's modifier
-    final symbol.Modifier mod = switch (ctx.mod.getType()) {
-      case LET -> symbol.Modifier.Let;
-      case MUT -> symbol.Modifier.Mut;
-      case USE -> symbol.Modifier.Use;
-      case PUB -> symbol.Modifier.Pub;
+    final SymbolModifier mod = switch (ctx.mod.getType()) {
+      case LET -> SymbolModifier.Let;
+      case MUT -> SymbolModifier.Mut;
+      case USE -> SymbolModifier.Use;
+      case PUB -> SymbolModifier.Pub;
       default -> throw new AssertionError();
     };
 
@@ -219,9 +222,9 @@ public final class Parser {
 
   private node.Statement visitFunDecl(
     final DeclarationStmtContext ctx,
-    final Modifier funMod,
-    final String   funName,
-    final type.Fun funType
+    final SymbolModifier funMod,
+    final String         funName,
+    final type.Fun       funType
   ) {
 
     // Add the function to the symbol table so it can be referenced recursively
@@ -241,9 +244,9 @@ public final class Parser {
     // For each argument...
     for (int i = 0; i < arity; i++) {
       final type.Rec.Field field = fields[i];
-      final Modifier  argMod  = field.immu() ? Modifier.Let : Modifier.Mut;
-      final String    argName = field.name();
-      final type.Type argType = field.type();
+      final SymbolModifier argMod  = field.immu ? SymbolModifier.Let : SymbolModifier.Mut;
+      final String         argName = field.name;
+      final type.Type      argType = field.type;
       // Create a node for the argument
       final node.FunctionArgument arg = new node.FunctionArgument(argType, argName);
       // And add the argument to the symbol table
@@ -281,23 +284,23 @@ public final class Parser {
     }
 
     // Pop the function's scope
-    final symbol.Scope scope = symbolTable.popScope();
+    final SymbolScope scope = symbolTable.popScope();
 
     // Get the variables defined in the function's scope
     final List<node.LocalVariable> vars = new ArrayList<>();
-    final List<symbol.Entry> symbols = scope.symbols();
+    final List<Symbol> symbols = scope.symbols;
     final int symbolsSize = symbols.size();
     for (int i = 0; i < symbolsSize; i++) {
-      final symbol.Entry symbol = symbols.get(i);
+      final Symbol symbol = symbols.get(i);
       // Sanity check that the symbol has a resolved concrete type
-      switch (symbol.type()) {
+      switch (symbol.type) {
         case type.Unk unk: throw new AssertionError();
         case type.Err err: throw new AssertionError();
         default: break;
       }
       // Sanity check the the symbol has been resolved to an expected node type
       // accumlate the variable nodes into a list
-      switch (symbol.node()) {
+      switch (symbol.node) {
         case node.LocalVariable var: vars.add(var); break;
         case node.Function fun: break; // Ignore function nodes
         // case node.Type type: break; // Ignore type nodes // TODO

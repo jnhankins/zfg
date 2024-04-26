@@ -289,8 +289,15 @@ public final class type {
 
   /** Type "rec": Record type. Data accessed by key. */
   public static sealed class Rec implements Type {
-    public static final record Field(boolean immu, String name, Type type) {
-      public Field { Objects.requireNonNull(name); Objects.requireNonNull(type); }
+    public static final class Field {
+      public final boolean immu;
+      public final String  name;
+      public final Type    type;
+      public Field(final boolean immu, final String name, final Type type) {
+        this.immu = immu;
+        this.name = name;
+        this.type = type;
+      }
     }
 
     public final Field[] fields;
