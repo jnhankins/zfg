@@ -1,40 +1,50 @@
 package zfg.core;
 
-import java.util.Set;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.IntStream;
 
+import zfg.core.types.ArrType;
+import zfg.core.types.BitType;
+import zfg.core.types.F32Type;
+import zfg.core.types.F64Type;
+import zfg.core.types.I08Type;
+import zfg.core.types.I16Type;
+import zfg.core.types.I32Type;
+import zfg.core.types.I64Type;
+import zfg.core.types.RecType;
 import zfg.core.types.Type;
+import zfg.core.types.U08Type;
+import zfg.core.types.U16Type;
+import zfg.core.types.U32Type;
+import zfg.core.types.U64Type;
 
 public final class insts {
   private insts() {}
 
   public static sealed interface Inst permits
-      // Virtual instances
-      UnkInst, ErrInst,
-      // Primitive instances
-      BitInst,
-      U08Inst, U16Inst, U32Inst, U64Inst, I08Inst, I16Inst, I32Inst, I64Inst, F32Inst, F64Inst,
-      // Reference instances
-      ArrInst, RecInst, FunInst,
+      // Primitive instances (passed by value)
+      BitInst, U08Inst, U16Inst, U32Inst, U64Inst, I08Inst, I16Inst, I32Inst, I64Inst, F32Inst, F64Inst,
+      // Reference instances (passed by reference)
+      ArrInst, // Data structure whose elements are accessed by index
+      RecInst, // Data structure whose elements are accessed by name keys
+      FunInst, // Function
       // Special instances
-      UnitInst, NameInst
+      UnitInst, // Empty record of zero size
+      NameInst  // Alias for a primitive, reference, or unit type and adds methods and type bounds.
   {
     public Type type();
-    
-    public default StringBuilder toString(final StringBuilder buf, final Set<NameInst> seen) {
-      return buf.append(this);
-    }
-  }
 
-  // Virtual instances
-  public static final class UnkInst implements Inst {
-    private UnkInst() {}
-    @Override public Type type() { return types.unk; }
-    @Override public String toString() { return "unk"; }
-  }
-  public static final class ErrInst implements Inst {
-    private ErrInst() {}
-    @Override public Type type() { return types.err; }
-    @Override public String toString() { return "err"; }
+    public default String toDebugString() {
+      final StringBuilder buf = new StringBuilder();
+      toDebugString(buf, new HashMap<>());
+      return buf.toString();
+    }
+    public default void toDebugString(final StringBuilder buf, final Map<Inst, Integer> seen) {
+      buf.append(this);
+    }
   }
 
   // Primitive instances
@@ -44,8 +54,8 @@ public final class insts {
       assert value == 0 || value == 1;
       this.value = value;
     }
-    @Override public Type type() { return types.bit; }
-    @Override public String toString() { return value + "bit"; }
+    @Override public BitType type() { return types.bit; }
+    @Override public String toString() { return "bit(" + value +")" ; }
   }
   public static final class U08Inst implements Inst {
     public final int value;
@@ -53,8 +63,8 @@ public final class insts {
       assert 0 <= value && value <= 0xff;
       this.value = value;
     }
-    @Override public Type type() { return types.u08; }
-    @Override public String toString() { return value + "u08"; }
+    @Override public U08Type type() { return types.u08; }
+    @Override public String toString() { return "u08(" + value +")" ; }
   }
   public static final class U16Inst implements Inst {
     public final int value;
@@ -62,20 +72,20 @@ public final class insts {
       assert 0 <= value && value <= 0xffff;
       this.value = value;
     }
-    @Override public Type type() { return types.u16; }
-    @Override public String toString() { return value + "u16"; }
+    @Override public U16Type type() { return types.u16; }
+    @Override public String toString() { return "u16(" + value +")" ; }
   }
   public static final class U32Inst implements Inst {
     public final int value;
     private U32Inst(final int value) { this.value = value; }
-    @Override public Type type() { return types.u32; }
-    @Override public String toString() { return Integer.toUnsignedString(value) + "u32"; }
+    @Override public U32Type type() { return types.u32; }
+    @Override public String toString() { return "u32(" + Integer.toUnsignedString(value) +")" ; }
   }
   public static final class U64Inst implements Inst {
     public final long value;
     private U64Inst(final long value) { this.value = value; }
-    @Override public Type type() { return types.u64; }
-    @Override public String toString() { return Long.toUnsignedString(value) + "u64"; }
+    @Override public U64Type type() { return types.u64; }
+    @Override public String toString() { return "u64(" + Long.toUnsignedString(value) +")" ; }
   }
   public static final class I08Inst implements Inst {
     public final int value;
@@ -83,8 +93,8 @@ public final class insts {
       assert -0x80 <= value && value <= 0x7f;
       this.value = value;
     }
-    @Override public Type type() { return types.i08; }
-    @Override public String toString() { return value + "i08"; }
+    @Override public I08Type type() { return types.i08; }
+    @Override public String toString() { return "i08(" + value +")" ; }
   }
   public static final class I16Inst implements Inst {
     public final int value;
@@ -92,64 +102,132 @@ public final class insts {
       assert -0x8000 <= value && value <= 0x7fff;
       this.value = value;
     }
-    @Override public Type type() { return types.i16; }
-    @Override public String toString() { return value + "i16"; }
+    @Override public I16Type type() { return types.i16; }
+    @Override public String toString() { return "i16(" + value +")" ; }
   }
   public static final class I32Inst implements Inst {
     public final int value;
     private I32Inst(final int value) { this.value = value; }
-    @Override public Type type() { return types.i32; }
-    @Override public String toString() { return value + "i32"; }
+    @Override public I32Type type() { return types.i32; }
+    @Override public String toString() { return "i32(" + value +")" ; }
   }
   public static final class I64Inst implements Inst {
     public final long value;
     private I64Inst(final long value) { this.value = value; }
-    @Override public Type type() { return types.i64; }
-    @Override public String toString() { return value + "i64"; }
+    @Override public I64Type type() { return types.i64; }
+    @Override public String toString() { return "i64(" + value +")" ; }
   }
   public static final class F32Inst implements Inst {
     public final float value;
     private F32Inst(final float value) { this.value = value; }
-    @Override public Type type() { return types.f32; }
-    @Override public String toString() { return value + "f32"; }
+    @Override public F32Type type() { return types.f32; }
+    @Override public String toString() { return "f32(" + value +")" ; }
   }
   public static final class F64Inst implements Inst {
     public final double value;
     private F64Inst(final double value) { this.value = value; }
-    @Override public Type type() { return types.f64; }
-    @Override public String toString() { return value + "f64"; }
+    @Override public F64Type type() { return types.f64; }
+    @Override public String toString() { return "f64(" + value +")" ; }
   }
 
-  // Virtual instances
-  public static final UnkInst unk = new UnkInst();
-  public static final ErrInst err = new ErrInst();
+  // Reference instances
+  public static final class ArrInst implements Inst {
+    private final ArrType type;
+    public final Inst[]  value;
+    private ArrInst(final ArrType type, final Inst[] value) {
+      assert type != null;
+      assert value != null;
+      assert value.length == type.length || type.length == ArrType.UNKNOWN_LENGTH;
+      assert Arrays.stream(value).allMatch(Objects::nonNull);
+      assert Arrays.stream(value).allMatch(inst -> inst.type().equals(type.elementType));
+      this.type  = type;
+      this.value = value;
+    }
+    @Override public Type type() { return type; }
+    @Override public String toString() { return toDebugString(); }
+    @Override public void toDebugString(final StringBuilder buf, final Map<Inst, Integer> seen) {
+      if (seen.get(this) instanceof Integer index) {
+        buf.append("arr@");
+        buf.append(index);
+      } else {
+        final int index = seen.size();
+        seen.put(this, index);
+        buf.append("arr#");
+        buf.append(index);
+        buf.append("(");
+        for (int i = 0; i < value.length; i++) {
+          if (i > 0) buf.append(", ");
+          value[i].toDebugString(buf, seen);
+        }
+        buf.append(")");
+      }
+    }
+  }
+  public static final class RecInst implements Inst {
+    private final RecType type;
+    public final Inst[] value;
+    private RecInst(final RecType type, final Inst[] value) {
+      assert type != null;
+      assert value != null;
+      assert value.length == type.types.length;
+      assert Arrays.stream(value).allMatch(Objects::nonNull);
+      assert IntStream.range(0, value.length).allMatch(i -> value[i].type().equals(type.types[i]));
+      this.type  = type;
+      this.value = value;
+    }
+    @Override public RecType type() { return type; }
+    @Override public String toString() { return toDebugString(); }
+    @Override public void toDebugString(final StringBuilder buf, final Map<Inst, Integer> seen) {
+      if (seen.get(this) instanceof Integer index) {
+        buf.append("rec@");
+        buf.append(index);
+      } else {
+        final int index = seen.size();
+        seen.put(this, index);
+        buf.append("rec#");
+        buf.append(index);
+        buf.append("(");
+        for (int i = 0; i < value.length; i++) {
+          if (i > 0) buf.append(", ");
+          buf.append(type.names[i]);
+          buf.append(" ");
+          value[i].toDebugString(buf, seen);
+        }
+        buf.append(")");
+      }
+    }
+  }
+  // TODO: FunInst
+
+  // Special instances
+  public static final class UnitInst implements Inst {
+    private UnitInst() {}
+    @Override public RecType type() { return types.unit; }
+    @Override public String toString() { return "unit" ; }
+  }
 
   // Primitive instances
-  private static final BitInst bit0 = new BitInst(0);
-  private static final BitInst bit1 = new BitInst(1);
-  private static final U08Inst[] u08s = new U08Inst[256];
-  private static final I08Inst[] i08s = new I08Inst[256];
-  public static BitInst bit(final int value) {
-    assert value == 0 || value == 1;
-    return value == 0 ? bit0 : bit1;
-  }
-  public static U08Inst u08(final int value) {
-    final U08Inst cached = u08s[value];
-    return cached != null ? cached : (u08s[value] = new U08Inst(value));
-  }
-  public static U16Inst u16(final int value) { return new U16Inst(value); }
-  public static U32Inst u32(final int value) { return new U32Inst(value); }
-  public static U64Inst u64(final long value) { return new U64Inst(value); }
-  public static I08Inst i08(final int value) {
-    final int key = value + 128;
-    final I08Inst cached = i08s[key];
-    return cached != null ? cached : (i08s[key] = new I08Inst(value));
-  }
-  public static I16Inst i16(final int value) { return new I16Inst(value); }
-  public static I32Inst i32(final int value) { return new I32Inst(value); }
-  public static I64Inst i64(final long value) { return new I64Inst(value); }
-  public static F32Inst f32(final float value) { return new F32Inst(value); }
+  public static BitInst bit(final int    value) { return new BitInst(value); }
+  public static U08Inst u08(final int    value) { return new U08Inst(value); }
+  public static U16Inst u16(final int    value) { return new U16Inst(value); }
+  public static U32Inst u32(final int    value) { return new U32Inst(value); }
+  public static U64Inst u64(final long   value) { return new U64Inst(value); }
+  public static I08Inst i08(final int    value) { return new I08Inst(value); }
+  public static I16Inst i16(final int    value) { return new I16Inst(value); }
+  public static I32Inst i32(final int    value) { return new I32Inst(value); }
+  public static I64Inst i64(final long   value) { return new I64Inst(value); }
+  public static F32Inst f32(final float  value) { return new F32Inst(value); }
   public static F64Inst f64(final double value) { return new F64Inst(value); }
 
+  // Reference instances
+  public static ArrInst arr(final ArrType type, final Inst[] value) {
+    return new ArrInst(type, value);
+  }
+  public static RecInst rec(final RecType type, final Inst[] value) {
+    return new RecInst(type, value);
+  }
+  // TODO: FunInst
 
+  // Special instances
+  public static final UnitInst unit = new UnitInst();
 }

@@ -9,17 +9,25 @@ public final class types {
   private types() {}
 
   public static sealed interface Type permits
-      // Virtual types
+      // Virtual types (cannot be instantiated in memory; doesn't exist at runtime)
       UnkType, ErrType,
-      // Primitive types
-      BitType,
-      U08Type, U16Type, U32Type, U64Type, I08Type, I16Type, I32Type, I64Type, F32Type, F64Type,
-      // Reference types
-      ArrType, RecType, FunType,
+      // Primitive types (passed by value)
+      BitType, U08Type, U16Type, U32Type, U64Type, I08Type, I16Type, I32Type, I64Type, F32Type, F64Type,
+      // Reference types (passed by reference)
+      ArrType, // Data structure whose elements are accessed by index
+      RecType, // Data structure whose elements are accessed by name keys
+      FunType, // Function
       // Special types
-      UnitType, NameType {
-    public default StringBuilder toString(final StringBuilder buf, final Set<NameType> seen) {
-      return buf.append(this);
+      UnitType, // Empty record of zero size
+      NameType  // Alias for a primitive, reference, or unit type and adds methods and type bounds.
+  {
+    public default String toDebugString() {
+      final StringBuilder buf = new StringBuilder();
+      toDebugString(buf, new HashSet<>());
+      return buf.toString();
+    }
+    public default void toDebugString(final StringBuilder buf, final Set<NameType> seen) {
+      buf.append(this);
     }
   }
 
@@ -82,31 +90,28 @@ public final class types {
   // Reference types
   public static final class ArrType implements Type {
     public static final int UNKNOWN_LENGTH = -1;
-    public final Type elemenType;
+    public final Type elementType;
     public final int length;
     private ArrType(final Type elemenType) {
       assert elemenType != null;
-      this.elemenType = elemenType;
+      this.elementType = elemenType;
       this.length = UNKNOWN_LENGTH;
     }
     private ArrType(final Type elemenType, final int length) {
       assert elemenType != null;
       assert length >= 0;
-      this.elemenType = elemenType;
+      this.elementType = elemenType;
       this.length = length;
     }
-    @Override public StringBuilder toString(final StringBuilder buf, final Set<NameType> seen) {
+    @Override public String toString() { return toDebugString(); }
+    @Override public void toDebugString(final StringBuilder buf, final Set<NameType> seen) {
       buf.append("Arr(");
-      elemenType.toString(buf, seen);
+      elementType.toDebugString(buf, seen);
       if (length != UNKNOWN_LENGTH) {
         buf.append(", ");
         buf.append(length);
       }
       buf.append(")");
-      return buf;
-    }
-    @Override public String toString() {
-      return toString(new StringBuilder(), new HashSet<>()).toString();
     }
   }
   public static sealed class RecType implements Type permits UnitType {
@@ -132,20 +137,17 @@ public final class types {
       this.names = names;
       this.types = types;
     }
-    @Override public StringBuilder toString(final StringBuilder buf, final Set<NameType> seen) {
+    @Override public String toString() { return toDebugString(); }
+    @Override public void toDebugString(final StringBuilder buf, final Set<NameType> seen) {
       buf.append("Rec(");
       for (int i = 0; i < muts.length; i++) {
         if (i > 0) buf.append(", ");
         buf.append(muts[i] ? "mut " : "let ");
         buf.append(names[i]);
         buf.append(" ");
-        types[i].toString(buf, seen);
+        types[i].toDebugString(buf, seen);
       }
       buf.append(")");
-      return buf;
-    }
-    @Override public String toString() {
-      return toString(new StringBuilder(), new HashSet<>()).toString();
     }
   }
   public static final class FunType implements Type {
@@ -157,16 +159,13 @@ public final class types {
       this.paramsType = paramsType;
       this.resultType = resultType;
     }
-    @Override public StringBuilder toString(final StringBuilder buf, final Set<NameType> seen) {
+    @Override public String toString() { return toDebugString(); }
+    @Override public void toDebugString(final StringBuilder buf, final Set<NameType> seen) {
       buf.append("Fun(");
-      paramsType.toString(buf, seen);
+      paramsType.toDebugString(buf, seen);
       buf.append(", ");
-      resultType.toString(buf, seen);
+      resultType.toDebugString(buf, seen);
       buf.append(")");
-      return buf;
-    }
-    @Override public String toString() {
-      return toString(new StringBuilder(), new HashSet<>()).toString();
     }
   }
 
@@ -196,16 +195,14 @@ public final class types {
       assert this.type == unk;
       this.type = type;
     }
-    @Override public StringBuilder toString(final StringBuilder buf, final Set<NameType> seen) {
+    @Override public String toString() { return toDebugString(); }
+    @Override public void toDebugString(final StringBuilder buf, final Set<NameType> seen) {
       buf.append("Name(");
       buf.append(name);
       buf.append(", ");
-      buf.append(seen.add(this) ? type : "...");
+      if (seen.add(this)) type.toDebugString(buf, seen);
+      else                buf.append("...");
       buf.append(")");
-      return buf;
-    }
-    @Override public String toString() {
-      return toString(new StringBuilder(), new HashSet<>()).toString();
     }
   }
 
