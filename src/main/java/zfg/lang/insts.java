@@ -1,4 +1,4 @@
-package zfg.core;
+package zfg.lang;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -6,20 +6,22 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.IntStream;
 
-import zfg.core.types.ArrType;
-import zfg.core.types.BitType;
-import zfg.core.types.F32Type;
-import zfg.core.types.F64Type;
-import zfg.core.types.I08Type;
-import zfg.core.types.I16Type;
-import zfg.core.types.I32Type;
-import zfg.core.types.I64Type;
-import zfg.core.types.RecType;
-import zfg.core.types.Type;
-import zfg.core.types.U08Type;
-import zfg.core.types.U16Type;
-import zfg.core.types.U32Type;
-import zfg.core.types.U64Type;
+import zfg.lang.types.ArrType;
+import zfg.lang.types.BitType;
+import zfg.lang.types.F32Type;
+import zfg.lang.types.F64Type;
+import zfg.lang.types.FunType;
+import zfg.lang.types.I08Type;
+import zfg.lang.types.I16Type;
+import zfg.lang.types.I32Type;
+import zfg.lang.types.I64Type;
+import zfg.lang.types.NameType;
+import zfg.lang.types.RecType;
+import zfg.lang.types.Type;
+import zfg.lang.types.U08Type;
+import zfg.lang.types.U16Type;
+import zfg.lang.types.U32Type;
+import zfg.lang.types.U64Type;
 
 public final class insts {
   private insts() {}
@@ -33,7 +35,7 @@ public final class insts {
       FunInst, // Function
       // Special instances
       UnitInst, // Empty record of zero size
-      NameInst  // Alias for a primitive, reference, or unit type and adds methods and type bounds.
+      NameInst  // Alias for a primitive, reference, or unit type and adds methods and type bounds
   {
     public Type type();
 
@@ -139,7 +141,7 @@ public final class insts {
       assert value != null;
       assert value.length == type.length || type.length == ArrType.UNKNOWN_LENGTH;
       assert Arrays.stream(value).allMatch(Objects::nonNull);
-      assert Arrays.stream(value).allMatch(inst -> inst.type().equals(type.elementType));
+      assert Arrays.stream(value).map(Inst::type).allMatch(type.elementType::equals);
       this.type  = type;
       this.value = value;
     }
@@ -197,13 +199,67 @@ public final class insts {
       }
     }
   }
-  // TODO: FunInst
+  public static final class FunInst implements Inst {
+    private final FunType type;
+    public final Void value; // TODO
+    private FunInst(final FunType type, final Void value) { // TODO
+      assert type != null;
+      assert value != null;
+      this.type  = type;
+      this.value = value;
+    }
+    @Override public FunType type() { return type; }
+    @Override public String toString() { return toDebugString(); }
+    @Override public void toDebugString(final StringBuilder buf, final Map<Inst, Integer> seen) {
+      if (seen.get(this) instanceof Integer index) {
+        buf.append("fun@");
+        buf.append(index);
+      } else {
+        final int index = seen.size();
+        seen.put(this, index);
+        buf.append("fun#");
+        buf.append(index);
+        buf.append("(TODO)"); // TODO
+      }
+    }
+  }
 
   // Special instances
   public static final class UnitInst implements Inst {
     private UnitInst() {}
     @Override public RecType type() { return types.unit; }
     @Override public String toString() { return "unit" ; }
+  }
+  public static final class NameInst implements Inst {
+    private final NameType type;
+    private final Inst     inst;
+    private NameInst(final NameType type, final Inst inst) {
+      assert type != null;
+      assert inst != null;
+      assert type.type != types.unk;
+      assert inst.type().equals(type.type);
+      this.type = type;
+      this.inst = inst;
+    }
+    @Override public Type type() { return type; }
+    @Override public String toString() { return toDebugString(); }
+    @Override public void toDebugString(final StringBuilder buf, final Map<Inst, Integer> seen) {
+      buf.append("<");
+      buf.append(type.name);
+      buf.append(">");
+      if (seen.get(this) instanceof Integer index) {
+        buf.append("@");
+        buf.append(index);
+      } else {
+        final int index = seen.size();
+        seen.put(this, index);
+        buf.append("#");
+        buf.append(index);
+        buf.append("(");
+        inst.toDebugString(buf, seen);
+        buf.append(")");
+      }
+    }
   }
 
   // Primitive instances
@@ -226,8 +282,13 @@ public final class insts {
   public static RecInst rec(final RecType type, final Inst[] value) {
     return new RecInst(type, value);
   }
-  // TODO: FunInst
+  public static FunInst fun(final FunType type, final Void value) { // TODO
+    return new FunInst(type, value);
+  }
 
   // Special instances
   public static final UnitInst unit = new UnitInst();
+  public static NameInst name(final NameType type, final Inst inst) {
+    return new NameInst(type, inst);
+  }
 }

@@ -1,4 +1,4 @@
-package zfg.core;
+package zfg.lang;
 
 import java.util.Arrays;
 import java.util.HashSet;
@@ -19,7 +19,7 @@ public final class types {
       FunType, // Function
       // Special types
       UnitType, // Empty record of zero size
-      NameType  // Alias for a primitive, reference, or unit type and adds methods and type bounds.
+      NameType  // Alias for a primitive, reference, or unit type and adds methods and type bounds
   {
     public default String toDebugString() {
       final StringBuilder buf = new StringBuilder();
@@ -130,7 +130,7 @@ public final class types {
       assert muts.length > 0;
       assert muts.length == names.length;
       assert muts.length == types.length;
-      assert Arrays.stream(names).allMatch(zfg.core.types::isLowerSnakeCase);
+      assert Arrays.stream(names).allMatch(zfg.lang.names::isLowerSnakeCase);
       assert Arrays.stream(names).distinct().count() == names.length;
       assert Arrays.stream(types).allMatch(Objects::nonNull);
       this.muts = muts;
@@ -179,19 +179,18 @@ public final class types {
     public final String name;
     public       Type   type;
     private NameType(final String name) {
-      assert isUpperCamelCase(name);
+      assert names.isUpperCamelCase(name);
       this.name = name;
       this.type = unk;
     }
     private NameType(final String name, final Type type) {
-      assert isUpperCamelCase(name);
-      assert type != null;
+      assert names.isUpperCamelCase(name);
+      assert type != null && type != unk;
       this.name = name;
       this.type = type;
     }
     public void bind(final Type type) {
-      assert type != null;
-      assert type != unk;
+      assert type != null && type != unk;
       assert this.type == unk;
       this.type = type;
     }
@@ -244,40 +243,5 @@ public final class types {
   }
   public static final NameType name(final String name, final Type type) {
     return new NameType(name, type);
-  }
-
-  // Helper functions
-  private static final boolean isLowerSnakeCase(final String name) {
-    // [a-z_][a-z0-9_]*
-    if (name == null) return false;
-    final int len = name.length();
-    if (len == 0) return false;
-    final char f = name.charAt(0);
-    if (f != '_' && (f < 'a' || 'z' < f)) return false;
-    for (int i = 0; i < len; i++) {
-      final char c = name.charAt(i);
-      if ('a' <= c && c <= 'z') continue;
-      if ('0' <= c && c <= '9') continue;
-      if (c == '_') continue;
-      return false;
-    }
-    return true;
-  }
-  private static final boolean isUpperCamelCase(final String name) {
-    // [A-Z][a-zA-Z0-9]*
-    if (name == null) return false;
-    final int len = name.length();
-    if (len == 0) return false;
-    final char f = name.charAt(0);
-    if (f < 'A' || 'Z' < f) return false;
-    if (name.charAt(0) < 'A' || name.charAt(0) > 'Z') return false;
-    for (int i = 1; i < len; i++) {
-      final char c = name.charAt(i);
-      if ('a' <= c && c <= 'z') continue;
-      if ('A' <= c && c <= 'Z') continue;
-      if ('0' <= c && c <= '9') continue;
-      return false;
-    }
-    return true;
   }
 }
