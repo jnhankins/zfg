@@ -8,18 +8,18 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import zfg.lang.ops.Neg;
-import zfg.lang.val.F32;
-import zfg.lang.val.F64;
-import zfg.lang.val.I08;
-import zfg.lang.val.I16;
-import zfg.lang.val.I32;
-import zfg.lang.val.I64;
+import zfg.old.lang3.ops.Neg;
+import zfg.old.lang3.val.F32;
+import zfg.old.lang3.val.F64;
+import zfg.old.lang3.val.I08;
+import zfg.old.lang3.val.I16;
+import zfg.old.lang3.val.I32;
+import zfg.old.lang3.val.I64;
 
 public final class NegTest {
 
   @ParameterizedTest(name = "{index}: neg {0} = {1}") @MethodSource("testI08")
-  void testI08(final I08 a, final I08 e) { assertEquals(e, Neg.i08(a)); }
+  void testI08(final I08Type a, final I08Type e) { assertEquals(e, Neg.i08(a)); }
   static Stream<Arguments> testI08() {
     return Helper.i08(new int[][] {
       {0xFFFFFF80, 0xFFFFFF80}, // -128 => -128
@@ -33,7 +33,7 @@ public final class NegTest {
   }
 
   @ParameterizedTest(name = "{index}: neg {0} = {1}") @MethodSource("testI16")
-  void testI16(final I16 a, final I16 e) { assertEquals(e, Neg.i16(a)); }
+  void testI16(final I16Type a, final I16Type e) { assertEquals(e, Neg.i16(a)); }
   static Stream<Arguments> testI16() {
     return Helper.i16(new int[][] {
       {0xFFFF8000, 0xFFFF8000}, // -32768 => -32768
@@ -47,7 +47,7 @@ public final class NegTest {
   }
 
   @ParameterizedTest(name = "{index}: neg {0} = {1}") @MethodSource("testI32")
-  void testI32(final I32 a, final I32 e) { assertEquals(e, Neg.i32(a)); }
+  void testI32(final I32Type a, final I32Type e) { assertEquals(e, Neg.i32(a)); }
   static Stream<Arguments> testI32() {
     return Helper.i32(new int[][] {
       {0x80000000, 0x80000000}, // -2147483648 => -2147483648
@@ -61,7 +61,7 @@ public final class NegTest {
   }
 
   @ParameterizedTest(name = "{index}: neg {0} = {1}") @MethodSource("testI64")
-  void testI64(final I64 a, final I64 e) { assertEquals(e, Neg.i64(a)); }
+  void testI64(final I64Type a, final I64Type e) { assertEquals(e, Neg.i64(a)); }
   static Stream<Arguments> testI64() {
     return Helper.i64(new long[][] {
       {0x8000000000000000L, 0x8000000000000000L}, // -9223372036854775808 => -9223372036854775808
@@ -75,7 +75,7 @@ public final class NegTest {
   }
 
   @ParameterizedTest(name = "{index}: neg {0} = {1}") @MethodSource("testF32")
-  void testF32(final F32 a, final F32 e) { assertEquals(e, Neg.f32(a)); }
+  void testF32(final F32Type a, final F32Type e) { assertEquals(e, Neg.f32(a)); }
   static Stream<Arguments> testF32() {
     return Helper.f32(new float[][] {
       {Float.NaN, Float.NaN},
@@ -95,7 +95,7 @@ public final class NegTest {
   }
 
   @ParameterizedTest(name = "{index}: neg {0} = {1}") @MethodSource("testF64")
-  void testF64(final F64 a, final F64 e) { assertEquals(e, Neg.f64(a)); }
+  void testF64(final F64Type a, final F64Type e) { assertEquals(e, Neg.f64(a)); }
   static Stream<Arguments> testF64() {
     return Helper.f64(new double[][] {
       {Double.NaN, Double.NaN},

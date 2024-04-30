@@ -8,21 +8,21 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import zfg.lang.ops.Xor;
-import zfg.lang.val.Bit;
-import zfg.lang.val.I08;
-import zfg.lang.val.I16;
-import zfg.lang.val.I32;
-import zfg.lang.val.I64;
-import zfg.lang.val.U08;
-import zfg.lang.val.U16;
-import zfg.lang.val.U32;
-import zfg.lang.val.U64;
+import zfg.old.lang3.ops.Xor;
+import zfg.old.lang3.val.Bit;
+import zfg.old.lang3.val.I08;
+import zfg.old.lang3.val.I16;
+import zfg.old.lang3.val.I32;
+import zfg.old.lang3.val.I64;
+import zfg.old.lang3.val.U08;
+import zfg.old.lang3.val.U16;
+import zfg.old.lang3.val.U32;
+import zfg.old.lang3.val.U64;
 
 public final class XorTest {
 
   @ParameterizedTest(name = "{index}: {0} xor {1} = {2}") @MethodSource("testBit")
-  void testBit(final Bit a, final Bit b, final Bit e) { assertEquals(e, Xor.bit(a, b)); }
+  void testBit(final BitType a, final BitType b, final BitType e) { assertEquals(e, Xor.bit(a, b)); }
   static Stream<Arguments> testBit() {
     return Helper.bit(new int[][] {
       {0, 0, 0},
@@ -33,7 +33,7 @@ public final class XorTest {
   }
 
   @ParameterizedTest(name = "{index}: {0} xor {1} = {2}") @MethodSource("testU08")
-  void testU08(final U08 a, final U08 b, final U08 e) { assertEquals(e, Xor.u08(a, b)); }
+  void testU08(final U08Type a, final U08Type b, final U08Type e) { assertEquals(e, Xor.u08(a, b)); }
   static Stream<Arguments> testU08() {
     return Helper.u08(new int[][] {
       {0x00000000, 0x00000000, 0x00000000},
@@ -59,7 +59,7 @@ public final class XorTest {
   }
 
   @ParameterizedTest(name = "{index}: {0} xor {1} = {2}") @MethodSource("testU16")
-  void testU16(final U16 a, final U16 b, final U16 e) { assertEquals(e, Xor.u16(a, b)); }
+  void testU16(final U16Type a, final U16Type b, final U16Type e) { assertEquals(e, Xor.u16(a, b)); }
   static Stream<Arguments> testU16() {
     return Helper.u16(new int[][] {
       {0x00000000, 0x00000000, 0x00000000},
@@ -85,7 +85,7 @@ public final class XorTest {
   }
 
   @ParameterizedTest(name = "{index}: {0} xor {1} = {2}") @MethodSource("testU32")
-  void testU32(final U32 a, final U32 b, final U32 e) { assertEquals(e, Xor.u32(a, b)); }
+  void testU32(final U32Type a, final U32Type b, final U32Type e) { assertEquals(e, Xor.u32(a, b)); }
   static Stream<Arguments> testU32() {
     return Helper.u32(new int[][] {
       {0x00000000, 0x00000000, 0x00000000},
@@ -111,7 +111,7 @@ public final class XorTest {
   }
 
   @ParameterizedTest(name = "{index}: {0} xor {1} = {2}") @MethodSource("testU64")
-  void testU64(final U64 a, final U64 b, final U64 e) { assertEquals(e, Xor.u64(a, b)); }
+  void testU64(final U64Type a, final U64Type b, final U64Type e) { assertEquals(e, Xor.u64(a, b)); }
   static Stream<Arguments> testU64() {
     return Helper.u64(new long[][] {
       {0x00000000_00000000L, 0x00000000_00000000L, 0x00000000_00000000L},
@@ -137,7 +137,7 @@ public final class XorTest {
   }
 
   @ParameterizedTest(name = "{index}: {0} xor {1} = {2}") @MethodSource("testI08")
-  void testI08(final I08 a, final I08 b, final I08 e) { assertEquals(e, Xor.i08(a, b)); }
+  void testI08(final I08Type a, final I08Type b, final I08Type e) { assertEquals(e, Xor.i08(a, b)); }
   static Stream<Arguments> testI08() {
     return Helper.i08(new int[][] {
       {0x00000000, 0x00000000, 0x00000000},
@@ -163,7 +163,7 @@ public final class XorTest {
   }
 
   @ParameterizedTest(name = "{index}: {0} xor {1} = {2}") @MethodSource("testI16")
-  void testI16(final I16 a, final I16 b, final I16 e) { assertEquals(e, Xor.i16(a, b)); }
+  void testI16(final I16Type a, final I16Type b, final I16Type e) { assertEquals(e, Xor.i16(a, b)); }
   static Stream<Arguments> testI16() {
     return Helper.i16(new int[][] {
       {0x00000000, 0x00000000, 0x00000000},
@@ -189,7 +189,7 @@ public final class XorTest {
   }
 
   @ParameterizedTest(name = "{index}: {0} xor {1} = {2}") @MethodSource("testI32")
-  void testI32(final I32 a, final I32 b, final I32 e) { assertEquals(e, Xor.i32(a, b)); }
+  void testI32(final I32Type a, final I32Type b, final I32Type e) { assertEquals(e, Xor.i32(a, b)); }
   static Stream<Arguments> testI32() {
     return Helper.i32(new int[][] {
       {0x00000000, 0x00000000, 0x00000000},
@@ -215,7 +215,7 @@ public final class XorTest {
   }
 
   @ParameterizedTest(name = "{index}: {0} xor {1} = {2}") @MethodSource("testI64")
-  void testI64(final I64 a, final I64 b, final I64 e) { assertEquals(e, Xor.i64(a, b)); }
+  void testI64(final I64Type a, final I64Type b, final I64Type e) { assertEquals(e, Xor.i64(a, b)); }
   static Stream<Arguments> testI64() {
     return Helper.i64(new long[][] {
       {0x00000000_00000000L, 0x00000000_00000000L, 0x00000000_00000000L},

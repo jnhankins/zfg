@@ -8,23 +8,23 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import zfg.lang.ops.Nop;
-import zfg.lang.val.Bit;
-import zfg.lang.val.F32;
-import zfg.lang.val.F64;
-import zfg.lang.val.I08;
-import zfg.lang.val.I16;
-import zfg.lang.val.I32;
-import zfg.lang.val.I64;
-import zfg.lang.val.U08;
-import zfg.lang.val.U16;
-import zfg.lang.val.U32;
-import zfg.lang.val.U64;
+import zfg.old.lang3.ops.Nop;
+import zfg.old.lang3.val.Bit;
+import zfg.old.lang3.val.F32;
+import zfg.old.lang3.val.F64;
+import zfg.old.lang3.val.I08;
+import zfg.old.lang3.val.I16;
+import zfg.old.lang3.val.I32;
+import zfg.old.lang3.val.I64;
+import zfg.old.lang3.val.U08;
+import zfg.old.lang3.val.U16;
+import zfg.old.lang3.val.U32;
+import zfg.old.lang3.val.U64;
 
 public final class NopTest {
 
   @ParameterizedTest(name = "{index}: nop {0} = {1}") @MethodSource("testBit")
-  void testBit(final Bit a, final Bit e) { assertEquals(e, Nop.bit(a)); }
+  void testBit(final BitType a, final BitType e) { assertEquals(e, Nop.bit(a)); }
   static Stream<Arguments> testBit() {
     return Helper.bit(new int[][] {
       {0, 0},
@@ -33,7 +33,7 @@ public final class NopTest {
   }
 
   @ParameterizedTest(name = "{index}: nop {0} = {1}") @MethodSource("testU08")
-  void testU08(final U08 a, final U08 e) { assertEquals(e, Nop.u08(a)); }
+  void testU08(final U08Type a, final U08Type e) { assertEquals(e, Nop.u08(a)); }
   static Stream<Arguments> testU08() {
     return Helper.u08(new int[][] {
       {0x00000000, 0x00000000},
@@ -44,7 +44,7 @@ public final class NopTest {
   }
 
   @ParameterizedTest(name = "{index}: nop {0} = {1}") @MethodSource("testU16")
-  void testU16(final U16 a, final U16 e) { assertEquals(e, Nop.u16(a)); }
+  void testU16(final U16Type a, final U16Type e) { assertEquals(e, Nop.u16(a)); }
   static Stream<Arguments> testU16() {
     return Helper.u16(new int[][] {
       {0x00000000, 0x00000000},
@@ -55,7 +55,7 @@ public final class NopTest {
   }
 
   @ParameterizedTest(name = "{index}: nop {0} = {1}") @MethodSource("testU32")
-  void testU32(final U32 a, final U32 e) { assertEquals(e, Nop.u32(a)); }
+  void testU32(final U32Type a, final U32Type e) { assertEquals(e, Nop.u32(a)); }
   static Stream<Arguments> testU32() {
     return Helper.u32(new int[][] {
       {0x00000000, 0x00000000},
@@ -66,7 +66,7 @@ public final class NopTest {
   }
 
   @ParameterizedTest(name = "{index}: nop {0} = {1}") @MethodSource("testU64")
-  void testU64(final U64 a, final U64 e) { assertEquals(e, Nop.u64(a)); }
+  void testU64(final U64Type a, final U64Type e) { assertEquals(e, Nop.u64(a)); }
   static Stream<Arguments> testU64() {
     return Helper.u64(new long[][] {
       {0x0000000000000000L, 0x0000000000000000L},
@@ -77,7 +77,7 @@ public final class NopTest {
   }
 
   @ParameterizedTest(name = "{index}: nop {0} = {1}") @MethodSource("testI08")
-  void testI08(final I08 a, final I08 e) { assertEquals(e, Nop.i08(a)); }
+  void testI08(final I08Type a, final I08Type e) { assertEquals(e, Nop.i08(a)); }
   static Stream<Arguments> testI08() {
     return Helper.i08(new int[][] {
       {0x00000000, 0x00000000},
@@ -88,7 +88,7 @@ public final class NopTest {
   }
 
   @ParameterizedTest(name = "{index}: nop {0} = {1}") @MethodSource("testI16")
-  void testI16(final I16 a, final I16 e) { assertEquals(e, Nop.i16(a)); }
+  void testI16(final I16Type a, final I16Type e) { assertEquals(e, Nop.i16(a)); }
   static Stream<Arguments> testI16() {
     return Helper.i16(new int[][] {
       {0x00000000, 0x00000000},
@@ -99,7 +99,7 @@ public final class NopTest {
   }
 
   @ParameterizedTest(name = "{index}: nop {0} = {1}") @MethodSource("testI32")
-  void testI32(final I32 a, final I32 e) { assertEquals(e, Nop.i32(a)); }
+  void testI32(final I32Type a, final I32Type e) { assertEquals(e, Nop.i32(a)); }
   static Stream<Arguments> testI32() {
     return Helper.i32(new int[][] {
       {0x00000000, 0x00000000},
@@ -110,7 +110,7 @@ public final class NopTest {
   }
 
   @ParameterizedTest(name = "{index}: nop {0} = {1}") @MethodSource("testI64")
-  void testI64(final I64 a, final I64 e) { assertEquals(e, Nop.i64(a)); }
+  void testI64(final I64Type a, final I64Type e) { assertEquals(e, Nop.i64(a)); }
   static Stream<Arguments> testI64() {
     return Helper.i64(new long[][] {
       {0x0000000000000000L, 0x0000000000000000L},
@@ -121,7 +121,7 @@ public final class NopTest {
   }
 
   @ParameterizedTest(name = "{index}: nop {0} = {1}") @MethodSource("testF32")
-  void testF32(final F32 a, final F32 e) { assertEquals(e, Nop.f32(a)); }
+  void testF32(final F32Type a, final F32Type e) { assertEquals(e, Nop.f32(a)); }
   static Stream<Arguments> testF32() {
     return Helper.f32(new float[][] {
       {0.0f, 0.0f},
@@ -134,7 +134,7 @@ public final class NopTest {
   }
 
   @ParameterizedTest(name = "{index}: nop {0} = {1}") @MethodSource("testF64")
-  void testF64(final F64 a, final F64 e) { assertEquals(e, Nop.f64(a)); }
+  void testF64(final F64Type a, final F64Type e) { assertEquals(e, Nop.f64(a)); }
   static Stream<Arguments> testF64() {
     return Helper.f64(new double[][] {
       {0.0, 0.0},

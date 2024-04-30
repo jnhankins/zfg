@@ -47,10 +47,10 @@ recordField
 //   ;
 
 // TODO: should we separate out different types of decl statements?
-//       mod=(LET | MUT | PUB | USE) id=LowerId symbolType=functionType SETA expr=expression # BlockFunctionDecl
-//       mod=(LET | MUT | PUB | USE) id=LowerId symbolType=functionType SETA expr=expression # InlineFunctionDecl
-//       mod=(LET | MUT | PUB | USE) id=LowerId symbolType=dataType SETA expr=expression # InlineFunctionDecl
-//       mod=(LET | MUT | PUB | USE) id=UperId  symbolType=typeType SETA expr=expression # InlineTypeDecl
+//       mod=(LET | MUT | PUB | USE) id=LowerId symbolType=funType SETA expr=expression # BlockFunctionDecl
+//       mod=(LET | MUT | PUB | USE) id=LowerId symbolType=funType SETA expr=expression # InlineFunctionDecl
+//       mod=(LET | MUT | PUB | USE) id=LowerId symbolType=datType SETA expr=expression # InlineFunctionDecl
+//       mod=(LET | MUT | PUB | USE) id=UperId  symbolType=typType SETA expr=expression # InlineTypeDecl
 // TODO: for loop init header should allow multiple comma delimited seclaration or expressions
 // TODO: for loop incr header should allow multiple comma delimited expressions
 // TODO: for-each loops? probably requires some standard iterator interface
@@ -83,7 +83,7 @@ expression
   : funCall=functionCall                                     # FunctionCallExpr
   | id=identifier                                            # VariableExpr
   | lit=(BitLit | IntLit | FltLit)                           # LiteralExpr
-  | LPAREN inner=expression RPAREN                           # GroupedExpr
+  | LPAREN expr=expression RPAREN                            # GroupedExpr
   | lhs=expression op=(INC | DEC)                            # PostfixOpExpr
   | op=(INC | DEC | ADD | SUB | NOT) rhs=expression          # PrefixOpExpr
   | lhs=expression op=(MUL | DIV | REM | MOD) rhs=expression # InfixOpExpr

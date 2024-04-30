@@ -8,23 +8,23 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import zfg.lang.ops.Neq;
-import zfg.lang.val.Bit;
-import zfg.lang.val.F32;
-import zfg.lang.val.F64;
-import zfg.lang.val.I08;
-import zfg.lang.val.I16;
-import zfg.lang.val.I32;
-import zfg.lang.val.I64;
-import zfg.lang.val.U08;
-import zfg.lang.val.U16;
-import zfg.lang.val.U32;
-import zfg.lang.val.U64;
+import zfg.old.lang3.ops.Neq;
+import zfg.old.lang3.val.Bit;
+import zfg.old.lang3.val.F32;
+import zfg.old.lang3.val.F64;
+import zfg.old.lang3.val.I08;
+import zfg.old.lang3.val.I16;
+import zfg.old.lang3.val.I32;
+import zfg.old.lang3.val.I64;
+import zfg.old.lang3.val.U08;
+import zfg.old.lang3.val.U16;
+import zfg.old.lang3.val.U32;
+import zfg.old.lang3.val.U64;
 
 public final class NeqTest {
 
   @ParameterizedTest(name = "{index}: {0} neq {1} = {2}") @MethodSource("testBit")
-  void testBit(final Bit a, final Bit b, final Bit e) { assertEquals(e, Neq.bit(a, b)); }
+  void testBit(final BitType a, final BitType b, final BitType e) { assertEquals(e, Neq.bit(a, b)); }
   static Stream<Arguments> testBit() {
     return Helper.bitrel(new int[][] {
       {0, 0, 0},
@@ -35,7 +35,7 @@ public final class NeqTest {
   }
 
   @ParameterizedTest(name = "{index}: {0} neq {1} = {2}") @MethodSource("testU08")
-  void testU08(final U08 a, final U08 b, final Bit e) { assertEquals(e, Neq.u08(a, b)); }
+  void testU08(final U08Type a, final U08Type b, final BitType e) { assertEquals(e, Neq.u08(a, b)); }
   static Stream<Arguments> testU08() {
     return Helper.u08rel(new int[][] {
       {0x00000000, 0x00000000, 0},
@@ -61,7 +61,7 @@ public final class NeqTest {
   }
 
   @ParameterizedTest(name = "{index}: {0} neq {1} = {2}") @MethodSource("testU16")
-  void testU16(final U16 a, final U16 b, final Bit e) { assertEquals(e, Neq.u16(a, b)); }
+  void testU16(final U16Type a, final U16Type b, final BitType e) { assertEquals(e, Neq.u16(a, b)); }
   static Stream<Arguments> testU16() {
     return Helper.u16rel(new int[][] {
       {0x00000000, 0x00000000, 0},
@@ -87,7 +87,7 @@ public final class NeqTest {
   }
 
   @ParameterizedTest(name = "{index}: {0} neq {1} = {2}") @MethodSource("testU32")
-  void testU32(final U32 a, final U32 b, final Bit e) { assertEquals(e, Neq.u32(a, b)); }
+  void testU32(final U32Type a, final U32Type b, final BitType e) { assertEquals(e, Neq.u32(a, b)); }
   static Stream<Arguments> testU32() {
     return Helper.u32rel(new int[][] {
       {0x00000000, 0x00000000, 0},
@@ -113,7 +113,7 @@ public final class NeqTest {
   }
 
   @ParameterizedTest(name = "{index}: {0} neq {1} = {2}") @MethodSource("testU64")
-  void testU64(final U64 a, final U64 b, final Bit e) { assertEquals(e, Neq.u64(a, b)); }
+  void testU64(final U64Type a, final U64Type b, final BitType e) { assertEquals(e, Neq.u64(a, b)); }
   static Stream<Arguments> testU64() {
     return Helper.u64rel(new long[][] {
       {0x00000000_00000000L, 0x00000000_00000000L, 0},
@@ -139,7 +139,7 @@ public final class NeqTest {
   }
 
   @ParameterizedTest(name = "{index}: {0} neq {1} = {2}") @MethodSource("testI08")
-  void testI08(final I08 a, final I08 b, final Bit e) { assertEquals(e, Neq.i08(a, b)); }
+  void testI08(final I08Type a, final I08Type b, final BitType e) { assertEquals(e, Neq.i08(a, b)); }
   static Stream<Arguments> testI08() {
     return Helper.i08rel(new int[][] {
       {0x00000000, 0x00000000, 0},
@@ -165,7 +165,7 @@ public final class NeqTest {
   }
 
   @ParameterizedTest(name = "{index}: {0} neq {1} = {2}") @MethodSource("testI16")
-  void testI16(final I16 a, final I16 b, final Bit e) { assertEquals(e, Neq.i16(a, b)); }
+  void testI16(final I16Type a, final I16Type b, final BitType e) { assertEquals(e, Neq.i16(a, b)); }
   static Stream<Arguments> testI16() {
     return Helper.i16rel(new int[][] {
       {0x00000000, 0x00000000, 0},
@@ -191,7 +191,7 @@ public final class NeqTest {
   }
 
   @ParameterizedTest(name = "{index}: {0} neq {1} = {2}") @MethodSource("testI32")
-  void testI32(final I32 a, final I32 b, final Bit e) { assertEquals(e, Neq.i32(a, b)); }
+  void testI32(final I32Type a, final I32Type b, final BitType e) { assertEquals(e, Neq.i32(a, b)); }
   static Stream<Arguments> testI32() {
     return Helper.i32rel(new int[][] {
       {0x00000000, 0x00000000, 0},
@@ -217,7 +217,7 @@ public final class NeqTest {
   }
 
   @ParameterizedTest(name = "{index}: {0} neq {1} = {2}") @MethodSource("testI64")
-  void testI64(final I64 a, final I64 b, final Bit e) { assertEquals(e, Neq.i64(a, b)); }
+  void testI64(final I64Type a, final I64Type b, final BitType e) { assertEquals(e, Neq.i64(a, b)); }
   static Stream<Arguments> testI64() {
     return Helper.i64rel(new long[][] {
       {0x00000000_00000000L, 0x00000000_00000000L, 0},
@@ -243,7 +243,7 @@ public final class NeqTest {
   }
 
   @ParameterizedTest(name = "{index}: {0} neq {1} = {2}") @MethodSource("testF32")
-  void testF32(final F32 a, final F32 b, final Bit e) { assertEquals(e, Neq.f32(a, b)); }
+  void testF32(final F32Type a, final F32Type b, final BitType e) { assertEquals(e, Neq.f32(a, b)); }
   static Stream<Arguments> testF32() {
     return Helper.f32rel(new float[][] {
       // +0.0, -0.0, +1.5, -1.5, +Inf, -Inf, NaN,
@@ -306,7 +306,7 @@ public final class NeqTest {
   }
 
   @ParameterizedTest(name = "{index}: {0} neq {1} = {2}") @MethodSource("testF64")
-  void testF64(final F64 a, final F64 b, final Bit e) { assertEquals(e, Neq.f64(a, b)); }
+  void testF64(final F64Type a, final F64Type b, final BitType e) { assertEquals(e, Neq.f64(a, b)); }
   static Stream<Arguments> testF64() {
     return Helper.f64rel(new double[][] {
       // +0.0, -0.0, +1.5, -1.5, +Inf, -Inf, NaN,
