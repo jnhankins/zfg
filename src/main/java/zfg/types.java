@@ -1,187 +1,245 @@
 package zfg;
 
 import java.util.Arrays;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
 public final class types {
   private types() {}
-  /// Helper methods
 
   public static enum Kind {
-    // Virtual Types
+    // Virtual Types (not instantiable)
     UNK, ERR,
-    // Primitive Data Types
+    // Primitive Data Types (pass by value)
     BIT, U08, U16, U32, U64, I08, I16, I32, I64, F32, F64,
-    // Composite Data Types
-    ARR, TUP, REC,
-    // Function Type
-    FUN,
-    // Named Type
-    NOM;
+    // Composite Data Types and Function Type (pass by reference)
+    ARR, TUP, REC, FUN, NOM;
   }
 
-  public static interface Type {
+  public static sealed interface Type {
     public Kind kind();
-
-    public String toTypeString();
-    public void toTypeString(final StringBuilder buf);
-    public void toTypeString(final StringBuilder buf, final Set<Type> seen);
+    public boolean isAssignableTo(final Type type);
+    @Override public int hashCode();
+    @Override public boolean equals(final Object obj);
+    @Override public String toString();
+    public void toString(final StringBuilder sb);
+    public void toString(final StringBuilder sb, final Set<Type> seen);
   }
 
   public static final class UnkType implements Type {
     private UnkType() {}
     @Override public Kind kind() { return Kind.UNK; }
+    @Override public boolean isAssignableTo(final Type type) { return true; }
+    @Override public int hashCode() { return System.identityHashCode(this); }
+    @Override public boolean equals(final Object obj) { return this == obj; }
     @Override public String toString() { return "Unk"; }
-    @Override public String toTypeString() { return toString(); }
-    @Override public void toTypeString(final StringBuilder buf) { buf.append(this); }
-    @Override public void toTypeString(final StringBuilder buf, final Set<Type> seen) { buf.append(this); }
-  }
+    @Override public void toString(final StringBuilder sb) { sb.append(this); }
+    @Override public void toString(final StringBuilder sb, final Set<Type> seen) { sb.append(this); }
+  };
+
   public static final class ErrType implements Type {
     private ErrType() {}
     @Override public Kind kind() { return Kind.ERR; }
+    @Override public boolean isAssignableTo(final Type type) { return false; }
+    @Override public int hashCode() { return System.identityHashCode(this); }
+    @Override public boolean equals(final Object obj) { return this == obj; }
     @Override public String toString() { return "Err"; }
-    @Override public String toTypeString() { return toString(); }
-    @Override public void toTypeString(final StringBuilder buf) { buf.append(this); }
-    @Override public void toTypeString(final StringBuilder buf, final Set<Type> seen) { buf.append(this); }
-  }
+    @Override public void toString(final StringBuilder sb) { sb.append(this); }
+    @Override public void toString(final StringBuilder sb, final Set<Type> seen) { sb.append(this); }
+  };
+
   public static final class BitType implements Type {
+    private static final EnumSet<Kind> ASSIGNABLE = EnumSet.of(Kind.BIT);
     private BitType() {}
     @Override public Kind kind() { return Kind.BIT; }
+    @Override public boolean isAssignableTo(final Type type) { return ASSIGNABLE.contains(type.kind()); }
+    @Override public int hashCode() { return System.identityHashCode(this); }
     @Override public String toString() { return "Bit"; }
-    @Override public String toTypeString() { return toString(); }
-    @Override public void toTypeString(final StringBuilder buf) { buf.append(this); }
-    @Override public void toTypeString(final StringBuilder buf, final Set<Type> seen) { buf.append(this); }
-  }
+    @Override public void toString(final StringBuilder sb) { sb.append(this); }
+    @Override public void toString(final StringBuilder sb, final Set<Type> seen) { sb.append(this); }
+  };
+
   public static final class U08Type implements Type {
+    private static final EnumSet<Kind> ASSIGNABLE = EnumSet.of(Kind.U08, Kind.U16, Kind.U32, Kind.U64, Kind.I16, Kind.I32, Kind.I64, Kind.F32, Kind.F64);
     private U08Type() {}
     @Override public Kind kind() { return Kind.U08; }
+    @Override public boolean isAssignableTo(final Type type) { return ASSIGNABLE.contains(type.kind()); }
+    @Override public int hashCode() { return System.identityHashCode(this); }
+    @Override public boolean equals(final Object obj) { return this == obj; }
     @Override public String toString() { return "U08"; }
-    @Override public String toTypeString() { return toString(); }
-    @Override public void toTypeString(final StringBuilder buf) { buf.append(this); }
-    @Override public void toTypeString(final StringBuilder buf, final Set<Type> seen) { buf.append(this); }
-  }
+    @Override public void toString(final StringBuilder sb) { sb.append(this); }
+    @Override public void toString(final StringBuilder sb, final Set<Type> seen) { sb.append(this); }
+  };
+
   public static final class U16Type implements Type {
+    private static final EnumSet<Kind> ASSIGNABLE = EnumSet.of(Kind.U16, Kind.U32, Kind.U64, Kind.I32, Kind.I64, Kind.F32, Kind.F64);
     private U16Type() {}
     @Override public Kind kind() { return Kind.U16; }
+    @Override public boolean isAssignableTo(final Type type) { return ASSIGNABLE.contains(type.kind()); }
+    @Override public int hashCode() { return System.identityHashCode(this); }
+    @Override public boolean equals(final Object obj) { return this == obj; }
     @Override public String toString() { return "U16"; }
-    @Override public String toTypeString() { return toString(); }
-    @Override public void toTypeString(final StringBuilder buf) { buf.append(this); }
-    @Override public void toTypeString(final StringBuilder buf, final Set<Type> seen) { buf.append(this); }
-  }
+    @Override public void toString(final StringBuilder sb) { sb.append(this); }
+    @Override public void toString(final StringBuilder sb, final Set<Type> seen) { sb.append(this); }
+  };
+
   public static final class U32Type implements Type {
+    private static final EnumSet<Kind> ASSIGNABLE = EnumSet.of(Kind.U32, Kind.U64, Kind.I64, Kind.F64);
     private U32Type() {}
     @Override public Kind kind() { return Kind.U32; }
+    @Override public boolean isAssignableTo(final Type type) { return ASSIGNABLE.contains(type.kind()); }
+    @Override public int hashCode() { return System.identityHashCode(this); }
+    @Override public boolean equals(final Object obj) { return this == obj; }
     @Override public String toString() { return "U32"; }
-    @Override public String toTypeString() { return toString(); }
-    @Override public void toTypeString(final StringBuilder buf) { buf.append(this); }
-    @Override public void toTypeString(final StringBuilder buf, final Set<Type> seen) { buf.append(this); }
-  }
+    @Override public void toString(final StringBuilder sb) { sb.append(this); }
+    @Override public void toString(final StringBuilder sb, final Set<Type> seen) { sb.append(this); }
+  };
+
   public static final class U64Type implements Type {
+    private static final EnumSet<Kind> ASSIGNABLE = EnumSet.of(Kind.U64);
     private U64Type() {}
     @Override public Kind kind() { return Kind.U64; }
+    @Override public boolean isAssignableTo(final Type type) { return ASSIGNABLE.contains(type.kind()); }
+    @Override public int hashCode() { return System.identityHashCode(this); }
+    @Override public boolean equals(final Object obj) { return this == obj; }
     @Override public String toString() { return "U64"; }
-    @Override public String toTypeString() { return toString(); }
-    @Override public void toTypeString(final StringBuilder buf) { buf.append(this); }
-    @Override public void toTypeString(final StringBuilder buf, final Set<Type> seen) { buf.append(this); }
-  }
+    @Override public void toString(final StringBuilder sb) { sb.append(this); }
+    @Override public void toString(final StringBuilder sb, final Set<Type> seen) { sb.append(this); }
+  };
+
   public static final class I08Type implements Type {
+    private static final EnumSet<Kind> ASSIGNABLE = EnumSet.of(Kind.I08, Kind.I16, Kind.I32, Kind.I64, Kind.F32, Kind.F64);
     private I08Type() {}
     @Override public Kind kind() { return Kind.I08; }
+    @Override public boolean isAssignableTo(final Type type) { return ASSIGNABLE.contains(type.kind()); }
+    @Override public int hashCode() { return System.identityHashCode(this); }
+    @Override public boolean equals(final Object obj) { return this == obj; }
     @Override public String toString() { return "I08"; }
-    @Override public String toTypeString() { return toString(); }
-    @Override public void toTypeString(final StringBuilder buf) { buf.append(this); }
-    @Override public void toTypeString(final StringBuilder buf, final Set<Type> seen) { buf.append(this); }
-  }
+    @Override public void toString(final StringBuilder sb) { sb.append(this); }
+    @Override public void toString(final StringBuilder sb, final Set<Type> seen) { sb.append(this); }
+  };
+
   public static final class I16Type implements Type {
+    private static final EnumSet<Kind> ASSIGNABLE = EnumSet.of(Kind.I16, Kind.I32, Kind.I64, Kind.F32, Kind.F64);
     private I16Type() {}
     @Override public Kind kind() { return Kind.I16; }
+    @Override public boolean isAssignableTo(final Type type) { return ASSIGNABLE.contains(type.kind()); }
+    @Override public int hashCode() { return System.identityHashCode(this); }
+    @Override public boolean equals(final Object obj) { return this == obj; }
     @Override public String toString() { return "I16"; }
-    @Override public String toTypeString() { return toString(); }
-    @Override public void toTypeString(final StringBuilder buf) { buf.append(this); }
-    @Override public void toTypeString(final StringBuilder buf, final Set<Type> seen) { buf.append(this); }
-  }
+    @Override public void toString(final StringBuilder sb) { sb.append(this); }
+    @Override public void toString(final StringBuilder sb, final Set<Type> seen) { sb.append(this); }
+  };
+
   public static final class I32Type implements Type {
+    private static final EnumSet<Kind> ASSIGNABLE = EnumSet.of(Kind.I32, Kind.I64, Kind.F64);
     private I32Type() {}
     @Override public Kind kind() { return Kind.I32; }
+    @Override public boolean isAssignableTo(final Type type) { return ASSIGNABLE.contains(type.kind()); }
+    @Override public int hashCode() { return System.identityHashCode(this); }
+    @Override public boolean equals(final Object obj) { return this == obj; }
     @Override public String toString() { return "I32"; }
-    @Override public String toTypeString() { return toString(); }
-    @Override public void toTypeString(final StringBuilder buf) { buf.append(this); }
-    @Override public void toTypeString(final StringBuilder buf, final Set<Type> seen) { buf.append(this); }
-  }
+    @Override public void toString(final StringBuilder sb) { sb.append(this); }
+    @Override public void toString(final StringBuilder sb, final Set<Type> seen) { sb.append(this); }
+  };
+
   public static final class I64Type implements Type {
+    private static final EnumSet<Kind> ASSIGNABLE = EnumSet.of(Kind.I64);
     private I64Type() {}
     @Override public Kind kind() { return Kind.I64; }
+    @Override public boolean isAssignableTo(final Type type) { return ASSIGNABLE.contains(type.kind()); }
+    @Override public int hashCode() { return System.identityHashCode(this); }
+    @Override public boolean equals(final Object obj) { return this == obj; }
     @Override public String toString() { return "I64"; }
-    @Override public String toTypeString() { return toString(); }
-    @Override public void toTypeString(final StringBuilder buf) { buf.append(this); }
-    @Override public void toTypeString(final StringBuilder buf, final Set<Type> seen) { buf.append(this); }
-  }
+    @Override public void toString(final StringBuilder sb) { sb.append(this); }
+    @Override public void toString(final StringBuilder sb, final Set<Type> seen) { sb.append(this); }
+  };
+
   public static final class F32Type implements Type {
+    private static final EnumSet<Kind> ASSIGNABLE = EnumSet.of(Kind.F32, Kind.F64);
     private F32Type() {}
     @Override public Kind kind() { return Kind.F32; }
+    @Override public boolean isAssignableTo(final Type type) { return ASSIGNABLE.contains(type.kind()); }
+    @Override public int hashCode() { return System.identityHashCode(this); }
+    @Override public boolean equals(final Object obj) { return this == obj; }
     @Override public String toString() { return "F32"; }
-    @Override public String toTypeString() { return toString(); }
-    @Override public void toTypeString(final StringBuilder buf) { buf.append(this); }
-    @Override public void toTypeString(final StringBuilder buf, final Set<Type> seen) { buf.append(this); }
-  }
+    @Override public void toString(final StringBuilder sb) { sb.append(this); }
+    @Override public void toString(final StringBuilder sb, final Set<Type> seen) { sb.append(this); }
+  };
+
   public static final class F64Type implements Type {
+    private static final EnumSet<Kind> ASSIGNABLE = EnumSet.of(Kind.F64);
     private F64Type() {}
     @Override public Kind kind() { return Kind.F64; }
+    @Override public boolean isAssignableTo(final Type type) { return ASSIGNABLE.contains(type.kind()); }
+    @Override public int hashCode() { return System.identityHashCode(this); }
+    @Override public boolean equals(final Object obj) { return this == obj; }
     @Override public String toString() { return "F64"; }
-    @Override public String toTypeString() { return toString(); }
-    @Override public void toTypeString(final StringBuilder buf) { buf.append(this); }
-    @Override public void toTypeString(final StringBuilder buf, final Set<Type> seen) { buf.append(this); }
-  }
+    @Override public void toString(final StringBuilder sb) { sb.append(this); }
+    @Override public void toString(final StringBuilder sb, final Set<Type> seen) { sb.append(this); }
+  };
+
   public static final class ArrType implements Type {
+    private static final EnumSet<Kind> SIZED = EnumSet.of(Kind.BIT, Kind.U08, Kind.U16, Kind.U32, Kind.U64, Kind.I08, Kind.I16, Kind.I32, Kind.I64, Kind.F32, Kind.F64 );
     public static final int UNKNOWN_LENGTH = -1;
     public final Type elementType;
     public final int length;
-
-    private ArrType(final Type elementType) {
-      assert elementType != null;
-      assert elementType != Err;
-      this.elementType = elementType;
+    private ArrType(final Type type) {
+      assert type != null && type != Err && type != Unk;
+      this.elementType = type;
       this.length = UNKNOWN_LENGTH;
     }
-    private ArrType(final Type elementType, final int length) {
-      assert elementType != null;
-      assert elementType != Err;
+    private ArrType(final Type type, final int length) {
+      assert type != null && type != Err && type != Unk;
       assert length >= 0;
-      this.elementType = elementType;
+      this.elementType = type;
       this.length = length;
     }
-
     @Override public Kind kind() { return Kind.ARR; }
-    @Override public String toString() { return toTypeString(); }
-    @Override public String toTypeString() { final StringBuilder buf = new StringBuilder(); toTypeString(buf); return buf.toString(); }
-    @Override public void toTypeString(final StringBuilder buf) { toTypeString(buf, new HashSet<>()); }
-    @Override public void toTypeString(final StringBuilder buf, final Set<Type> seen) {
-      buf.append("Arr(");
-      elementType.toTypeString(buf, seen);
-      if (length != UNKNOWN_LENGTH) {
-        buf.append("; ");
-        buf.append(length);
-      }
-      buf.append(")");
-    }
-    @Override public boolean equals(final Object obj) {
-      return (this == obj || (obj instanceof ArrType that &&
-        this.elementType.equals(that.elementType) &&
-        this.length == that.length
-      ));
+    @Override public boolean isAssignableTo(final Type type) {
+      // The other type must be an array
+      if (!(type instanceof ArrType)) return false;
+      final ArrType that = (ArrType) type;
+      // Either the other array must have an unknown length or the lengths must match.
+      // Otherwise the other array requires a sepcific length this array cannot guarantee.
+      if (that.length != UNKNOWN_LENGTH && length != that.length) return false;
+      // If the element type is a value type, it must match exactly.
+      // This is because we have to use type-specific jvm instructions to access array
+      if (SIZED.contains(elementType.kind())) return elementType.equals(that.elementType);
+      // If the element type is a reference type, it must be assignable to the other element type.
+      return elementType.isAssignableTo(that.elementType);
     }
     @Override public int hashCode() {
       return Objects.hash(
+        ArrType.class,
         elementType,
         length
       );
     }
+    @Override public boolean equals(final Object obj) {
+      return (this == obj || (
+        obj instanceof ArrType that &&
+        elementType.equals(that.elementType) &&
+        length == that.length
+      ));
+    }
+    @Override public String toString() { final StringBuilder sb = new StringBuilder(); toString(sb); return sb.toString(); }
+    @Override public void toString(final StringBuilder sb) { toString(sb, new HashSet<>()); }
+    @Override public void toString(final StringBuilder sb, final Set<Type> seen) {
+      sb.append("Arr(");
+      elementType.toString(sb, seen);
+      if (length != UNKNOWN_LENGTH) {
+        sb.append("; ");
+        sb.append(length);
+      }
+      sb.append(")");
+    }
   }
+
   public static final class TupType implements Type {
     public final boolean[] muts;
     public final Type[]    types;
@@ -191,40 +249,44 @@ public final class types {
     }
     private TupType(final boolean[] muts, final Type[] types) {
       assert muts != null;
-      assert muts.length >= 0;
       assert types != null;
       assert types.length == muts.length;
-      assert Arrays.stream(types).allMatch(Objects::nonNull);
-      assert Arrays.stream(types).allMatch(t -> t != Err);
+      assert Arrays.stream(types).allMatch(t -> t != null && t != Err && t != Unk);
       this.muts = muts;
       this.types = types;
     }
     @Override public Kind kind() { return Kind.TUP; }
-    @Override public String toString() { return toTypeString(); }
-    @Override public String toTypeString() { final StringBuilder buf = new StringBuilder(); toTypeString(buf); return buf.toString(); }
-    @Override public void toTypeString(final StringBuilder buf) { toTypeString(buf, new HashSet<>()); }
-    @Override public void toTypeString(final StringBuilder buf, final Set<Type> seen) {
-      buf.append("Tup(");
-      for (int i = 0; i < types.length; i++) {
-        if (i > 0) buf.append(", ");
-        buf.append(muts[i] ? "mut " : "let ");
-        types[i].toTypeString(buf, seen);
-      }
-      buf.append(")");
-    }
-    @Override public boolean equals(final Object obj) {
-      return (this == obj || (obj instanceof TupType that &&
-        Arrays.equals(this.muts, that.muts) &&
-        Arrays.equals(this.types, that.types)
-      ));
+    @Override public boolean isAssignableTo(final Type type) {
+      // TODO
+      throw new UnsupportedOperationException();
     }
     @Override public int hashCode() {
       return Objects.hash(
+        TupType.class,
         Arrays.hashCode(muts),
         Arrays.hashCode(types)
       );
     }
+    @Override public boolean equals(final Object obj) {
+      return (this == obj || (
+        obj instanceof TupType that &&
+        Arrays.equals(muts, that.muts) &&
+        Arrays.equals(types, that.types)
+      ));
+    }
+    @Override public String toString() { final StringBuilder sb = new StringBuilder(); toString(sb); return sb.toString(); }
+    @Override public void toString(final StringBuilder sb) { toString(sb, new HashSet<>()); }
+    @Override public void toString(final StringBuilder sb, final Set<Type> seen) {
+      sb.append("(");
+      for (int i = 0; i < types.length; i++) {
+        if (i > 0) sb.append(", ");
+        sb.append(muts[i] ? "mut " : "let ");
+        types[i].toString(sb, seen);
+      }
+      sb.append(")");
+    }
   }
+
   public static final class RecType implements Type {
     public final boolean[] muts;
     public final String[]  names;
@@ -239,83 +301,91 @@ public final class types {
       assert muts.length >= 0;
       assert names != null;
       assert names.length == muts.length;
-      assert Arrays.stream(names).allMatch(Objects::nonNull);
       assert Arrays.stream(names).allMatch(zfg.names::isLowerSnakeCase);
+      assert Arrays.stream(names).distinct().count() == names.length;
       assert types != null;
       assert types.length == muts.length;
-      assert Arrays.stream(types).allMatch(Objects::nonNull);
-      assert Arrays.stream(types).allMatch(t -> t != Err);
+      assert Arrays.stream(types).allMatch(t -> t != null && t != Err && t != Unk);
       this.muts = muts;
       this.names = names;
       this.types = types;
     }
-    @Override public Kind kind() { return Kind.TUP; }
-    @Override public String toString() { return toTypeString(); }
-    @Override public String toTypeString() { final StringBuilder buf = new StringBuilder(); toTypeString(buf); return buf.toString(); }
-    @Override public void toTypeString(final StringBuilder buf) { toTypeString(buf, new HashSet<>()); }
-    @Override public void toTypeString(final StringBuilder buf, final Set<Type> seen) {
-      buf.append("Rec(");
-      for (int i = 0; i < types.length; i++) {
-        if (i > 0) buf.append(", ");
-        buf.append(muts[i] ? "mut " : "let ");
-        buf.append(names[i]);
-        buf.append(" ");
-        types[i].toTypeString(buf, seen);
-      }
-      buf.append(")");
-    }
-    @Override public boolean equals(final Object obj) {
-      return (this == obj || (obj instanceof RecType that &&
-        Arrays.equals(this.muts, that.muts) &&
-        Arrays.equals(this.names, that.names) &&
-        Arrays.equals(this.types, that.types)
-      ));
+    @Override public Kind kind() { return Kind.REC; }
+    @Override public boolean isAssignableTo(final Type type) {
+      // TODO
+      throw new UnsupportedOperationException();
     }
     @Override public int hashCode() {
       return Objects.hash(
+        RecType.class,
         Arrays.hashCode(muts),
         Arrays.hashCode(names),
         Arrays.hashCode(types)
       );
     }
+    @Override public boolean equals(final Object obj) {
+      return (this == obj || (
+        obj instanceof RecType that &&
+        Arrays.equals(muts, that.muts) &&
+        Arrays.equals(names, that.names) &&
+        Arrays.equals(types, that.types)
+      ));
+    }
+    @Override public String toString() { final StringBuilder sb = new StringBuilder(); toString(sb); return sb.toString(); }
+    @Override public void toString(final StringBuilder sb) { toString(sb, new HashSet<>()); }
+    @Override public void toString(final StringBuilder sb, final Set<Type> seen) {
+      sb.append("(");
+      for (int i = 0; i < types.length; i++) {
+        if (i > 0) sb.append(", ");
+        sb.append(muts[i] ? "mut " : "let ");
+        sb.append(names[i]);
+        sb.append(" ");
+        types[i].toString(sb, seen);
+      }
+      sb.append(")");
+    }
   }
+
   public static final class FunType implements Type {
     public final RecType paramsType;
-    public final Type    resultType;
-    private FunType(final RecType paramsType, final Type resultType) {
+    public final Type returnType;
+    private FunType(final RecType paramsType, final Type returnType) {
       assert paramsType != null;
-      assert resultType != null;
-      assert resultType != Err;
+      assert returnType != null && returnType != Err && returnType != Unk;
       this.paramsType = paramsType;
-      this.resultType = resultType;
+      this.returnType = returnType;
     }
     @Override public Kind kind() { return Kind.FUN; }
-    @Override public String toString() { return toTypeString(); }
-    @Override public String toTypeString() { final StringBuilder buf = new StringBuilder(); toTypeString(buf); return buf.toString(); }
-    @Override public void toTypeString(final StringBuilder buf) { toTypeString(buf, new HashSet<>()); }
-    @Override public void toTypeString(final StringBuilder buf, final Set<Type> seen) {
-      buf.append("Fun(");
-      paramsType.toTypeString(buf, seen);
-      buf.append("; ");
-      resultType.toTypeString(buf, seen);
-      buf.append(")");
-    }
-    @Override public boolean equals(final Object obj) {
-      return (this == obj || (obj instanceof FunType that &&
-        this.paramsType.equals(that.paramsType) &&
-        this.resultType.equals(that.resultType)
-      ));
+    @Override public boolean isAssignableTo(final Type type) {
+      // TODO
+      throw new UnsupportedOperationException();
     }
     @Override public int hashCode() {
       return Objects.hash(
+        FunType.class,
         paramsType,
-        resultType
+        returnType
       );
     }
+    @Override public boolean equals(final Object obj) {
+      return (this == obj || (
+        obj instanceof FunType that &&
+        paramsType.equals(that.paramsType) &&
+        returnType.equals(that.returnType)
+      ));
+    }
+    @Override public String toString() { final StringBuilder sb = new StringBuilder(); toString(sb); return sb.toString(); }
+    @Override public void toString(final StringBuilder sb) { toString(sb, new HashSet<>()); }
+    @Override public void toString(final StringBuilder sb, final Set<Type> seen) {
+      paramsType.toString(sb, seen);
+      sb.append("=>");
+      returnType.toString(sb, seen);
+    }
   }
+
   public static final class NomType implements Type {
     public final String fqn;
-    public       Type aliasedType;
+    public final Type aliasedType;
     private NomType(final String fqn) {
       assert fqn != null;
       assert names.isUpperCamelCase(fqn); // TODO fqn with path components
@@ -325,41 +395,40 @@ public final class types {
     private NomType(final String fqn, final Type aliasedType) {
       assert fqn != null;
       assert names.isUpperCamelCase(fqn); // TODO fqn with path components
-      assert aliasedType != null;
-      assert aliasedType != Err;
-      assert aliasedType != Unk;
+      assert aliasedType != null && aliasedType != Err && aliasedType != Unk;
       this.fqn = fqn;
       this.aliasedType = aliasedType;
     }
-    public void bind(final Type aliasedType) {
-      assert aliasedType != null;
-      assert aliasedType != Err;
-      assert aliasedType != Unk;
-      assert this.aliasedType == Unk;
-      this.aliasedType = aliasedType;
-    }
     @Override public Kind kind() { return Kind.NOM; }
-    @Override public String toString() { return toTypeString(); }
-    @Override public String toTypeString() { final StringBuilder buf = new StringBuilder(); toTypeString(buf); return buf.toString(); }
-    @Override public void toTypeString(final StringBuilder buf) { toTypeString(buf, new HashSet<>()); }
-    @Override public void toTypeString(final StringBuilder buf, final Set<Type> seen) {
-      buf.append("Name(");
-      buf.append(fqn);
-      buf.append("; ");
-      if (seen.add(this)) aliasedType.toTypeString(buf, seen);
-      else                buf.append("...");
-      buf.append(")");
-    }
-    @Override public boolean equals(final Object obj) {
-      return (this == obj || (obj instanceof NomType that && this.fqn.equals(that.fqn)));
+    @Override public boolean isAssignableTo(final Type type) {
+      // TODO
+      throw new UnsupportedOperationException();
     }
     @Override public int hashCode() {
-      return Objects.hash(fqn);
+      return Objects.hash(
+        NomType.class,
+        fqn
+      );
+    }
+    @Override public boolean equals(final Object obj) {
+      return (this == obj || (
+        obj instanceof NomType that &&
+        fqn.equals(that.fqn)
+      ));
+    }
+    @Override public String toString() { final StringBuilder sb = new StringBuilder(); toString(sb); return sb.toString(); }
+    @Override public void toString(final StringBuilder sb) { toString(sb, new HashSet<>()); }
+    @Override public void toString(final StringBuilder sb, final Set<Type> seen) {
+      sb.append("<");
+      sb.append(fqn);
+      sb.append(">");
+      if (seen.add(this)) aliasedType.toString(sb, seen);
     }
   }
 
-  public static final ErrType Err = new ErrType();
+
   public static final UnkType Unk = new UnkType();
+  public static final ErrType Err = new ErrType();
   public static final BitType Bit = new BitType();
   public static final U08Type U08 = new U08Type();
   public static final U16Type U16 = new U16Type();
@@ -380,12 +449,10 @@ public final class types {
 
     public final Type Arr(final Type elementType) {
       final Type type = new ArrType(elementType);
-      if (elementType == Unit) return Unit;
       return cache.computeIfAbsent(type, t -> (Type)t);
     }
     public final Type Arr(final Type elementType, final int length) {
       final Type type = new ArrType(elementType, length);
-      if (elementType == Unit || length == 0) return Unit;
       return cache.computeIfAbsent(type, t -> (Type)t);
     }
     public final Type Tup(final boolean[] muts, final Type[] types) {
@@ -404,12 +471,12 @@ public final class types {
     }
     public final Type Nom(final String fqn) {
       final Type type = new NomType(fqn);
-      assert !cache.containsKey(type); // Can't create a named type with the same FQN more than once
+      assert !cache.containsKey(type);
       return cache.computeIfAbsent(type, t -> (Type)t);
     }
     public final Type Nom(final String fqn, final Type aliasedType) {
       final Type type = new NomType(fqn, aliasedType);
-      assert !cache.containsKey(type); // Can't create a named type with the same FQN more than once
+      assert !cache.containsKey(type);
       return cache.computeIfAbsent(type, t -> (Type)t);
     }
   }
