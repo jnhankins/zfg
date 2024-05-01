@@ -5,6 +5,13 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "type": "java",
+      "name": "golf",
+      "request": "launch",
+      "mainClass": "zfg.golf",
+      "projectName": "zfg"
+    },
+    {
       "name": "Current Java File",
       "type": "java",
       "request": "launch",
@@ -15,8 +22,10 @@
       "type": "java",
       "request": "launch",
       "mainClass": "zfg.Main",
-      "args": [ "src/test/resources/test.zfg" ],
-      "console": "externalTerminal",
+      "args": [
+        "src/test/resources/test.zfg"
+      ],
+      "console": "externalTerminal"
     },
     {
       "name": "ANTLR Grammar",
@@ -26,7 +35,7 @@
       "startRule": "start",
       "input": "src/test/resources/test.zfg",
       "printParseTree": true,
-      "visualParseTree": true,
+      "visualParseTree": true
     }
   ]
 }

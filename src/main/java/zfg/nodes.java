@@ -42,135 +42,241 @@ public final class nodes {
     @Override public void toString(final StringBuilder sb, final Set<Object> seen) { value.toString(sb); }
 
     @Override public void write(final MethodVisitor mv) {
-      final types.Type type = value.type();
       switch (value) {
-        case insts.BitInst bit -> {
-          final int value = bit.value;
-          assert 0 <= value && value <= 1;
-          switch (value) {
-            case 0 -> mv.visitInsn(Opcodes.ICONST_0);
-            case 1 -> mv.visitInsn(Opcodes.ICONST_1);
-            default -> throw new AssertionError();
-          }
-        }
-        case insts.U08Inst u08 -> {
-          final int value = u08.value;
-          assert 0 <= value && value <= 0xFF;
-          switch (value) {
-            case 0 -> mv.visitInsn(Opcodes.ICONST_0);
-            case 1 -> mv.visitInsn(Opcodes.ICONST_1);
-            case 2 -> mv.visitInsn(Opcodes.ICONST_2);
-            case 3 -> mv.visitInsn(Opcodes.ICONST_3);
-            case 4 -> mv.visitInsn(Opcodes.ICONST_4);
-            case 5 -> mv.visitInsn(Opcodes.ICONST_5);
-            default -> {
-              if   (u08.value <= 0x7F) mv.visitIntInsn(Opcodes.BIPUSH, u08.value);
-              else                     mv.visitIntInsn(Opcodes.SIPUSH, u08.value);
-            }
-          }
-        }
-        case insts.U16Inst u16 -> {
-          final int value = u16.value;
-          assert 0 <= value && value <= 0xFFFF;
-          switch (u16.value) {
-            case 0 -> mv.visitInsn(Opcodes.ICONST_0);
-            case 1 -> mv.visitInsn(Opcodes.ICONST_1);
-            case 2 -> mv.visitInsn(Opcodes.ICONST_2);
-            case 3 -> mv.visitInsn(Opcodes.ICONST_3);
-            case 4 -> mv.visitInsn(Opcodes.ICONST_4);
-            case 5 -> mv.visitInsn(Opcodes.ICONST_5);
-            default -> {
-              if      (u16.value <= Byte.MAX_VALUE)  mv.visitIntInsn(Opcodes.BIPUSH, u16.value);
-              else if (u16.value <= Short.MAX_VALUE) mv.visitIntInsn(Opcodes.SIPUSH, u16.value);
-              else {
-                mv.visitIntInsn(Opcodes.SIPUSH, u16.value); // sign extended
-                mv.visitInsn(Opcodes.I2C);                  // trunctate to 16 bits with hi 0s
-              }
-            }
-          }
-        }
-        case inst.U32Inst u32 -> {
-          final int value = u32.value;
-          switch (value) {
-            case 0 -> mv.visitInsn(Opcodes.ICONST_0);
-            case 1 -> mv.visitInsn(Opcodes.ICONST_1);
-            case 2 -> mv.visitInsn(Opcodes.ICONST_2);
-            case 3 -> mv.visitInsn(Opcodes.ICONST_3);
-            case 4 -> mv.visitInsn(Opcodes.ICONST_4);
-            case 5 -> mv.visitInsn(Opcodes.ICONST_5);
-            default -> mv.visitLdcInsn(u32.value);
-          }
-        }
+        case insts.BitInst inst -> visitI(mv, inst.value);
+        case insts.U08Inst inst -> visitI(mv, inst.value);
+        case insts.U16Inst inst -> visitI(mv, inst.value);
+        case insts.U32Inst inst -> visitI(mv, inst.value);
+        case insts.U64Inst inst -> visitL(mv, inst.value);
+        case insts.I08Inst inst -> visitI(mv, inst.value);
+        case insts.I16Inst inst -> visitI(mv, inst.value);
+        case insts.I32Inst inst -> visitI(mv, inst.value);
+        case insts.I64Inst inst -> visitL(mv, inst.value);
+        case insts.F32Inst inst -> visitF(mv, inst.value);
+        case insts.F64Inst inst -> visitD(mv, inst.value);
+        // TODO arr, tup, rec, fun, etc.
         default -> throw new AssertionError();
+      };
+    }
+    private static void visitI(final MethodVisitor mv, final int i32) {
+      if (0xFFFFFFFF <= i32 && i32 <= 0x00000005) { mv.visitInsn(Opcodes.ICONST_0 + i32); return; }
+      if (0xFFFFFF80 <= i32 && i32 <= 0x0000007F) { mv.visitIntInsn(Opcodes.BIPUSH, i32); return; }
+      if (0xFFFF8000 <= i32 && i32 <= 0x00007FFF) { mv.visitIntInsn(Opcodes.SIPUSH, i32); return; }
+      mv.visitLdcInsn((Integer) i32);
+    }
+    private static void visitL(final MethodVisitor mv, final long i64) {
+      if (i64 == 0x0000000000000000L) { mv.visitInsn(Opcodes.LCONST_0); return; }
+      if (i64 == 0x0000000000000001L) { mv.visitInsn(Opcodes.LCONST_1); return; }
+      if (0xFFFFFFFFFFFFFF80L <= i64 && i64 <= 0x000000000000007FL) { mv.visitIntInsn(Opcodes.BIPUSH, (int)i64); mv.visitInsn(Opcodes.I2L); return; }
+      if (0xFFFFFFFFFFFF8000L <= i64 && i64 <= 0x0000000000007FFFL) { mv.visitIntInsn(Opcodes.SIPUSH, (int)i64); mv.visitInsn(Opcodes.I2L); return; }
+      mv.visitLdcInsn((Long) i64);
+    }
+    private static void visitF(final MethodVisitor mv, final float f32) {
+      if (f32 == 0.0f) { mv.visitInsn(Opcodes.FCONST_0); return; }
+      if (f32 == 1.0f) { mv.visitInsn(Opcodes.FCONST_1); return; }
+      if (f32 == 2.0f) { mv.visitInsn(Opcodes.FCONST_2); return; }
+      final int i32 = (int) f32;
+      if (i32 == f32) {
+        if (0xFFFFFFFF <= i32 && i32 <= 0x00000005) { mv.visitInsn(Opcodes.ICONST_0 + i32); mv.visitInsn(Opcodes.I2F); return; }
+        if (0xFFFFFF80 <= i32 && i32 <= 0x0000007F) { mv.visitIntInsn(Opcodes.BIPUSH, i32); mv.visitInsn(Opcodes.I2F); return; }
+        if (0xFFFF8000 <= i32 && i32 <= 0x00007FFF) { mv.visitIntInsn(Opcodes.SIPUSH, i32); mv.visitInsn(Opcodes.I2F); return; }
       }
+      mv.visitLdcInsn((Float) f32);
+    }
+    private static void visitD(final MethodVisitor mv, final double f64) {
+      if (f64 == 0.0) { mv.visitInsn(Opcodes.DCONST_0); return; }
+      if (f64 == 1.0) { mv.visitInsn(Opcodes.DCONST_1); return; }
+      final int i32 = (int) f64;
+      if (i32 == f64) {
+        if (0xFFFFFFFF <= i32 && i32 <= 0x00000005) { mv.visitInsn(Opcodes.ICONST_0 + i32); mv.visitInsn(Opcodes.I2D); return; }
+        if (0xFFFFFF80 <= i32 && i32 <= 0x0000007F) { mv.visitIntInsn(Opcodes.BIPUSH, i32); mv.visitInsn(Opcodes.I2D); return; }
+        if (0xFFFF8000 <= i32 && i32 <= 0x00007FFF) { mv.visitIntInsn(Opcodes.SIPUSH, i32); mv.visitInsn(Opcodes.I2D); return; }
+      }
+      mv.visitLdcInsn((Double) f64);
+    }
+  }
+
+  public static final class InfixOp implements Node {
+    public static enum Op {
+      Add, Sub, Mul, Div, Rem, Mod,
+      And, Ior, Xor,
+      Shl, Shr,
+      Cmp,
+      Eql, Neq, Ltn, Gtn, Leq, Geq,
+      Lcj, Ldj;
+    }
+    public final types.Type type;
+    public final Node lhs;
+    public final Node rhs;
+    public final Op op;
+
+    public InfixOp(final types.Type type, final Node lhs, final Node rhs, final Op op) {
+      assert type != null;
+      assert lhs != null;
+      assert rhs != null;
+      assert op != null;
+      this.type = type;
+      this.lhs = lhs;
+      this.rhs = rhs;
+      this.op = op;
     }
 
-    private void writeUxx(final MethodVisitor mv, final int u) {
-      // u08: [   0, 255], u16: [     0, 65535]
-      // i08: [-128, 127], i16: [-32768, 32767]
-      // handles -65,535 through 65,535 (inclusive) in most 2 instructions and 4 bytes
-      //               -1 .. 5                : iconst_n
-      if (0xFFFFFFFF <= u && u <= 0x00000005) { mv.visitInsn(Opcodes.ICONST_0 + u); return; }
-      //             -128 .. 127              : bipush <n>
-      if (0xFFFFFF80 <= u && u <= 0x0000007F) { mv.visitIntInsn(Opcodes.BIPUSH, u); return; }
-      //          -32,768 .. 32,767           : sipush <b> <b>
-      if (0xFFFF8000 <= u && u <= 0x00007FFF) { mv.visitIntInsn(Opcodes.SIPUSH, u); return; }
-      //           32,769 .. 65,535           : sipush <b> <b>; i2c
-      if (0x00008000 <= u && u <= 0x0000FFFF) { mv.visitIntInsn(Opcodes.SIPUSH, u); mv.visitInsn(Opcodes.I2C); return; }
-      //          -65,535 .. -32,769           : sipush <b> <b>; neg
-      if (0xFFFF8001 <= u && u <= 0xFFFF7FFF) {
-        final int v = -u;
-        if      (u <= 0x0005) { mv.visitInsn(Opcodes.ICONST_0 + v); return; }
-        else if (u <= 0x007F) { mv.visitIntInsn(Opcodes.BIPUSH, v); return; }
-        else                    mv.visitIntInsn(Opcodes.SIPUSH, v);
-        mv.visitInsn(Opcodes.INEG);
+    @Override public types.Type type() { return type; }
+    @Override public String toString() { final StringBuilder sb = new StringBuilder(); toString(sb); return sb.toString(); }
+    // @Override public void toString(final StringBuilder sb) { sb.append("InfixOp("); lhs.toString(sb); sb.append(' ').append(op).append(' '); rhs.toString(sb); sb.append(')'); }
+    // @Override public void toString(final StringBuilder sb, final Set<Object> seen) { left.toString(sb, seen); sb.append(' ').append(op).append(' '); right.toString(sb, seen); }
+
+    @Override public void write(final MethodVisitor mv) {
+      switch (type.kind()) {
+        case types.Kind.I32: {
+          switch (op) {
+            case Op.Add: { lhs.write(mv); rhs.write(mv); mv.visitInsn(Opcodes.IADD); break; }
+            case Op.Sub: { lhs.write(mv); rhs.write(mv); mv.visitInsn(Opcodes.ISUB); break; }
+            case Op.Mul: { lhs.write(mv); rhs.write(mv); mv.visitInsn(Opcodes.IMUL); break; }
+            case Op.Div: { lhs.write(mv); rhs.write(mv); mv.visitInsn(Opcodes.IDIV); break; }
+            case Op.Rem: { lhs.write(mv); rhs.write(mv); mv.visitInsn(Opcodes.IREM); break; }
+            // :: ((a % b) + a) % b
+            // [a, b] swap
+            // [b, a] dup2
+            // [b, a, b, a] swap
+            // [b, a, a, b] irem
+            // [b, a, (a % b)] iadd
+            // [b, (a % b + a)] swap
+            // [(a % b + a), b] irem
+
+            // :: int c = a % b; if (c < 0) c += b;
+            // 0: [a, b] dub_x1
+            // 1: [b, a, b] irem
+            // 2: [b, (a % b)] dup
+            // 3: [b, (a % b), (a % b)] ifge +N
+            // 4: [b, (a % b)] iadd
+            // 5: [b, (a % b + b)] swap
+
+
+            // [a, b] dup2
+            // [a, b, a, b] irem
+            // [a, b, (a % b)]
+
+
+            // [a, b] dup_x1
+            // [b, a, b]
+            // [b, a, a, b] irem
+            // [b, a, (a % b)]     OR     [b, (a % b), a]        iadd -> [b, (a % b + a)]
+            // [b, (a % b + a)] swap -> [(a % b + a), b]
+            // [(a % b + a), b)] irem -> [((a % b + a) % b)]
+
+
+            // a b;
+            // a b %
+            // a b % a +
+            // a b % a + b %
+            case Op.Mod: { lhs.write(mv); rhs.write(mv); mv.visitInsn(Opcodes.IREM); mv.visitInsn(Opcodes.DUP); mv.bbreak; } // (a % b + a) % b //
+          }
+          break;
+        }
       }
-      
 
-
-
+      switch (op) {
+        case Add: switch (type) {
+          case types.U08Type t -> { mv.visitInsn(Opcodes.IADD); mv.visitIntInsn(Opcodes.SIPUSH, 255); mv.visitInsn(Opcodes.IAND);}
+          case types.U16Type t -> { mv.visitInsn(Opcodes.IADD); mv.visitInsn(Opcodes.I2C); }
+          case types.U32Type t -> { mv.visitInsn(Opcodes.IADD); }
+          case types.U64Type t -> { mv.visitInsn(Opcodes.LADD); }
+          case types.I08Type t -> { mv.visitInsn(Opcodes.IADD); mv.visitInsn(Opcodes.I2B); }
+          case types.I16Type t -> { mv.visitInsn(Opcodes.IADD); mv.visitInsn(Opcodes.I2S); }
+          case types.I32Type t -> { mv.visitInsn(Opcodes.IADD); }
+          case types.I64Type t -> { mv.visitInsn(Opcodes.LADD); }
+          case types.F32Type t -> { mv.visitInsn(Opcodes.FADD); }
+          case types.F64Type t -> { mv.visitInsn(Opcodes.DADD); }
+          default -> throw new AssertionError();
+        } break;
+        case Sub: switch (type) {
+          case types.U08Type t -> { mv.visitInsn(Opcodes.ISUB); mv.visitIntInsn(Opcodes.SIPUSH, 255); mv.visitInsn(Opcodes.IAND); }
+          case types.U16Type t -> { mv.visitInsn(Opcodes.ISUB); mv.visitInsn(Opcodes.I2C); }
+          case types.U32Type t -> { mv.visitInsn(Opcodes.ISUB); }
+          case types.U64Type t -> { mv.visitInsn(Opcodes.LSUB); }
+          case types.I08Type t -> { mv.visitInsn(Opcodes.ISUB); mv.visitInsn(Opcodes.I2B); }
+          case types.I16Type t -> { mv.visitInsn(Opcodes.ISUB); mv.visitInsn(Opcodes.I2S); }
+          case types.I32Type t -> { mv.visitInsn(Opcodes.ISUB); }
+          case types.I64Type t -> { mv.visitInsn(Opcodes.LSUB); }
+          case types.F32Type t -> { mv.visitInsn(Opcodes.FSUB); }
+          case types.F64Type t -> { mv.visitInsn(Opcodes.DSUB); }
+          default -> throw new AssertionError();
+        } break;
+        case Mul: switch (type) {
+          case types.U08Type t -> { mv.visitInsn(Opcodes.IMUL); mv.visitIntInsn(Opcodes.SIPUSH, 255); mv.visitInsn(Opcodes.IAND); }
+          case types.U16Type t -> { mv.visitInsn(Opcodes.IMUL); mv.visitInsn(Opcodes.I2C); }
+          case types.U32Type t -> { mv.visitInsn(Opcodes.IMUL); }
+          case types.U64Type t -> { mv.visitInsn(Opcodes.LMUL); }
+          case types.I08Type t -> { mv.visitInsn(Opcodes.IMUL); mv.visitInsn(Opcodes.I2B); }
+          case types.I16Type t -> { mv.visitInsn(Opcodes.IMUL); mv.visitInsn(Opcodes.I2S); }
+          case types.I32Type t -> { mv.visitInsn(Opcodes.IMUL); }
+          case types.I64Type t -> { mv.visitInsn(Opcodes.LMUL); }
+          case types.F32Type t -> { mv.visitInsn(Opcodes.FMUL); }
+          case types.F64Type t -> { mv.visitInsn(Opcodes.DMUL); }
+          default -> throw new AssertionError();
+        } break;
+        case Div: switch (type) {
+          case types.U08Type t -> { mv.visitInsn(Opcodes.IDIV); mv.visitIntInsn(Opcodes.SIPUSH, 255); mv.visitInsn(Opcodes.IAND); }
+          case types.U16Type t -> { mv.visitInsn(Opcodes.IDIV); mv.visitInsn(Opcodes.I2C); }
+          case types.U32Type t -> throw new UnsupportedOperationException("TODO"); // TODO
+          case types.U64Type t -> throw new UnsupportedOperationException("TODO"); // TODO
+          case types.I08Type t -> { mv.visitInsn(Opcodes.IDIV); mv.visitInsn(Opcodes.I2B); }
+          case types.I16Type t -> { mv.visitInsn(Opcodes.IDIV); mv.visitInsn(Opcodes.I2S); }
+          case types.I32Type t -> { mv.visitInsn(Opcodes.IDIV); }
+          case types.I64Type t -> { mv.visitInsn(Opcodes.LDIV); }
+          case types.F32Type t -> { mv.visitInsn(Opcodes.FDIV); }
+          case types.F64Type t -> { mv.visitInsn(Opcodes.DDIV); }
+          default -> throw new AssertionError();
+        } break;
+        case Rem: switch (type) {
+          case types.U08Type t -> { mv.visitInsn(Opcodes.IREM); mv.visitIntInsn(Opcodes.SIPUSH, 255); mv.visitInsn(Opcodes.IAND); }
+          case types.U16Type t -> { mv.visitInsn(Opcodes.IREM); mv.visitInsn(Opcodes.I2C); }
+          case types.U32Type t -> throw new UnsupportedOperationException("TODO"); // TODO
+          case types.U64Type t -> throw new UnsupportedOperationException("TODO"); // TODO
+          case types.I08Type t -> { mv.visitInsn(Opcodes.IREM); mv.visitInsn(Opcodes.I2B); }
+          case types.I16Type t -> { mv.visitInsn(Opcodes.IREM); mv.visitInsn(Opcodes.I2S); }
+          case types.I32Type t -> { mv.visitInsn(Opcodes.IREM); }
+          case types.I64Type t -> { mv.visitInsn(Opcodes.LREM); }
+          case types.F32Type t -> { mv.visitInsn(Opcodes.FREM); }
+          case types.F64Type t -> { mv.visitInsn(Opcodes.DREM); }
+          default -> throw new AssertionError();
+        } break;
+        case Mod: throw new UnsupportedOperationException("TODO"); // TODO
+        case And: switch (type) {
+          case types.U08Type t -> { mv.visitInsn(Opcodes.IAND); }
+          case types.U16Type t -> { mv.visitInsn(Opcodes.IAND); }
+          case types.U32Type t -> { mv.visitInsn(Opcodes.IAND); }
+          case types.U64Type t -> { mv.visitInsn(Opcodes.LAND); }
+          case types.I08Type t -> { mv.visitInsn(Opcodes.IAND); }
+          case types.I16Type t -> { mv.visitInsn(Opcodes.IAND); }
+          case types.I32Type t -> { mv.visitInsn(Opcodes.IAND); }
+          case types.I64Type t -> { mv.visitInsn(Opcodes.LAND); }
+          default -> throw new AssertionError();
+        } break;
+        case Ior: switch (type) {
+          case types.U08Type t -> { mv.visitInsn(Opcodes.IOR); }
+          case types.U16Type t -> { mv.visitInsn(Opcodes.IOR); }
+          case types.U32Type t -> { mv.visitInsn(Opcodes.IOR); }
+          case types.U64Type t -> { mv.visitInsn(Opcodes.LOR); }
+          case types.I08Type t -> { mv.visitInsn(Opcodes.IOR); }
+          case types.I16Type t -> { mv.visitInsn(Opcodes.IOR); }
+          case types.I32Type t -> { mv.visitInsn(Opcodes.IOR); }
+          case types.I64Type t -> { mv.visitInsn(Opcodes.LOR); }
+          default -> throw new AssertionError();
+        } break;
+        case Xor: switch (type) {
+          case types.U08Type t -> { mv.visitInsn(Opcodes.IXOR); }
+          case types.U16Type t -> { mv.visitInsn(Opcodes.IXOR); }
+          case types.U32Type t -> { mv.visitInsn(Opcodes.IXOR); }
+          case types.U64Type t -> { mv.visitInsn(Opcodes.LXOR); }
+          case types.I08Type t -> { mv.visitInsn(Opcodes.IXOR); }
+          case types.I16Type t -> { mv.visitInsn(Opcodes.IXOR); }
+          case types.I32Type t -> { mv.visitInsn(Opcodes.IXOR); }
+          case types.I64Type t -> { mv.visitInsn(Opcodes.LXOR); }
+          default -> throw new AssertionError();
+        } break;
+      }
     }
   }
 }
-
-// 0x00000000 = iconst_0
-// 0x00000001 = iconst_1
-// 0x00000002 = iconst_2
-// 0x00000003 = iconst_3
-// 0x00000004 = iconst_4
-// 0x00000005 = iconst_5
-// 0x00000006 = bipush 06
-// ...
-// 0x0000007F = bipush 7F
-// 0x00000080 = sipush 00 80
-// ...
-// 0x00007FFF = sipush 7F FF
-// 0x00008000 = sipush 80 00; i2c
-// ...
-// 0x0000FFFF = sipush FF FF; i2c
-
-// 0x00010000 = iconst_1; bipush 10; ishl
-// 0x00010001 = iconst_1; bipush 10; ishl; iconst_1; ior
-// 0x00010002 = iconst_1; bipush 10; ishl; iconst_2; ior
-// 0x00010003 = iconst_1; bipush 10; ishl; iconst_3; ior
-// 0x00010004 = iconst_1; bipush 10; ishl; iconst_4; ior
-// 0x00010005 = iconst_1; bipush 10; ishl; iconst_5; ior
-// 0x00010006 = iconst_1; bipush 10; ishl; bipush 06; ior
-// ...
-// 0x0001007F = iconst_1; bipush 10; ishl; bipush 7F; ior
-// 0x00010080 = iconst_1; bipush 10; ishl; sipush 00 80; ior
-// ...
-// 0x00017FFF = iconst_1; bipush 10; ishl; sipush 7F FF; ior
-// 0x00018000 = iconst_1; bipush 10; ishl; sipush 80 00; ior
-
-
-// 0xFFFF8000 = sipush 80 00
-// ...
-// 0xFFFFFF7F = sipush FF 7F
-
-// 0xFFFFFF80 = bipush 80
-// ..
-// 0xFFFFFFFE = bipush FE
-
-// 0xFFFFFFFF = iconst_m1
-
