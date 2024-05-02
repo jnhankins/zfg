@@ -1,6 +1,7 @@
 package zfg;
 
 import org.objectweb.asm.ClassVisitor;
+import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 
@@ -141,15 +142,30 @@ public final class CodeGen {
         case U16: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.IREM); break;
         case U32: visit(lhs); visit(rhs); mv.visitMethodInsn(Opcodes.INVOKESTATIC, "java/lang/Integer", "remainderUnsigned", "(II)I", false); break;
         case U64: visit(lhs); visit(rhs); mv.visitMethodInsn(Opcodes.INVOKESTATIC, "java/lang/Long",    "remainderUnsigned", "(JJ)J", false); break;
-        case I08, I16, I32: // a mod b = (a % b + b) % b
-          visit(lhs);                    // Stack: ..., a
-          visit(rhs);                    // Stack: ..., a, b
-          mv.visitInsn(Opcodes.DUP2_X2); // Stack: ..., b, b, a, b
-          mv.visitInsn(Opcodes.IREM);    // Stack: ..., b, b, (a % b)
-          mv.visitInsn(Opcodes.IADD);    // Stack: ..., b, (a % b + b)
-          mv.visitInsn(Opcodes.SWAP);    // Stack: ..., (a % b + b), b
-          mv.visitInsn(Opcodes.IREM);    // Stack: ..., ((a % b + b) % b)
+        case I08, I16, I32:
+          visit(lhs);                          // Stack: ..., a
+          visit(rhs);                          // Stack: ..., a, b
+          mv.visitInsn(Opcodes.DUP_X1);        // Stack: ..., b, a, b
+          mv.visitInsn(Opcodes.IREM);          // Stack: ..., b, r
+          mv.visitInsn(Opcodes.DUP_X1);        // Stack: ..., r, b, r
+          mv.visitInsn(Opcodes.DUP2);          // Stack: ..., r, b, r, b, r
+          mv.visitInsn(Opcodes.IXOR);          // Stack: ..., r, b, r, (b^r)
+          mv.visitInsn(Opcodes.SWAP);          // Stack: ..., r, b, (b^r), r
+          mv.visitInsn(Opcodes.DUP);           // Stack: ..., r, b, (b^r), r, r
+          mv.visitInsn(Opcodes.INEG);          // Stack: ..., r, b, (b^r), r, -r
+          mv.visitInsn(Opcodes.IOR);           // Stack: ..., r, b, (b^r), (r|-r)
+          mv.visitInsn(Opcodes.IAND);          // Stack: ..., r, b, ((b^r) & (r|-r))
+          mv.visitIntInsn(Opcodes.BIPUSH, 31); // Stack: ..., r, b, ((b^r) & (r|-r)), 31
+          mv.visitInsn(Opcodes.ISHR);          // Stack: ..., r, b, (((b^r) & (r|-r)) >> 31)
+          mv.visitInsn(Opcodes.IAND);          // Stack: ..., r, (b & (((b^r) & (r|-r)) >> 31))
+          mv.visitInsn(Opcodes.IADD);          // Stack: ..., r + (b & (((b^r) & (r|-r)) >> 31))
           break;
+        // TODO: optimize the below cases using
+        // int mod(int a, int b) {
+        //  int r = a % b;
+        //  if (r != 0 && (sign(a) != sign(b)) r += b;
+        //  return r;
+        // }
         case I64: // a mod b = (a % b + b) % b
           visit(lhs);                    // Stack: ..., a
           visit(rhs);                    // Stack: ..., a, b
@@ -183,6 +199,80 @@ public final class CodeGen {
           break;
         default: throw new AssertionError();
       } break;
+      case OpCode.And: switch (kind) {
+        case BIT, U08, U16, U32, I08, I16, I32: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.IAND); break;
+        case U64, I64:                          visit(lhs); visit(rhs); mv.visitInsn(Opcodes.LAND); break;
+        default: throw new AssertionError();
+      } break;
+      case OpCode.Ior: switch (kind) {
+        case BIT, U08, U16, U32, I08, I16, I32: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.IOR); break;
+        case U64, I64:                          visit(lhs); visit(rhs); mv.visitInsn(Opcodes.LOR); break;
+        default: throw new AssertionError();
+      } break;
+      case OpCode.Xor: switch (kind) {
+        case BIT: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.IXOR); mv.visitInsn(Opcodes.ICONST_1); mv.visitInsn(Opcodes.IAND); break;
+        case U08: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.IXOR); mv.visitIntInsn(Opcodes.SIPUSH, FF); mv.visitInsn(Opcodes.IAND); break;
+        case U16: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.IXOR); mv.visitInsn(Opcodes.I2C); break;
+        case U32: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.IXOR); break;
+        case U64: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.LXOR); break;
+        case I08: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.IXOR); mv.visitInsn(Opcodes.I2B); break;
+        case I16: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.IXOR); mv.visitInsn(Opcodes.I2S); break;
+        case I32: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.IXOR); break;
+        case I64: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.LXOR); break;
+        default: throw new AssertionError();
+      } break;
+      case OpCode.Shl: switch (kind) {
+        case U08: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.ISHL); mv.visitIntInsn(Opcodes.SIPUSH, FF); mv.visitInsn(Opcodes.IAND); break;
+        case U16: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.ISHL); mv.visitInsn(Opcodes.I2C); break;
+        case U32: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.ISHL); break;
+        case U64: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.LSHL); break;
+        case I08: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.ISHL); mv.visitInsn(Opcodes.I2B); break;
+        case I16: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.ISHL); mv.visitInsn(Opcodes.I2S); break;
+        case I32: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.ISHL); break;
+        case I64: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.LSHL); break;
+        default: throw new AssertionError();
+      } break;
+      case OpCode.Shr: switch (kind) {
+        case U08, U16, U32, I08, I16, I32: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.ISHR); break;
+        case U64, I64:                     visit(lhs); visit(rhs); mv.visitInsn(Opcodes.LSHR); break;
+        default: throw new AssertionError();
+      } break;
+      case OpCode.Cmp: switch (kind) {
+        case U08: visit(lhs); mv.visitInsn(Opcodes.I2L); visit(rhs); mv.visitInsn(Opcodes.I2L); mv.visitInsn(Opcodes.LCMP); break;
+        case U16: visit(lhs); mv.visitInsn(Opcodes.I2L); visit(rhs); mv.visitInsn(Opcodes.I2L); mv.visitInsn(Opcodes.LCMP); break;
+        case U32: visit(lhs); visit(rhs); mv.visitMethodInsn(Opcodes.INVOKESTATIC, "java/lang/Integer", "compareUnsigned", "(II)I", false); break;
+        case U64: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.LCMP); break;
+        case I08: visit(lhs); mv.visitInsn(Opcodes.I2L); visit(rhs); mv.visitInsn(Opcodes.I2L); mv.visitInsn(Opcodes.LCMP); break;
+        case I16: visit(lhs); mv.visitInsn(Opcodes.I2L); visit(rhs); mv.visitInsn(Opcodes.I2L); mv.visitInsn(Opcodes.LCMP); break;
+        case I32: visit(lhs); mv.visitInsn(Opcodes.I2L); visit(rhs); mv.visitInsn(Opcodes.I2L); mv.visitInsn(Opcodes.LCMP); break;
+        case I64: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.LCMP); break;
+        case F32: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.FCMPL); break; // NaN <=> 3.1 => -1;
+        case F64: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.DCMPL); break; // NaN <=> NaN => -1;
+        default: throw new AssertionError();
+      } break;
+      case OpCode.Eql: {
+        final Label zero = new Label();
+        final Label done = new Label();
+        switch (kind) {
+
+        }
+        mv.visitInsn(0);
+      }
+      case OpCode.Neq:
+
+      switch (kind) {
+        case BIT:
+          visit(lhs); visit(rhs);
+          mv.visitJumpInsn(Opcodes.IF_ICMPNE, zero);
+          mv.visitInsn(Opcodes.ICONST_1);  mv.visitJumpInsn(Opcodes.GOTO, end); mv.visitLabel(zero);  mv.visitInsn(Opcodes.ICONST_0);  mv.visitLabel(end);
+
+        case U08:
+          visit(lhs); visit(rhs); mv.visitInsn(Opcodes.IXOR); mv.visitInsn(Opcodes.ICONST_1); mv.visitInsn(Opcodes.IXOR); break;
+
+        default: throw new AssertionError();
+      }
+
+      break;
       default: throw new AssertionError();
     }
   }

@@ -9,7 +9,9 @@
       "name": "golf2",
       "request": "launch",
       "mainClass": "zfg.golf2",
-      "projectName": "jvm"
+      "projectName": "zfg",
+      // "vmArgs": ["-XX:+UnlockDiagnosticVMOptions", "-Xlog:class+load=info", "-XX:+LogCompilation", "-XX:+PrintAssembly", "-XX:MaxInlineSize=0"]
+      "vmArgs": ["-XX:MaxInlineSize=0"]
     },
     {
       "type": "java",
