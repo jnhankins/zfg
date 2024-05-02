@@ -6,6 +6,13 @@
   "configurations": [
     {
       "type": "java",
+      "name": "golf2",
+      "request": "launch",
+      "mainClass": "zfg.golf2",
+      "projectName": "jvm"
+    },
+    {
+      "type": "java",
       "name": "golf",
       "request": "launch",
       "mainClass": "zfg.golf",

@@ -1,8 +1,8 @@
 package zfg;
 
-import java.util.Set;
+import java.util.HashMap;
+import java.util.Map;
 
-import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 
@@ -13,7 +13,7 @@ public final class nodes {
     public types.Type type();
     @Override public String toString();
     public void toString(final StringBuilder sb);
-    public void toString(final StringBuilder sb, final Set<Object> seen);
+    public void toString(final StringBuilder sb, final Map<Object, Integer> seen);
   }
   public static interface MvWriter {
     public void write(final MethodVisitor mv);
@@ -25,7 +25,7 @@ public final class nodes {
     @Override public types.Type type() { return types.Err; }
     @Override public String toString() { return "Error"; }
     @Override public void toString(final StringBuilder sb) { sb.append(this); }
-    @Override public void toString(final StringBuilder sb, final Set<Object> seen) { sb.append(this); }
+    @Override public void toString(final StringBuilder sb, final Map<Object, Integer> seen) { sb.append(this); }
   }
 
   public static final class Const implements Node, MvWriter {
@@ -39,21 +39,21 @@ public final class nodes {
     @Override public types.Type type() { return value.type(); }
     @Override public String toString() { final StringBuilder sb = new StringBuilder(); toString(sb); return sb.toString(); }
     @Override public void toString(final StringBuilder sb) { sb.append("Const("); value.toString(sb); sb.append(")");}
-    @Override public void toString(final StringBuilder sb, final Set<Object> seen) { value.toString(sb); }
+    @Override public void toString(final StringBuilder sb, final Map<Object, Integer> seen) { value.toString(sb); }
 
-    @Override public void write(final MethodVisitor mv) {
+    @Override public void write(final CodeGen cg) {
       switch (value) {
-        case insts.BitInst inst -> visitI(mv, inst.value);
-        case insts.U08Inst inst -> visitI(mv, inst.value);
-        case insts.U16Inst inst -> visitI(mv, inst.value);
-        case insts.U32Inst inst -> visitI(mv, inst.value);
-        case insts.U64Inst inst -> visitL(mv, inst.value);
-        case insts.I08Inst inst -> visitI(mv, inst.value);
-        case insts.I16Inst inst -> visitI(mv, inst.value);
-        case insts.I32Inst inst -> visitI(mv, inst.value);
-        case insts.I64Inst inst -> visitL(mv, inst.value);
-        case insts.F32Inst inst -> visitF(mv, inst.value);
-        case insts.F64Inst inst -> visitD(mv, inst.value);
+        case insts.BitInst inst -> cg.visitI(mv, inst.value);
+        case insts.U08Inst inst -> cg.visitI(mv, inst.value);
+        case insts.U16Inst inst -> cg.visitI(mv, inst.value);
+        case insts.U32Inst inst -> cg.visitI(mv, inst.value);
+        case insts.U64Inst inst -> cg.visitL(mv, inst.value);
+        case insts.I08Inst inst -> cg.visitI(mv, inst.value);
+        case insts.I16Inst inst -> cg.visitI(mv, inst.value);
+        case insts.I32Inst inst -> cg.visitI(mv, inst.value);
+        case insts.I64Inst inst -> cg.visitL(mv, inst.value);
+        case insts.F32Inst inst -> cg.visitF(mv, inst.value);
+        case insts.F64Inst inst -> cg.visitD(mv, inst.value);
         // TODO arr, tup, rec, fun, etc.
         default -> throw new AssertionError();
       };
@@ -123,8 +123,26 @@ public final class nodes {
 
     @Override public types.Type type() { return type; }
     @Override public String toString() { final StringBuilder sb = new StringBuilder(); toString(sb); return sb.toString(); }
-    // @Override public void toString(final StringBuilder sb) { sb.append("InfixOp("); lhs.toString(sb); sb.append(' ').append(op).append(' '); rhs.toString(sb); sb.append(')'); }
-    // @Override public void toString(final StringBuilder sb, final Set<Object> seen) { left.toString(sb, seen); sb.append(' ').append(op).append(' '); right.toString(sb, seen); }
+    @Override public void toString(final StringBuilder sb) { toString(sb, new HashMap<>()); }
+    @Override public void toString(final StringBuilder sb, final Map<Object, Integer> seen) {
+      if (seen.get(this) instanceof Integer idx) {
+        sb.append("InfixOp#");
+        sb.append(idx);
+      } else {
+        final int idx = seen.size();
+        seen.put(this, idx);
+        sb.append("InfixOp#");
+        sb.append(idx);
+        sb.append('(');
+        sb.append(op.name());
+        sb.append(", ");
+        lhs.toString(sb, seen);
+        sb.append(", ");
+        rhs.toString(sb, seen);
+        sb.append(')');
+      }
+    }
+
 
     @Override public void write(final MethodVisitor mv) {
       switch (type.kind()) {
@@ -135,6 +153,27 @@ public final class nodes {
             case Op.Mul: { lhs.write(mv); rhs.write(mv); mv.visitInsn(Opcodes.IMUL); break; }
             case Op.Div: { lhs.write(mv); rhs.write(mv); mv.visitInsn(Opcodes.IDIV); break; }
             case Op.Rem: { lhs.write(mv); rhs.write(mv); mv.visitInsn(Opcodes.IREM); break; }
+            // :: a mod b = (a % b + b) % b; [[[a, b, %], b, +], b, %]
+            // 0: [a, b] dup_x1
+            // 1: [b, a, b] dup_x1
+            // 2: [b, b, a, b] irem
+            // 3: [b, b, (a % b)] iadd
+            // 4: [b, (a % b + b)] swap
+            // 5: [(a % b + b), b] irem
+            // 6: [(a % b + b) % b]
+
+            // :: a mod b = (a % b) < 0 ? (a % b) + b : (a % b)
+            // 0: [a, b] dup_x1
+            // 1: [b, a, b] irem
+            // 2: [b, (a % b)] dup
+            // 3: [b, (a % b), (a % b)] ifge +3
+            // 4: [b, (a % b)] iadd
+            // 5: [(a % b + b)] goto +3
+            // 6: [b, (a % b)] swap
+            // 7: [(a % b), b] pop
+            // 8: [(a % b)]
+
+
             // :: ((a % b) + a) % b
             // [a, b] swap
             // [b, a] dup2
