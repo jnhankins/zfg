@@ -22,6 +22,7 @@ public final class types {
 
   public static sealed interface Type {
     public Kind kind();
+    public default String descriptor() { return getDescriptor(this); };
     public boolean isAssignableTo(final Type type);
     @Override public int hashCode();
     @Override public boolean equals(final Object obj);
@@ -33,7 +34,7 @@ public final class types {
   public static final class UnkType implements Type {
     private UnkType() {}
     @Override public Kind kind() { return Kind.UNK; }
-    @Override public boolean isAssignableTo(final Type type) { return true; }
+    @Override public boolean isAssignableTo(final Type type) { throw new UnsupportedOperationException(); }
     @Override public int hashCode() { return System.identityHashCode(this); }
     @Override public boolean equals(final Object obj) { return this == obj; }
     @Override public String toString() { return "Unk"; }
@@ -44,7 +45,7 @@ public final class types {
   public static final class ErrType implements Type {
     private ErrType() {}
     @Override public Kind kind() { return Kind.ERR; }
-    @Override public boolean isAssignableTo(final Type type) { return false; }
+    @Override public boolean isAssignableTo(final Type type) { throw new UnsupportedOperationException(); }
     @Override public int hashCode() { return System.identityHashCode(this); }
     @Override public boolean equals(final Object obj) { return this == obj; }
     @Override public String toString() { return "Err"; }
@@ -540,5 +541,90 @@ public final class types {
       }
     }
     return rec;
+  }
+
+  private static final String getDescriptor(Type type) {
+    while (type instanceof NomType nom) type = nom.aliasedType;
+    return switch (type.kind()) {
+      case BIT -> "Z";
+      case U08 -> "B"; // no native unsigned byte type in JVM, use signed byte
+      case U16 -> "C";
+      case U32 -> "I";
+      case U64 -> "J"; // no native unsigned long type in JVM, use signed long
+      case I08 -> "B";
+      case I16 -> "S";
+      case I32 -> "I";
+      case I64 -> "J";
+      case F32 -> "F";
+      case F64 -> "D";
+      case ARR -> "[" + getArrayDescriptor(((ArrType) type).elementType);
+      case FUN -> {
+        final FunType fun = (FunType) type;
+        final StringBuilder sb = new StringBuilder();
+        sb.append("(");
+        for (int i = 0; i < fun.paramsType.types.length; i++)
+          sb.append(getErasureDescriptor(fun.paramsType.types[i]));
+        sb.append(")");
+        if (fun.returnType == Unit) sb.append("V");
+        else sb.append(getErasureDescriptor(fun.returnType));
+        yield sb.toString();
+
+      }
+      case TUP -> {
+        final TupType tup = (TupType) type;
+        final StringBuilder sb = new StringBuilder();
+        sb.append("Lzfg.Tup");
+        for (int i = 0; i < tup.types.length; i++)
+          sb.append(getErasureDescriptor(tup.types[i]));
+        sb.append(";");
+        yield sb.toString();
+      }
+      case REC -> {
+        final RecType rec = (RecType) type;
+        final StringBuilder sb = new StringBuilder();
+        sb.append("Lzfg.Rec");
+        for (int i = 0; i < rec.types.length; i++)
+          sb.append(getErasureDescriptor(rec.types[i]));
+        sb.append(";");
+        yield sb.toString();
+      }
+      case NOM -> throw new AssertionError();
+      case UNK, ERR -> throw new UnsupportedOperationException();
+    };
+  }
+
+  private static final String getArrayDescriptor(Type type) {
+    while (type instanceof NomType nom) type = nom.aliasedType;
+    return switch (type.kind()) {
+      case BIT -> "Z";
+      case U08 -> "B"; // no native unsigned byte type in JVM, use signed byte
+      case U16 -> "C";
+      case U32 -> "I";
+      case U64 -> "J"; // no native unsigned long type in JVM, use signed long
+      case I08 -> "B";
+      case I16 -> "S";
+      case I32 -> "I";
+      case I64 -> "J";
+      case F32 -> "F";
+      case F64 -> "D";
+      case ARR, TUP, REC, FUN -> "Ljava/lang/Object;";
+      case NOM -> throw new AssertionError();
+      case UNK, ERR -> throw new UnsupportedOperationException();
+    };
+  }
+
+  private static final String getErasureDescriptor(Type type) {
+    while (type instanceof NomType nom) type = nom.aliasedType;
+    return switch (type.kind()) {
+      case BIT, U08, I08 -> "B";
+      case U16, I16 -> "S";
+      case U32, I32 -> "I";
+      case U64, I64 -> "J";
+      case F32 -> "F";
+      case F64 -> "D";
+      case ARR, TUP, REC, FUN  -> "A";
+      case NOM -> throw new AssertionError();
+      case UNK, ERR -> throw new UnsupportedOperationException();
+    };
   }
 }

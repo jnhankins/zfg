@@ -1,30 +1,41 @@
 package zfg;
 
-import org.objectweb.asm.ClassVisitor;
+import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 
-import zfg.nodes.Const;
-import zfg.nodes.InfixOp;
+import zfg.nodes.BinaryExprNode;
+import zfg.nodes.ConstantExprNode;
+import zfg.nodes.FunctionDeclNode;
 import zfg.nodes.Node;
+import zfg.nodes.ReturnStmtNode;
+import zfg.nodes.VariableExprNode;
 import zfg.types.Kind;
+import zfg.types.NomType;
+import zfg.types.Type;
 
 public final class CodeGen {
-  public CodeGen() {}
-
-  private ClassVisitor cv;
+  private ClassWriter cv;
   private MethodVisitor mv;
+
+  public CodeGen() {
+    this.cv = new ClassWriter(ClassWriter.COMPUTE_MAXS & ClassWriter.COMPUTE_FRAMES);
+    this.mv = null;
+  }
 
   public void visit(final Node node) {
     switch (node) {
-      case Const   n -> visitConst(n);
-      case InfixOp n -> visitInfixOp(n);
+      case FunctionDeclNode n -> visitFunctionDecl(n);
+      case ReturnStmtNode   n -> visitReturnStmt(n);
+      case ConstantExprNode n -> visitConstantExpr(n);
+      case VariableExprNode n -> visitVariableExpr(n);
+      case BinaryExprNode   n -> visitBinaryExpr(n);
       default -> throw new AssertionError();
     }
   }
 
-  private void visitConst(final Const node) {
+  private void visitConstantExpr(final ConstantExprNode node) {
     switch (node.value) {
       case insts.BitInst inst -> visitI(inst.value);
       case insts.U08Inst inst -> visitI(inst.value);
@@ -42,13 +53,74 @@ public final class CodeGen {
     };
   }
 
-  public void visitInfixOp(final InfixOp node) {
+  private void visitFunctionDecl(final FunctionDeclNode node) {
+    assert mv == null;
+    // Create a new method visitor
+    mv = cv.visitMethod(
+      Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC | Opcodes.ACC_FINAL,
+      node.name,
+      node.type.descriptor(),
+      null,
+      null
+    );
+    // Visit the function body
+    for (int i = 0; i < node.body.length; i++) {
+      visit(node.body[i]);
+    }
+    // Finish the method
+    mv.visitInsn(Opcodes.RETURN);
+    mv.visitEnd();
+    // Reset the method visitor
+    mv = null;
+  }
+
+  private void visitReturnStmt(final ReturnStmtNode node) {
+    if (node.expr != null) visit(node.expr);
+    mv.visitInsn(Opcodes.RETURN);
+  }
+
+  private void visitVariableExpr(final VariableExprNode node) {
+    // Loads a varaible onto the stack using one of:
+    // - a static class-variable
+    //   - getstatic <indexbyte1> <indexbyte2>
+    // - a member class-variable
+    //   - getfield <indexbyte1> <indexbyte2>
+    // - a function local variable
+    //   - iload <indexbyte> | wide iload <indexbyte1> <indexbyte2>
+    //   - lload <indexbyte> | wide lload <indexbyte1> <indexbyte2>
+    //   - fload <indexbyte> | wide fload <indexbyte1> <indexbyte2>
+    //   - dload <indexbyte> | wide dload <indexbyte1> <indexbyte2>
+    //   - aload <indexbyte> | wide aload <indexbyte1> <indexbyte2>
+    switch (node.site) {
+      case VariableExprNode.Site.Static -> {
+        mv.visitFieldInsn(Opcodes.GETSTATIC, node.owner, node.name, node.type.descriptor());
+      }
+      case VariableExprNode.Site.Member -> {
+        mv.visitFieldInsn(Opcodes.GETFIELD, node.owner, node.name, node.type.descriptor());
+      }
+      case VariableExprNode.Site.Local -> {
+        Type type = node.type;
+        while (type instanceof NomType nom) type = nom.aliasedType;
+        switch (node.type.kind()) {
+          case BIT, U08, U16, U32, I08, I16, I32 -> mv.visitVarInsn(Opcodes.ILOAD, node.index);
+          case U64, I64 ->                          mv.visitVarInsn(Opcodes.LLOAD, node.index);
+          case F32 ->                               mv.visitVarInsn(Opcodes.FLOAD, node.index);
+          case F64 ->                               mv.visitVarInsn(Opcodes.DLOAD, node.index);
+          case ARR, TUP, REC, FUN ->                mv.visitVarInsn(Opcodes.ALOAD, node.index);
+          case NOM -> throw new AssertionError();
+          case UNK, ERR -> throw new UnsupportedOperationException();
+        }
+      }
+    }
+  }
+
+  private void visitBinaryExpr(final BinaryExprNode node) {
     final Kind kind = node.type.kind();
     final Node lhs = node.lhs;
     final Node rhs = node.rhs;
-    final InfixOp.Op op = node.op;
+    final BinaryExprNode.Op op = node.op;
     switch (op) {
-      case InfixOp.Op.Add -> {
+      case BinaryExprNode.Op.Add -> {
         visit(lhs);
         visit(rhs);
         switch (kind) {
@@ -65,7 +137,7 @@ public final class CodeGen {
           default -> throw new AssertionError();
         }
       }
-      case InfixOp.Op.Sub -> {
+      case BinaryExprNode.Op.Sub -> {
         visit(lhs);
         visit(rhs);
         switch (kind) {
@@ -82,7 +154,7 @@ public final class CodeGen {
           default -> throw new AssertionError();
         }
       }
-      case InfixOp.Op.Mul -> {
+      case BinaryExprNode.Op.Mul -> {
         visit(lhs);
         visit(rhs);
         switch (kind) {
@@ -99,7 +171,7 @@ public final class CodeGen {
           default -> throw new AssertionError();
         }
       }
-      case InfixOp.Op.Div -> {
+      case BinaryExprNode.Op.Div -> {
         visit(lhs);
         visit(rhs);
         switch (kind) {
@@ -116,7 +188,7 @@ public final class CodeGen {
           default -> throw new AssertionError();
         }
       }
-      case InfixOp.Op.Rem -> {
+      case BinaryExprNode.Op.Rem -> {
         visit(lhs);
         visit(rhs);
         switch (kind) {
@@ -133,7 +205,7 @@ public final class CodeGen {
           default -> throw new AssertionError();
         }
       }
-      case InfixOp.Op.Mod -> {
+      case BinaryExprNode.Op.Mod -> {
         // TODO revisit this
         visit(lhs);
         visit(rhs);
@@ -171,7 +243,7 @@ public final class CodeGen {
           default -> throw new AssertionError();
         }
       }
-      case InfixOp.Op.And -> {
+      case BinaryExprNode.Op.And -> {
         visit(lhs);
         visit(rhs);
         switch (kind) {
@@ -187,7 +259,7 @@ public final class CodeGen {
           default -> throw new AssertionError();
         }
       }
-      case InfixOp.Op.Ior -> {
+      case BinaryExprNode.Op.Ior -> {
         visit(lhs);
         visit(rhs);
         switch (kind) {
@@ -203,7 +275,7 @@ public final class CodeGen {
           default -> throw new AssertionError();
         }
       }
-      case InfixOp.Op.Xor -> {
+      case BinaryExprNode.Op.Xor -> {
         visit(lhs);
         visit(rhs);
         switch (kind) {
@@ -219,7 +291,7 @@ public final class CodeGen {
           default -> throw new AssertionError();
         }
       }
-      case InfixOp.Op.Shl -> {
+      case BinaryExprNode.Op.Shl -> {
         visit(lhs);
         visit(rhs);
         switch (kind) {
@@ -234,7 +306,7 @@ public final class CodeGen {
           default -> throw new AssertionError();
         }
       }
-      case InfixOp.Op.Shr -> {
+      case BinaryExprNode.Op.Shr -> {
         visit(lhs);
         visit(rhs);
         switch (kind) {
@@ -249,7 +321,7 @@ public final class CodeGen {
           default -> throw new AssertionError();
         }
       }
-      case InfixOp.Op.Cmp -> {
+      case BinaryExprNode.Op.Cmp -> {
         visit(lhs);
         visit(rhs);
         switch (kind) {
@@ -268,14 +340,14 @@ public final class CodeGen {
         }
       }
 
-      case InfixOp.Op.Eql -> visitConditionalOp(op, kind, lhs, rhs, this::visitI1, this::visitI0);
-      case InfixOp.Op.Neq -> visitConditionalOp(op, kind, lhs, rhs, this::visitI1, this::visitI0);
-      case InfixOp.Op.Ltn -> visitConditionalOp(op, kind, lhs, rhs, this::visitI1, this::visitI0);
-      case InfixOp.Op.Leq -> visitConditionalOp(op, kind, lhs, rhs, this::visitI1, this::visitI0);
-      case InfixOp.Op.Gtn -> visitConditionalOp(op, kind, lhs, rhs, this::visitI1, this::visitI0);
-      case InfixOp.Op.Geq -> visitConditionalOp(op, kind, lhs, rhs, this::visitI1, this::visitI0);
-      case InfixOp.Op.Lcj -> visitConditionalOp(op, kind, lhs, rhs, this::visitI1, this::visitI0);
-      case InfixOp.Op.Ldj -> visitConditionalOp(op, kind, lhs, rhs, this::visitI1, this::visitI0);
+      case BinaryExprNode.Op.Eql -> visitConditionalOp(op, kind, lhs, rhs, this::visitI1, this::visitI0);
+      case BinaryExprNode.Op.Neq -> visitConditionalOp(op, kind, lhs, rhs, this::visitI1, this::visitI0);
+      case BinaryExprNode.Op.Ltn -> visitConditionalOp(op, kind, lhs, rhs, this::visitI1, this::visitI0);
+      case BinaryExprNode.Op.Leq -> visitConditionalOp(op, kind, lhs, rhs, this::visitI1, this::visitI0);
+      case BinaryExprNode.Op.Gtn -> visitConditionalOp(op, kind, lhs, rhs, this::visitI1, this::visitI0);
+      case BinaryExprNode.Op.Geq -> visitConditionalOp(op, kind, lhs, rhs, this::visitI1, this::visitI0);
+      case BinaryExprNode.Op.Lcj -> visitConditionalOp(op, kind, lhs, rhs, this::visitI1, this::visitI0);
+      case BinaryExprNode.Op.Ldj -> visitConditionalOp(op, kind, lhs, rhs, this::visitI1, this::visitI0);
       default -> throw new AssertionError();
     }
   }
@@ -286,8 +358,8 @@ public final class CodeGen {
 
   // Note -> Assumes stack -> ..., lhs, rhs
   private void visitConditionalOp(
-    final InfixOp.Op op,
-    final types.Kind kind,
+    final BinaryExprNode.Op op,
+    final Kind kind,
     final Node       lhs,
     final Node       rhs,
     final Runnable   visitThen,
@@ -299,7 +371,7 @@ public final class CodeGen {
     final Label elseLabel = visitElse == null ? doneLabel : new Label();
 
     switch (op) {
-      case InfixOp.Op.Eql -> { // if a == b then <true> else <false>;
+      case BinaryExprNode.Op.Eql -> { // if a == b then <true> else <false>;
         visit(lhs);
         visit(rhs);
         switch (kind) {
@@ -317,7 +389,7 @@ public final class CodeGen {
           default -> throw new AssertionError();
         }
       }
-      case InfixOp.Op.Neq -> { // if a != b then <true> else <false>;
+      case BinaryExprNode.Op.Neq -> { // if a != b then <true> else <false>;
         visit(lhs);
         visit(rhs);
         switch (kind) {
@@ -335,7 +407,7 @@ public final class CodeGen {
           default -> throw new AssertionError();
         }
       }
-      case InfixOp.Op.Ltn -> { // if a < b then <true> else <false>;
+      case BinaryExprNode.Op.Ltn -> { // if a < b then <true> else <false>;
         visit(lhs);
         visit(rhs);
         switch (kind) {
@@ -353,7 +425,7 @@ public final class CodeGen {
           default -> throw new AssertionError();
         }
       }
-      case InfixOp.Op.Leq -> { // if a <= b then <true> else <false>;
+      case BinaryExprNode.Op.Leq -> { // if a <= b then <true> else <false>;
         visit(lhs);
         visit(rhs);
         switch (kind) {
@@ -371,7 +443,7 @@ public final class CodeGen {
           default -> throw new AssertionError();
         }
       }
-      case InfixOp.Op.Gtn -> { // if a > b then <true> else <false>;
+      case BinaryExprNode.Op.Gtn -> { // if a > b then <true> else <false>;
         visit(lhs);
         visit(rhs);
         switch (kind) {
@@ -389,7 +461,7 @@ public final class CodeGen {
           default -> throw new AssertionError();
         }
       }
-      case InfixOp.Op.Geq -> { // if a >= b then <true> else <false>;
+      case BinaryExprNode.Op.Geq -> { // if a >= b then <true> else <false>;
         visit(lhs);
         visit(rhs);
         switch (kind) {
@@ -407,7 +479,7 @@ public final class CodeGen {
           default -> throw new AssertionError();
         }
       }
-      case InfixOp.Op.Lcj -> { // if a && b then <true> else <false>;
+      case BinaryExprNode.Op.Lcj -> { // if a && b then <true> else <false>;
         switch(kind) {
           case BIT -> {
             visit(lhs); mv.visitJumpInsn(Opcodes.IFEQ, elseLabel);
@@ -416,7 +488,7 @@ public final class CodeGen {
           default -> throw new AssertionError();
         }
       }
-      case InfixOp.Op.Ldj -> { // if a || b then <true> else <false>;
+      case BinaryExprNode.Op.Ldj -> { // if a || b then <true> else <false>;
         switch(kind) {
           case BIT -> {
             final Label thenLabel = new Label();
@@ -470,15 +542,16 @@ public final class CodeGen {
     if (0xFFFFFFFF <= i32 && i32 <= 0x00000005) { mv.visitInsn(Opcodes.ICONST_0 + i32); return; }
     if (0xFFFFFF80 <= i32 && i32 <= 0x0000007F) { mv.visitIntInsn(Opcodes.BIPUSH, i32); return; }
     if (0xFFFF8000 <= i32 && i32 <= 0x00007FFF) { mv.visitIntInsn(Opcodes.SIPUSH, i32); return; }
-    mv.visitLdcInsn(Integer.valueOf(i32));
+    mv.visitLdcInsn(i32);
   }
 
   private void visitL(final long i64) {
     if (i64 == 0x0000000000000000L) { mv.visitInsn(Opcodes.LCONST_0); return; }
     if (i64 == 0x0000000000000001L) { mv.visitInsn(Opcodes.LCONST_1); return; }
+    if (0xFFFFFFFFFFFFFFFFL <= i64 && i64 <= 0x0000000000000005L) { mv.visitInsn(Opcodes.ICONST_0 + (int)i64); mv.visitInsn(Opcodes.I2L); return; }
     if (0xFFFFFFFFFFFFFF80L <= i64 && i64 <= 0x000000000000007FL) { mv.visitIntInsn(Opcodes.BIPUSH, (int)i64); mv.visitInsn(Opcodes.I2L); return; }
     if (0xFFFFFFFFFFFF8000L <= i64 && i64 <= 0x0000000000007FFFL) { mv.visitIntInsn(Opcodes.SIPUSH, (int)i64); mv.visitInsn(Opcodes.I2L); return; }
-    mv.visitLdcInsn(Long.valueOf(i64));
+    mv.visitLdcInsn(i64);
   }
 
   private void visitF(final float f32) {
@@ -486,24 +559,24 @@ public final class CodeGen {
     if (f32 == 1.0f) { mv.visitInsn(Opcodes.FCONST_1); return; }
     if (f32 == 2.0f) { mv.visitInsn(Opcodes.FCONST_2); return; }
     final int i32 = (int) f32;
-    if (i32 == f32) {
+    if (f32 == (float) i32) {
       if (0xFFFFFFFF <= i32 && i32 <= 0x00000005) { mv.visitInsn(Opcodes.ICONST_0 + i32); mv.visitInsn(Opcodes.I2F); return; }
       if (0xFFFFFF80 <= i32 && i32 <= 0x0000007F) { mv.visitIntInsn(Opcodes.BIPUSH, i32); mv.visitInsn(Opcodes.I2F); return; }
       if (0xFFFF8000 <= i32 && i32 <= 0x00007FFF) { mv.visitIntInsn(Opcodes.SIPUSH, i32); mv.visitInsn(Opcodes.I2F); return; }
     }
-    mv.visitLdcInsn(Float.valueOf(f32));
+    mv.visitLdcInsn(f32);
   }
 
   private void visitD(final double f64) {
     if (f64 == 0.0) { mv.visitInsn(Opcodes.DCONST_0); return; }
     if (f64 == 1.0) { mv.visitInsn(Opcodes.DCONST_1); return; }
     final int i32 = (int) f64;
-    if (i32 == f64) {
+    if (f64 == (double) i32) {
       if (0xFFFFFFFF <= i32 && i32 <= 0x00000005) { mv.visitInsn(Opcodes.ICONST_0 + i32); mv.visitInsn(Opcodes.I2D); return; }
       if (0xFFFFFF80 <= i32 && i32 <= 0x0000007F) { mv.visitIntInsn(Opcodes.BIPUSH, i32); mv.visitInsn(Opcodes.I2D); return; }
       if (0xFFFF8000 <= i32 && i32 <= 0x00007FFF) { mv.visitIntInsn(Opcodes.SIPUSH, i32); mv.visitInsn(Opcodes.I2D); return; }
     }
-    mv.visitLdcInsn(Double.valueOf(f64));
+    mv.visitLdcInsn(f64);
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////
