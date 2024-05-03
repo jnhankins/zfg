@@ -1,4 +1,4 @@
-package zfg;
+package golf;
 
 import java.io.FileDescriptor;
 import java.io.FileOutputStream;

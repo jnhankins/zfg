@@ -1,4 +1,4 @@
-package zfg;
+package golf;
 
 public class golf2 {
   static int H = 0;

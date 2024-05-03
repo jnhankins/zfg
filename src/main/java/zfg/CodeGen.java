@@ -5,7 +5,10 @@ import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 
+import zfg.nodes.Const;
+import zfg.nodes.InfixOp;
 import zfg.nodes.Node;
+import zfg.types.Kind;
 
 public final class CodeGen {
   public CodeGen() {}
@@ -14,29 +17,471 @@ public final class CodeGen {
   private MethodVisitor mv;
 
   public void visit(final Node node) {
-    node.accept(this);
+    switch (node) {
+      case Const   n -> visitConst(n);
+      case InfixOp n -> visitInfixOp(n);
+      default -> throw new AssertionError();
+    }
   }
 
-  public void pushI(final int i32) {
-    mv.visitMaxs(i32, i32);
-    assert mv != null;
+  private void visitConst(final Const node) {
+    switch (node.value) {
+      case insts.BitInst inst -> visitI(inst.value);
+      case insts.U08Inst inst -> visitI(inst.value);
+      case insts.U16Inst inst -> visitI(inst.value);
+      case insts.U32Inst inst -> visitI(inst.value);
+      case insts.U64Inst inst -> visitL(inst.value);
+      case insts.I08Inst inst -> visitI(inst.value);
+      case insts.I16Inst inst -> visitI(inst.value);
+      case insts.I32Inst inst -> visitI(inst.value);
+      case insts.I64Inst inst -> visitL(inst.value);
+      case insts.F32Inst inst -> visitF(inst.value);
+      case insts.F64Inst inst -> visitD(inst.value);
+      // TODO arr, tup, rec, fun, etc.
+      default -> throw new AssertionError();
+    };
+  }
+
+  public void visitInfixOp(final InfixOp node) {
+    final Kind kind = node.type.kind();
+    final Node lhs = node.lhs;
+    final Node rhs = node.rhs;
+    final InfixOp.Op op = node.op;
+    switch (op) {
+      case InfixOp.Op.Add -> {
+        visit(lhs);
+        visit(rhs);
+        switch (kind) {
+          case U08 -> { mv.visitInsn(Opcodes.IADD); visit_i2u08(); }
+          case U16 -> { mv.visitInsn(Opcodes.IADD); visit_i2u16(); }
+          case U32 -> { mv.visitInsn(Opcodes.IADD); }
+          case U64 -> { mv.visitInsn(Opcodes.LADD); }
+          case I08 -> { mv.visitInsn(Opcodes.IADD); visit_i2i08(); }
+          case I16 -> { mv.visitInsn(Opcodes.IADD); visit_i2i16(); }
+          case I32 -> { mv.visitInsn(Opcodes.IADD); }
+          case I64 -> { mv.visitInsn(Opcodes.LADD); }
+          case F32 -> { mv.visitInsn(Opcodes.FADD); }
+          case F64 -> { mv.visitInsn(Opcodes.DADD); }
+          default -> throw new AssertionError();
+        }
+      }
+      case InfixOp.Op.Sub -> {
+        visit(lhs);
+        visit(rhs);
+        switch (kind) {
+          case U08 -> { mv.visitInsn(Opcodes.ISUB); visit_i2u08(); }
+          case U16 -> { mv.visitInsn(Opcodes.ISUB); visit_i2u16(); }
+          case U32 -> { mv.visitInsn(Opcodes.ISUB); }
+          case U64 -> { mv.visitInsn(Opcodes.LSUB); }
+          case I08 -> { mv.visitInsn(Opcodes.ISUB); visit_i2i08(); }
+          case I16 -> { mv.visitInsn(Opcodes.ISUB); visit_i2i16(); }
+          case I32 -> { mv.visitInsn(Opcodes.ISUB); }
+          case I64 -> { mv.visitInsn(Opcodes.LSUB); }
+          case F32 -> { mv.visitInsn(Opcodes.FSUB); }
+          case F64 -> { mv.visitInsn(Opcodes.DSUB); }
+          default -> throw new AssertionError();
+        }
+      }
+      case InfixOp.Op.Mul -> {
+        visit(lhs);
+        visit(rhs);
+        switch (kind) {
+          case U08 -> { mv.visitInsn(Opcodes.IMUL); visit_i2u08(); }
+          case U16 -> { mv.visitInsn(Opcodes.IMUL); visit_i2u16(); }
+          case U32 -> { mv.visitInsn(Opcodes.IMUL); }
+          case U64 -> { mv.visitInsn(Opcodes.LMUL); }
+          case I08 -> { mv.visitInsn(Opcodes.IMUL); visit_i2i08(); }
+          case I16 -> { mv.visitInsn(Opcodes.IMUL); visit_i2i16(); }
+          case I32 -> { mv.visitInsn(Opcodes.IMUL); }
+          case I64 -> { mv.visitInsn(Opcodes.LMUL); }
+          case F32 -> { mv.visitInsn(Opcodes.FMUL); }
+          case F64 -> { mv.visitInsn(Opcodes.DMUL); }
+          default -> throw new AssertionError();
+        }
+      }
+      case InfixOp.Op.Div -> {
+        visit(lhs);
+        visit(rhs);
+        switch (kind) {
+          case U08 -> mv.visitInsn(Opcodes.IDIV);
+          case U16 -> mv.visitInsn(Opcodes.IDIV);
+          case U32 -> visit_divideUnsigned_i();
+          case U64 -> visit_divideUnsigned_l();
+          case I08 -> mv.visitInsn(Opcodes.IDIV);
+          case I16 -> mv.visitInsn(Opcodes.IDIV);
+          case I32 -> mv.visitInsn(Opcodes.IDIV);
+          case I64 -> mv.visitInsn(Opcodes.LDIV);
+          case F32 -> mv.visitInsn(Opcodes.FDIV);
+          case F64 -> mv.visitInsn(Opcodes.DDIV);
+          default -> throw new AssertionError();
+        }
+      }
+      case InfixOp.Op.Rem -> {
+        visit(lhs);
+        visit(rhs);
+        switch (kind) {
+          case U08 -> mv.visitInsn(Opcodes.IREM);
+          case U16 -> mv.visitInsn(Opcodes.IREM);
+          case U32 -> visit_remainderUnsigned_i();
+          case U64 -> visit_remainderUnsigned_l();
+          case I08 -> mv.visitInsn(Opcodes.IREM);
+          case I16 -> mv.visitInsn(Opcodes.IREM);
+          case I32 -> mv.visitInsn(Opcodes.IREM);
+          case I64 -> mv.visitInsn(Opcodes.LREM);
+          case F32 -> mv.visitInsn(Opcodes.FREM);
+          case F64 -> mv.visitInsn(Opcodes.DREM);
+          default -> throw new AssertionError();
+        }
+      }
+      case InfixOp.Op.Mod -> {
+        // TODO revisit this
+        visit(lhs);
+        visit(rhs);
+        switch (kind) {
+          case U08 -> mv.visitInsn(Opcodes.IREM);
+          case U16 -> mv.visitInsn(Opcodes.IREM);
+          case U32 -> visit_remainderUnsigned_i();
+          case U64 -> visit_remainderUnsigned_l();
+          case I08 -> visit_floorMod_i();
+          case I16 -> visit_floorMod_i();
+          case I32 -> visit_floorMod_i();
+          case I64 -> visit_floorMod_l();
+          case F32 -> { // a mod b = a - b * floor(a / b)
+            visit(lhs);                    // Stack -> ..., a
+            visit(rhs);                    // Stack -> ..., a, b
+            mv.visitInsn(Opcodes.DUP2_X2); // Stack -> ..., a, b, a, b
+            mv.visitInsn(Opcodes.FDIV);    // Stack -> ..., a, b, (a / b)
+            mv.visitInsn(Opcodes.F2D);     // Stack -> ..., a, b, (a / b)
+            mv.visitMethodInsn(Opcodes.INVOKESTATIC, "java/lang/Math", "floor", "(D)D", false);
+            mv.visitInsn(Opcodes.D2F);     // Stack -> ..., a, b, floor(a / b)
+            mv.visitInsn(Opcodes.I2F);     // Stack -> ..., a, b, floor(a / b)
+            mv.visitInsn(Opcodes.FMUL);    // Stack -> ..., a, (b * floor(a / b))
+            mv.visitInsn(Opcodes.FSUB);    // Stack -> ..., (a - b * floor(a / b))
+          }
+          case F64 -> { // a mod b = a - b * floor(a / b)
+            visit(lhs);                    // Stack -> ..., a
+            mv.visitInsn(Opcodes.DUP2);    // Stack -> ..., a, a
+            visit(rhs);                    // Stack -> ..., a, a, b
+            mv.visitInsn(Opcodes.DUP2_X2); // Stack -> ..., a, b, a, b
+            mv.visitInsn(Opcodes.FDIV);    // Stack -> ..., a, b, (a / b)
+            mv.visitMethodInsn(Opcodes.INVOKESTATIC, "java/lang/Math", "floor", "(D)D", false);
+            mv.visitInsn(Opcodes.DMUL);    // Stack -> ..., a, (b * floor(a / b))
+            mv.visitInsn(Opcodes.DSUB);    // Stack -> ..., (a - b * floor(a / b))
+          }
+          default -> throw new AssertionError();
+        }
+      }
+      case InfixOp.Op.And -> {
+        visit(lhs);
+        visit(rhs);
+        switch (kind) {
+          case BIT -> mv.visitInsn(Opcodes.IAND);
+          case U08 -> mv.visitInsn(Opcodes.IAND);
+          case U16 -> mv.visitInsn(Opcodes.IAND);
+          case U32 -> mv.visitInsn(Opcodes.IAND);
+          case U64 -> mv.visitInsn(Opcodes.LAND);
+          case I08 -> mv.visitInsn(Opcodes.IAND);
+          case I16 -> mv.visitInsn(Opcodes.IAND);
+          case I32 -> mv.visitInsn(Opcodes.IAND);
+          case I64 -> mv.visitInsn(Opcodes.LAND);
+          default -> throw new AssertionError();
+        }
+      }
+      case InfixOp.Op.Ior -> {
+        visit(lhs);
+        visit(rhs);
+        switch (kind) {
+          case BIT -> mv.visitInsn(Opcodes.IOR);
+          case U08 -> mv.visitInsn(Opcodes.IOR);
+          case U16 -> mv.visitInsn(Opcodes.IOR);
+          case U32 -> mv.visitInsn(Opcodes.IOR);
+          case U64 -> mv.visitInsn(Opcodes.LOR);
+          case I08 -> mv.visitInsn(Opcodes.IOR);
+          case I16 -> mv.visitInsn(Opcodes.IOR);
+          case I32 -> mv.visitInsn(Opcodes.IOR);
+          case I64 -> mv.visitInsn(Opcodes.LOR);
+          default -> throw new AssertionError();
+        }
+      }
+      case InfixOp.Op.Xor -> {
+        visit(lhs);
+        visit(rhs);
+        switch (kind) {
+          case BIT -> mv.visitInsn(Opcodes.IXOR);
+          case U08 -> mv.visitInsn(Opcodes.IXOR);
+          case U16 -> mv.visitInsn(Opcodes.IXOR);
+          case U32 -> mv.visitInsn(Opcodes.IXOR);
+          case U64 -> mv.visitInsn(Opcodes.LXOR);
+          case I08 -> mv.visitInsn(Opcodes.IXOR);
+          case I16 -> mv.visitInsn(Opcodes.IXOR);
+          case I32 -> mv.visitInsn(Opcodes.IXOR);
+          case I64 -> mv.visitInsn(Opcodes.LXOR);
+          default -> throw new AssertionError();
+        }
+      }
+      case InfixOp.Op.Shl -> {
+        visit(lhs);
+        visit(rhs);
+        switch (kind) {
+          case U08 -> { mv.visitInsn(Opcodes.ISHL); visit_i2u08(); }
+          case U16 -> { mv.visitInsn(Opcodes.ISHL); visit_i2u16(); }
+          case U32 -> { mv.visitInsn(Opcodes.ISHL); }
+          case U64 -> { mv.visitInsn(Opcodes.LSHL); }
+          case I08 -> { mv.visitInsn(Opcodes.ISHL); visit_i2i08(); }
+          case I16 -> { mv.visitInsn(Opcodes.ISHL); visit_i2i16(); }
+          case I32 -> { mv.visitInsn(Opcodes.ISHL); }
+          case I64 -> { mv.visitInsn(Opcodes.LSHL); }
+          default -> throw new AssertionError();
+        }
+      }
+      case InfixOp.Op.Shr -> {
+        visit(lhs);
+        visit(rhs);
+        switch (kind) {
+          case U08 -> mv.visitInsn(Opcodes.ISHR);
+          case U16 -> mv.visitInsn(Opcodes.ISHR);
+          case U32 -> mv.visitInsn(Opcodes.ISHR);
+          case U64 -> mv.visitInsn(Opcodes.LSHR);
+          case I08 -> mv.visitInsn(Opcodes.ISHR);
+          case I16 -> mv.visitInsn(Opcodes.ISHR);
+          case I32 -> mv.visitInsn(Opcodes.ISHR);
+          case I64 -> mv.visitInsn(Opcodes.LSHR);
+          default -> throw new AssertionError();
+        }
+      }
+      case InfixOp.Op.Cmp -> {
+        visit(lhs);
+        visit(rhs);
+        switch (kind) {
+          case BIT -> mv.visitInsn(Opcodes.ISUB);
+          case U08 -> visit_compare_i();
+          case U16 -> visit_compare_i();
+          case U32 -> visit_compareUnsigned_i();
+          case U64 -> visit_compareUnsigned_l();
+          case I08 -> visit_compare_i();
+          case I16 -> visit_compare_i();
+          case I32 -> visit_compare_i();
+          case I64 -> mv.visitInsn(Opcodes.LCMP );
+          case F32 -> mv.visitInsn(Opcodes.FCMPL); // NaN <=> 3.1 => -1
+          case F64 -> mv.visitInsn(Opcodes.DCMPL); // NaN <=> NaN => -1
+          default -> throw new AssertionError();
+        }
+      }
+
+      case InfixOp.Op.Eql -> visitConditionalOp(op, kind, lhs, rhs, this::visitI1, this::visitI0);
+      case InfixOp.Op.Neq -> visitConditionalOp(op, kind, lhs, rhs, this::visitI1, this::visitI0);
+      case InfixOp.Op.Ltn -> visitConditionalOp(op, kind, lhs, rhs, this::visitI1, this::visitI0);
+      case InfixOp.Op.Leq -> visitConditionalOp(op, kind, lhs, rhs, this::visitI1, this::visitI0);
+      case InfixOp.Op.Gtn -> visitConditionalOp(op, kind, lhs, rhs, this::visitI1, this::visitI0);
+      case InfixOp.Op.Geq -> visitConditionalOp(op, kind, lhs, rhs, this::visitI1, this::visitI0);
+      case InfixOp.Op.Lcj -> visitConditionalOp(op, kind, lhs, rhs, this::visitI1, this::visitI0);
+      case InfixOp.Op.Ldj -> visitConditionalOp(op, kind, lhs, rhs, this::visitI1, this::visitI0);
+      default -> throw new AssertionError();
+    }
+  }
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+  // Conditional
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+
+  // Note -> Assumes stack -> ..., lhs, rhs
+  private void visitConditionalOp(
+    final InfixOp.Op op,
+    final types.Kind kind,
+    final Node       lhs,
+    final Node       rhs,
+    final Runnable   visitThen,
+    final Runnable   visitElse // <-- Optional
+  ) {
+    assert op != null && kind != null && lhs != null && rhs != null && visitThen != null;
+
+    final Label doneLabel = new Label();
+    final Label elseLabel = visitElse == null ? doneLabel : new Label();
+
+    switch (op) {
+      case InfixOp.Op.Eql -> { // if a == b then <true> else <false>;
+        visit(lhs);
+        visit(rhs);
+        switch (kind) {
+          case BIT -> { mv.visitJumpInsn(Opcodes.IF_ICMPNE, elseLabel); }
+          case U08 -> { mv.visitJumpInsn(Opcodes.IF_ICMPNE, elseLabel); }
+          case U16 -> { mv.visitJumpInsn(Opcodes.IF_ICMPNE, elseLabel); }
+          case U32 -> { mv.visitJumpInsn(Opcodes.IF_ICMPNE, elseLabel); }
+          case U64 -> { mv.visitInsn(Opcodes.LCMP); mv.visitJumpInsn(Opcodes.IFNE, elseLabel); }
+          case I08 -> { mv.visitJumpInsn(Opcodes.IF_ICMPNE, elseLabel); }
+          case I16 -> { mv.visitJumpInsn(Opcodes.IF_ICMPNE, elseLabel); }
+          case I32 -> { mv.visitJumpInsn(Opcodes.IF_ICMPNE, elseLabel); }
+          case I64 -> { mv.visitInsn(Opcodes.LCMP ); mv.visitJumpInsn(Opcodes.IFNE, elseLabel); }
+          case F32 -> { mv.visitInsn(Opcodes.FCMPL); mv.visitJumpInsn(Opcodes.IFNE, elseLabel); } // NaN == 3.1 => (NaN ->-1) != 0 ? 0 : 1 => 0
+          case F64 -> { mv.visitInsn(Opcodes.DCMPL); mv.visitJumpInsn(Opcodes.IFNE, elseLabel); } // NaN == NaN => (NaN ->-1) != 0 ? 0 : 1 => 0
+          default -> throw new AssertionError();
+        }
+      }
+      case InfixOp.Op.Neq -> { // if a != b then <true> else <false>;
+        visit(lhs);
+        visit(rhs);
+        switch (kind) {
+          case BIT -> { mv.visitJumpInsn(Opcodes.IF_ICMPEQ, elseLabel); }
+          case U08 -> { mv.visitJumpInsn(Opcodes.IF_ICMPEQ, elseLabel); }
+          case U16 -> { mv.visitJumpInsn(Opcodes.IF_ICMPEQ, elseLabel); }
+          case U32 -> { mv.visitJumpInsn(Opcodes.IF_ICMPEQ, elseLabel); }
+          case U64 -> { mv.visitInsn(Opcodes.LCMP); mv.visitJumpInsn(Opcodes.IFEQ, elseLabel); }
+          case I08 -> { mv.visitJumpInsn(Opcodes.IF_ICMPEQ, elseLabel); }
+          case I16 -> { mv.visitJumpInsn(Opcodes.IF_ICMPEQ, elseLabel); }
+          case I32 -> { mv.visitJumpInsn(Opcodes.IF_ICMPEQ, elseLabel); }
+          case I64 -> { mv.visitInsn(Opcodes.LCMP ); mv.visitJumpInsn(Opcodes.IFEQ, elseLabel); }
+          case F32 -> { mv.visitInsn(Opcodes.FCMPL); mv.visitJumpInsn(Opcodes.IFEQ, elseLabel); } // NaN != 3.1 => (NaN ->-1) == 0 ? 0 : 1 => 1
+          case F64 -> { mv.visitInsn(Opcodes.DCMPL); mv.visitJumpInsn(Opcodes.IFEQ, elseLabel); } // NaN != NaN => (NaN ->-1) == 0 ? 0 : 1 => 1
+          default -> throw new AssertionError();
+        }
+      }
+      case InfixOp.Op.Ltn -> { // if a < b then <true> else <false>;
+        visit(lhs);
+        visit(rhs);
+        switch (kind) {
+          case BIT -> { mv.visitJumpInsn(Opcodes.IF_ICMPGE, elseLabel); }
+          case U08 -> { mv.visitJumpInsn(Opcodes.IF_ICMPGE, elseLabel); }
+          case U16 -> { mv.visitJumpInsn(Opcodes.IF_ICMPGE, elseLabel); }
+          case U32 -> { visit_compareUnsigned_i(); mv.visitJumpInsn(Opcodes.IFGE, elseLabel); }
+          case U64 -> { visit_compareUnsigned_l(); mv.visitJumpInsn(Opcodes.IFGE, elseLabel); }
+          case I08 -> { mv.visitJumpInsn(Opcodes.IF_ICMPGE, elseLabel); }
+          case I16 -> { mv.visitJumpInsn(Opcodes.IF_ICMPGE, elseLabel); }
+          case I32 -> { mv.visitJumpInsn(Opcodes.IF_ICMPGE, elseLabel); }
+          case I64 -> { mv.visitInsn(Opcodes.LCMP ); mv.visitJumpInsn(Opcodes.IFGE, elseLabel); }
+          case F32 -> { mv.visitInsn(Opcodes.FCMPG); mv.visitJumpInsn(Opcodes.IFGE, elseLabel); } // NaN < 3.1 => (NaN ->+1) >= 0 ? 0 : 1 => 0
+          case F64 -> { mv.visitInsn(Opcodes.DCMPG); mv.visitJumpInsn(Opcodes.IFGE, elseLabel); } // NaN < NaN => (NaN ->+1) >= 0 ? 0 : 1 => 0
+          default -> throw new AssertionError();
+        }
+      }
+      case InfixOp.Op.Leq -> { // if a <= b then <true> else <false>;
+        visit(lhs);
+        visit(rhs);
+        switch (kind) {
+          case BIT -> { mv.visitJumpInsn(Opcodes.IF_ICMPGT, elseLabel); }
+          case U08 -> { mv.visitJumpInsn(Opcodes.IF_ICMPGT, elseLabel); }
+          case U16 -> { mv.visitJumpInsn(Opcodes.IF_ICMPGT, elseLabel); }
+          case U32 -> { visit_compareUnsigned_i(); mv.visitJumpInsn(Opcodes.IFGT, elseLabel); }
+          case U64 -> { visit_compareUnsigned_l(); mv.visitJumpInsn(Opcodes.IFGT, elseLabel); }
+          case I08 -> { mv.visitJumpInsn(Opcodes.IF_ICMPGT, elseLabel); }
+          case I16 -> { mv.visitJumpInsn(Opcodes.IF_ICMPGT, elseLabel); }
+          case I32 -> { mv.visitJumpInsn(Opcodes.IF_ICMPGT, elseLabel); }
+          case I64 -> { mv.visitInsn(Opcodes.LCMP ); mv.visitJumpInsn(Opcodes.IFGT, elseLabel); }
+          case F32 -> { mv.visitInsn(Opcodes.FCMPG); mv.visitJumpInsn(Opcodes.IFGT, elseLabel); } // NaN <= 3.1 => (NaN ->+1) > 0 ? 0 : 1 => 0
+          case F64 -> { mv.visitInsn(Opcodes.FCMPG); mv.visitJumpInsn(Opcodes.IFGT, elseLabel); } // NaN <= NaN => (NaN ->+1) > 0 ? 0 : 1 => 0
+          default -> throw new AssertionError();
+        }
+      }
+      case InfixOp.Op.Gtn -> { // if a > b then <true> else <false>;
+        visit(lhs);
+        visit(rhs);
+        switch (kind) {
+          case BIT -> { mv.visitJumpInsn(Opcodes.IF_ICMPLE, elseLabel); }
+          case U08 -> { mv.visitJumpInsn(Opcodes.IF_ICMPLE, elseLabel); }
+          case U16 -> { mv.visitJumpInsn(Opcodes.IF_ICMPLE, elseLabel); }
+          case U32 -> { visit_compareUnsigned_i(); mv.visitJumpInsn(Opcodes.IFLE, elseLabel); }
+          case U64 -> { visit_compareUnsigned_l(); mv.visitJumpInsn(Opcodes.IFLE, elseLabel); }
+          case I08 -> { mv.visitJumpInsn(Opcodes.IF_ICMPLE, elseLabel); }
+          case I16 -> { mv.visitJumpInsn(Opcodes.IF_ICMPLE, elseLabel); }
+          case I32 -> { mv.visitJumpInsn(Opcodes.IF_ICMPLE, elseLabel); }
+          case I64 -> { mv.visitInsn(Opcodes.LCMP ); mv.visitJumpInsn(Opcodes.IFLE, elseLabel); }
+          case F32 -> { mv.visitInsn(Opcodes.FCMPL); mv.visitJumpInsn(Opcodes.IFLE, elseLabel); } // NaN > 3.1 => (NaN ->-1) <= 0 ? 0 : 1 => 0
+          case F64 -> { mv.visitInsn(Opcodes.DCMPL); mv.visitJumpInsn(Opcodes.IFLE, elseLabel); } // NaN > NaN => (NaN ->-1) <= 0 ? 0 : 1 => 0
+          default -> throw new AssertionError();
+        }
+      }
+      case InfixOp.Op.Geq -> { // if a >= b then <true> else <false>;
+        visit(lhs);
+        visit(rhs);
+        switch (kind) {
+          case BIT -> { mv.visitJumpInsn(Opcodes.IF_ICMPLT, elseLabel); }
+          case U08 -> { mv.visitJumpInsn(Opcodes.IF_ICMPLT, elseLabel); }
+          case U16 -> { mv.visitJumpInsn(Opcodes.IF_ICMPLT, elseLabel); }
+          case U32 -> { visit_compareUnsigned_i(); mv.visitJumpInsn(Opcodes.IFLT, elseLabel); }
+          case U64 -> { visit_compareUnsigned_l(); mv.visitJumpInsn(Opcodes.IFLT, elseLabel); }
+          case I08 -> { mv.visitJumpInsn(Opcodes.IF_ICMPLT, elseLabel); }
+          case I16 -> { mv.visitJumpInsn(Opcodes.IF_ICMPLT, elseLabel); }
+          case I32 -> { mv.visitJumpInsn(Opcodes.IF_ICMPLT, elseLabel); }
+          case I64 -> { mv.visitInsn(Opcodes.LCMP ); mv.visitJumpInsn(Opcodes.IFLT, elseLabel); }
+          case F32 -> { mv.visitInsn(Opcodes.FCMPL); mv.visitJumpInsn(Opcodes.IFLT, elseLabel); } // NaN >= 3.1 => (NaN ->-1) < 0 ? 0 : 1 => 0
+          case F64 -> { mv.visitInsn(Opcodes.DCMPL); mv.visitJumpInsn(Opcodes.IFLT, elseLabel); } // NaN >= NaN => (NaN ->-1) < 0 ? 0 : 1 => 0
+          default -> throw new AssertionError();
+        }
+      }
+      case InfixOp.Op.Lcj -> { // if a && b then <true> else <false>;
+        switch(kind) {
+          case BIT -> {
+            visit(lhs); mv.visitJumpInsn(Opcodes.IFEQ, elseLabel);
+            visit(rhs); mv.visitJumpInsn(Opcodes.IFEQ, elseLabel);
+          }
+          default -> throw new AssertionError();
+        }
+      }
+      case InfixOp.Op.Ldj -> { // if a || b then <true> else <false>;
+        switch(kind) {
+          case BIT -> {
+            final Label thenLabel = new Label();
+            visit(lhs); mv.visitJumpInsn(Opcodes.IFEQ, thenLabel);
+            visit(rhs); mv.visitJumpInsn(Opcodes.IFEQ, thenLabel);
+            mv.visitJumpInsn(Opcodes.GOTO, elseLabel);
+            mv.visitLabel(thenLabel);
+          }
+          default -> throw new AssertionError();
+        }
+      }
+      default -> throw new AssertionError();
+    }
+
+    // <then>
+    visitThen.run();
+    if (visitElse != null) {
+      // GOTO done
+      // else ->
+      // <else>
+      mv.visitJumpInsn(Opcodes.GOTO, doneLabel);
+      mv.visitLabel(elseLabel);
+      visitElse.run();
+    }
+    // done ->
+    mv.visitLabel(doneLabel);
+  }
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+  // JVM Type Conversions
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+
+  private void visit_i2u08() { mv.visitIntInsn(Opcodes.SIPUSH, 0xFF); mv.visitInsn(Opcodes.IAND); }
+  private void visit_i2u16() { mv.visitInsn(Opcodes.I2C); }
+  private void visit_i2i08() { mv.visitInsn(Opcodes.I2B); }
+  private void visit_i2i16() { mv.visitInsn(Opcodes.I2S); }
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+  // JVM Stack Constants
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+
+  private void visitI0() {
+    mv.visitInsn(Opcodes.ICONST_0);
+  }
+
+  private void visitI1() {
+    mv.visitInsn(Opcodes.ICONST_1);
+  }
+
+  private void visitI(final int i32) {
     if (0xFFFFFFFF <= i32 && i32 <= 0x00000005) { mv.visitInsn(Opcodes.ICONST_0 + i32); return; }
     if (0xFFFFFF80 <= i32 && i32 <= 0x0000007F) { mv.visitIntInsn(Opcodes.BIPUSH, i32); return; }
     if (0xFFFF8000 <= i32 && i32 <= 0x00007FFF) { mv.visitIntInsn(Opcodes.SIPUSH, i32); return; }
-    mv.visitLdcInsn((Integer) i32);
+    mv.visitLdcInsn(Integer.valueOf(i32));
   }
 
-  public void pushL(final long i64) {
-    assert mv != null;
+  private void visitL(final long i64) {
     if (i64 == 0x0000000000000000L) { mv.visitInsn(Opcodes.LCONST_0); return; }
     if (i64 == 0x0000000000000001L) { mv.visitInsn(Opcodes.LCONST_1); return; }
     if (0xFFFFFFFFFFFFFF80L <= i64 && i64 <= 0x000000000000007FL) { mv.visitIntInsn(Opcodes.BIPUSH, (int)i64); mv.visitInsn(Opcodes.I2L); return; }
     if (0xFFFFFFFFFFFF8000L <= i64 && i64 <= 0x0000000000007FFFL) { mv.visitIntInsn(Opcodes.SIPUSH, (int)i64); mv.visitInsn(Opcodes.I2L); return; }
-    mv.visitLdcInsn((Long) i64);
+    mv.visitLdcInsn(Long.valueOf(i64));
   }
 
-  public void pushF(final float f32) {
-    assert mv != null;
+  private void visitF(final float f32) {
     if (f32 == 0.0f) { mv.visitInsn(Opcodes.FCONST_0); return; }
     if (f32 == 1.0f) { mv.visitInsn(Opcodes.FCONST_1); return; }
     if (f32 == 2.0f) { mv.visitInsn(Opcodes.FCONST_2); return; }
@@ -46,11 +491,10 @@ public final class CodeGen {
       if (0xFFFFFF80 <= i32 && i32 <= 0x0000007F) { mv.visitIntInsn(Opcodes.BIPUSH, i32); mv.visitInsn(Opcodes.I2F); return; }
       if (0xFFFF8000 <= i32 && i32 <= 0x00007FFF) { mv.visitIntInsn(Opcodes.SIPUSH, i32); mv.visitInsn(Opcodes.I2F); return; }
     }
-    mv.visitLdcInsn((Float) f32);
+    mv.visitLdcInsn(Float.valueOf(f32));
   }
 
-  public void pushD(final double f64) {
-    assert mv != null;
+  private void visitD(final double f64) {
     if (f64 == 0.0) { mv.visitInsn(Opcodes.DCONST_0); return; }
     if (f64 == 1.0) { mv.visitInsn(Opcodes.DCONST_1); return; }
     final int i32 = (int) f64;
@@ -59,316 +503,25 @@ public final class CodeGen {
       if (0xFFFFFF80 <= i32 && i32 <= 0x0000007F) { mv.visitIntInsn(Opcodes.BIPUSH, i32); mv.visitInsn(Opcodes.I2D); return; }
       if (0xFFFF8000 <= i32 && i32 <= 0x00007FFF) { mv.visitIntInsn(Opcodes.SIPUSH, i32); mv.visitInsn(Opcodes.I2D); return; }
     }
-    mv.visitLdcInsn((Double) f64);
+    mv.visitLdcInsn(Double.valueOf(f64));
   }
 
-  public static enum OpCode {
-    Add, Sub, Mul, Div, Rem, Mod,
-    And, Ior, Xor,
-    Shl, Shr,
-    Cmp,
-    Eql, Neq, Ltn, Gtn, Leq, Geq,
-    Lcj, Ldj;
-  }
-  public void visitInfixOp(final types.Kind kind, final Node lhs, final Node rhs, final OpCode op) {
-    switch (op) {
-      case OpCode.Add: switch (kind) {
-        case U08: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.IADD); mv.visitIntInsn(Opcodes.SIPUSH, FF); mv.visitInsn(Opcodes.IAND); break;
-        case U16: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.IADD); mv.visitInsn(Opcodes.I2C); break;
-        case U32: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.IADD); break;
-        case U64: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.LADD); break;
-        case I08: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.IADD); mv.visitInsn(Opcodes.I2B); break;
-        case I16: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.IADD); mv.visitInsn(Opcodes.I2S); break;
-        case I32: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.IADD); break;
-        case I64: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.LADD); break;
-        case F32: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.FADD); break;
-        case F64: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.DADD); break;
-        default: throw new AssertionError();
-      } break;
-      case OpCode.Sub: switch (kind) {
-        case U08: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.ISUB); mv.visitIntInsn(Opcodes.SIPUSH, FF); mv.visitInsn(Opcodes.IAND); break;
-        case U16: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.ISUB); mv.visitInsn(Opcodes.I2C); break;
-        case U32: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.ISUB); break;
-        case U64: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.LSUB); break;
-        case I08: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.ISUB); mv.visitInsn(Opcodes.I2B); break;
-        case I16: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.ISUB); mv.visitInsn(Opcodes.I2S); break;
-        case I32: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.ISUB); break;
-        case I64: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.LSUB); break;
-        case F32: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.FSUB); break;
-        case F64: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.DSUB); break;
-        default: throw new AssertionError();
-      } break;
-      case OpCode.Mul: switch (kind) {
-        case U08: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.IMUL); mv.visitIntInsn(Opcodes.SIPUSH, FF); mv.visitInsn(Opcodes.IAND); break;
-        case U16: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.IMUL); mv.visitInsn(Opcodes.I2C); break;
-        case U32: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.IMUL); break;
-        case U64: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.LMUL); break;
-        case I08: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.IMUL); mv.visitInsn(Opcodes.I2B); break;
-        case I16: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.IMUL); mv.visitInsn(Opcodes.I2S); break;
-        case I32: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.IMUL); break;
-        case I64: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.LMUL); break;
-        case F32: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.FMUL); break;
-        case F64: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.DMUL); break;
-        default: throw new AssertionError();
-      } break;
-      case OpCode.Div: switch (kind) {
-        case U08: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.IDIV); break;
-        case U16: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.IDIV); break;
-        case U32: visit(lhs); visit(rhs); mv.visitMethodInsn(Opcodes.INVOKESTATIC, "java/lang/Integer", "divideUnsigned", "(II)I", false); break;
-        case U64: visit(lhs); visit(rhs); mv.visitMethodInsn(Opcodes.INVOKESTATIC, "java/lang/Long",    "divideUnsigned", "(JJ)J", false); break;
-        case I08: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.IDIV); break;
-        case I16: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.IDIV); break;
-        case I32: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.IDIV); break;
-        case I64: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.LDIV); break;
-        case F32: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.FDIV); break;
-        case F64: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.DDIV); break;
-        default: throw new AssertionError();
-      } break;
-      case OpCode.Rem: switch (kind) {
-        case U08: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.IREM); break;
-        case U16: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.IREM); break;
-        case U32: visit(lhs); visit(rhs); mv.visitMethodInsn(Opcodes.INVOKESTATIC, "java/lang/Integer", "remainderUnsigned", "(II)I", false); break;
-        case U64: visit(lhs); visit(rhs); mv.visitMethodInsn(Opcodes.INVOKESTATIC, "java/lang/Long",    "remainderUnsigned", "(JJ)J", false); break;
-        case I08: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.IREM); break;
-        case I16: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.IREM); break;
-        case I32: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.IREM); break;
-        case I64: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.LREM); break;
-        case F32: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.FREM); break;
-        case F64: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.DREM); break;
-        default: throw new AssertionError();
-      } break;
-      case OpCode.Mod: switch (kind) {
-        case U08: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.IREM); break;
-        case U16: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.IREM); break;
-        case U32: visit(lhs); visit(rhs); mv.visitMethodInsn(Opcodes.INVOKESTATIC, "java/lang/Integer", "remainderUnsigned", "(II)I", false); break;
-        case U64: visit(lhs); visit(rhs); mv.visitMethodInsn(Opcodes.INVOKESTATIC, "java/lang/Long",    "remainderUnsigned", "(JJ)J", false); break;
-        case I08, I16, I32:
-          visit(lhs);                          // Stack: ..., a
-          visit(rhs);                          // Stack: ..., a, b
-          mv.visitInsn(Opcodes.DUP_X1);        // Stack: ..., b, a, b
-          mv.visitInsn(Opcodes.IREM);          // Stack: ..., b, r
-          mv.visitInsn(Opcodes.DUP_X1);        // Stack: ..., r, b, r
-          mv.visitInsn(Opcodes.DUP2);          // Stack: ..., r, b, r, b, r
-          mv.visitInsn(Opcodes.IXOR);          // Stack: ..., r, b, r, (b^r)
-          mv.visitInsn(Opcodes.SWAP);          // Stack: ..., r, b, (b^r), r
-          mv.visitInsn(Opcodes.DUP);           // Stack: ..., r, b, (b^r), r, r
-          mv.visitInsn(Opcodes.INEG);          // Stack: ..., r, b, (b^r), r, -r
-          mv.visitInsn(Opcodes.IOR);           // Stack: ..., r, b, (b^r), (r|-r)
-          mv.visitInsn(Opcodes.IAND);          // Stack: ..., r, b, ((b^r) & (r|-r))
-          mv.visitIntInsn(Opcodes.BIPUSH, 31); // Stack: ..., r, b, ((b^r) & (r|-r)), 31
-          mv.visitInsn(Opcodes.ISHR);          // Stack: ..., r, b, (((b^r) & (r|-r)) >> 31)
-          mv.visitInsn(Opcodes.IAND);          // Stack: ..., r, (b & (((b^r) & (r|-r)) >> 31))
-          mv.visitInsn(Opcodes.IADD);          // Stack: ..., r + (b & (((b^r) & (r|-r)) >> 31))
-          break;
-        // TODO: optimize the below cases using
-        // int mod(int a, int b) {
-        //  int r = a % b;
-        //  if (r != 0 && (sign(a) != sign(b)) r += b;
-        //  return r;
-        // }
-        case I64: // a mod b = (a % b + b) % b
-          visit(lhs);                    // Stack: ..., a
-          visit(rhs);                    // Stack: ..., a, b
-          mv.visitInsn(Opcodes.DUP2_X2); // Stack: ..., b, a, b
-          mv.visitInsn(Opcodes.DUP2_X2); // Stack: ..., b, b, a, b
-          mv.visitInsn(Opcodes.LREM);    // Stack: ..., b, b, (a % b)
-          mv.visitInsn(Opcodes.LADD);    // Stack: ..., b, (a % b + b)
-          mv.visitInsn(Opcodes.DUP2_X2); // Stack: ..., (a % b + b), b, (a % b + b)
-          mv.visitInsn(Opcodes.POP2);    // Stack: ..., (a % b + b), b
-          mv.visitInsn(Opcodes.LREM);    // Stack: ..., ((a % b + b) % b)
-          break;
-        case F32: // a mod b = (a % b + b) % b
-          visit(lhs);                    // Stack: ..., a
-          visit(rhs);                    // Stack: ..., a, b
-          mv.visitInsn(Opcodes.DUP2_X2); // Stack: ..., b, b, a, b
-          mv.visitInsn(Opcodes.FREM);    // Stack: ..., b, b, (a % b)
-          mv.visitInsn(Opcodes.FADD);    // Stack: ..., b, (a % b + b)
-          mv.visitInsn(Opcodes.SWAP);    // Stack: ..., (a % b + b), b
-          mv.visitInsn(Opcodes.FREM);    // Stack: ..., ((a % b + b) % b)
-          break;
-        case F64: // a mod b = (a % b + b) % b
-          visit(lhs);                    // Stack: ..., a
-          visit(rhs);                    // Stack: ..., a, b
-          mv.visitInsn(Opcodes.DUP2_X2); // Stack: ..., b, a, b
-          mv.visitInsn(Opcodes.DUP2_X2); // Stack: ..., b, b, a, b
-          mv.visitInsn(Opcodes.DREM);    // Stack: ..., b, b, (a % b)
-          mv.visitInsn(Opcodes.DADD);    // Stack: ..., b, (a % b + b)
-          mv.visitInsn(Opcodes.DUP2_X2); // Stack: ..., (a % b + b), b, (a % b + b)
-          mv.visitInsn(Opcodes.POP2);    // Stack: ..., (a % b + b), b
-          mv.visitInsn(Opcodes.DREM);    // Stack: ..., ((a % b + b) % b)
-          break;
-        default: throw new AssertionError();
-      } break;
-      case OpCode.And: switch (kind) {
-        case BIT, U08, U16, U32, I08, I16, I32: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.IAND); break;
-        case U64, I64:                          visit(lhs); visit(rhs); mv.visitInsn(Opcodes.LAND); break;
-        default: throw new AssertionError();
-      } break;
-      case OpCode.Ior: switch (kind) {
-        case BIT, U08, U16, U32, I08, I16, I32: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.IOR); break;
-        case U64, I64:                          visit(lhs); visit(rhs); mv.visitInsn(Opcodes.LOR); break;
-        default: throw new AssertionError();
-      } break;
-      case OpCode.Xor: switch (kind) {
-        case BIT: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.IXOR); mv.visitInsn(Opcodes.ICONST_1); mv.visitInsn(Opcodes.IAND); break;
-        case U08: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.IXOR); mv.visitIntInsn(Opcodes.SIPUSH, FF); mv.visitInsn(Opcodes.IAND); break;
-        case U16: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.IXOR); mv.visitInsn(Opcodes.I2C); break;
-        case U32: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.IXOR); break;
-        case U64: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.LXOR); break;
-        case I08: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.IXOR); mv.visitInsn(Opcodes.I2B); break;
-        case I16: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.IXOR); mv.visitInsn(Opcodes.I2S); break;
-        case I32: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.IXOR); break;
-        case I64: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.LXOR); break;
-        default: throw new AssertionError();
-      } break;
-      case OpCode.Shl: switch (kind) {
-        case U08: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.ISHL); mv.visitIntInsn(Opcodes.SIPUSH, FF); mv.visitInsn(Opcodes.IAND); break;
-        case U16: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.ISHL); mv.visitInsn(Opcodes.I2C); break;
-        case U32: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.ISHL); break;
-        case U64: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.LSHL); break;
-        case I08: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.ISHL); mv.visitInsn(Opcodes.I2B); break;
-        case I16: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.ISHL); mv.visitInsn(Opcodes.I2S); break;
-        case I32: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.ISHL); break;
-        case I64: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.LSHL); break;
-        default: throw new AssertionError();
-      } break;
-      case OpCode.Shr: switch (kind) {
-        case U08, U16, U32, I08, I16, I32: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.ISHR); break;
-        case U64, I64:                     visit(lhs); visit(rhs); mv.visitInsn(Opcodes.LSHR); break;
-        default: throw new AssertionError();
-      } break;
-      case OpCode.Cmp: switch (kind) {
-        case U08: visit(lhs); mv.visitInsn(Opcodes.I2L); visit(rhs); mv.visitInsn(Opcodes.I2L); mv.visitInsn(Opcodes.LCMP); break;
-        case U16: visit(lhs); mv.visitInsn(Opcodes.I2L); visit(rhs); mv.visitInsn(Opcodes.I2L); mv.visitInsn(Opcodes.LCMP); break;
-        case U32: visit(lhs); visit(rhs); mv.visitMethodInsn(Opcodes.INVOKESTATIC, "java/lang/Integer", "compareUnsigned", "(II)I", false); break;
-        case U64: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.LCMP); break;
-        case I08: visit(lhs); mv.visitInsn(Opcodes.I2L); visit(rhs); mv.visitInsn(Opcodes.I2L); mv.visitInsn(Opcodes.LCMP); break;
-        case I16: visit(lhs); mv.visitInsn(Opcodes.I2L); visit(rhs); mv.visitInsn(Opcodes.I2L); mv.visitInsn(Opcodes.LCMP); break;
-        case I32: visit(lhs); mv.visitInsn(Opcodes.I2L); visit(rhs); mv.visitInsn(Opcodes.I2L); mv.visitInsn(Opcodes.LCMP); break;
-        case I64: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.LCMP); break;
-        case F32: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.FCMPL); break; // NaN <=> 3.1 => -1;
-        case F64: visit(lhs); visit(rhs); mv.visitInsn(Opcodes.DCMPL); break; // NaN <=> NaN => -1;
-        default: throw new AssertionError();
-      } break;
-      case OpCode.Eql: {
-        final Label zero = new Label();
-        final Label done = new Label();
-        switch (kind) {
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+  // JVM Invoke Static Methods
+  //////////////////////////////////////////////////////////////////////////////////////////////////
 
-        }
-        mv.visitInsn(0);
-      }
-      case OpCode.Neq:
+  // Intrinsic Candiates
+  // See -> https ->//chriswhocodes.com/hotspot_intrinsics_openjdk21.html
+  private void visit_compareUnsigned_i()   { mv.visitMethodInsn(Opcodes.INVOKESTATIC, "java/lang/Integer", "compareUnsigned", "(II)I", false); }
+  private void visit_divideUnsigned_i()    { mv.visitMethodInsn(Opcodes.INVOKESTATIC, "java/lang/Integer", "divideUnsigned", "(II)I", false); }
+  private void visit_remainderUnsigned_i() { mv.visitMethodInsn(Opcodes.INVOKESTATIC, "java/lang/Integer", "remainderUnsigned", "(II)I", false); }
+  private void visit_compareUnsigned_l()   { mv.visitMethodInsn(Opcodes.INVOKESTATIC, "java/lang/Long", "compareUnsigned", "(JJ)I", false); }
+  private void visit_divideUnsigned_l()    { mv.visitMethodInsn(Opcodes.INVOKESTATIC, "java/lang/Long", "divideUnsigned", "(JJ)I", false); }
+  private void visit_remainderUnsigned_l() { mv.visitMethodInsn(Opcodes.INVOKESTATIC, "java/lang/Long", "remainderUnsigned", "(JJ)I", false); }
 
-      switch (kind) {
-        case BIT:
-          visit(lhs); visit(rhs);
-          mv.visitJumpInsn(Opcodes.IF_ICMPNE, zero);
-          mv.visitInsn(Opcodes.ICONST_1);  mv.visitJumpInsn(Opcodes.GOTO, end); mv.visitLabel(zero);  mv.visitInsn(Opcodes.ICONST_0);  mv.visitLabel(end);
-
-        case U08:
-          visit(lhs); visit(rhs); mv.visitInsn(Opcodes.IXOR); mv.visitInsn(Opcodes.ICONST_1); mv.visitInsn(Opcodes.IXOR); break;
-
-        default: throw new AssertionError();
-      }
-
-      break;
-      default: throw new AssertionError();
-    }
-  }
-
-  // Masks
-  private static final Integer FF        = 0xFF;
-  private static final Long    FFFFFFFFL = 0xFFFFFFFFL;
-
-  // Intrinsics:
-  // java/lang/Short
-  //   reverseBytes (S)S
-  // java/lang/Char
-  //   reverseBytes (C)C
-  // java/lang/Integer
-  //   toString (I)Ljava/lang/String;
-  //   compareUnsigned (II)I
-  //   divideUnsigned (II)I
-  //   remainderUnsigned (II)I
-  //   numberOfLeadingZeros (I)I
-  //   numberOfTrailingZeros (I)I
-  //   bitCount (I)I
-  //   reverse (I)I
-  //   compress (II)I
-  //   expand (II)I
-  //   reverseBytes (I)I
-  // java/lang/Long
-  //   compareUnsigned (JJ)I
-  //   divideUnsigned (JJ)J
-  //   remainderUnsigned (JJ)J
-  //   numberOfLeadingZeros (J)I
-  //   numberOfTrailingZeros (J)I
-  //   bitCount (J)I
-  //   reverse (J)J
-  //   compress (JJ)J
-  //   expand (JJ)J
-  //   reverseBytes (J)J
-  // java/lang/Float
-  //   isInfinite (F)Z
-  //   isFinite (F)Z
-  //   floatToIntBits (F)I
-  //   floatToRawIntBits (F)I
-  //   intBitsToFloat (I)F
-  //   float16ToFloat (S)F
-  //   floatToFloat16 (F)S
-  // java/lang/Double
-  //   isInfinite (D)Z
-  //   isFinite (D)Z
-  //   doubleToLongBits (D)J
-  //   doubleToRawLongBits (D)J
-  //   longBitsToDouble (J)D
-  // java/lang/Math
-  //   sin (D)D
-  //   cos (D)D
-  //   tan (D)D
-  //   exp (D)D
-  //   log (D)D
-  //   log10 (D)D
-  //   ceil (D)D
-  //   floor (D)D
-  //   rint (D)D
-  //   atan2 (DD)D
-  //   pow (DD)D
-  //   round (F)I
-  //   round (D)J
-  //   addExact (II)I
-  //   addExact (JJ)J
-  //   subtractExact (II)I
-  //   subtractExact (JJ)J
-  //   multiplyExact (II)I
-  //   multiplyExact (JJ)J
-  //   incrementExact (I)I
-  //   incrementExact (J)J
-  //   decrementExact (I)I
-  //   decrementExact (J)J
-  //   negateExact (I)I
-  //   negateExact (J)J
-  //   multiplyHigh (JJ)J
-  //   unsignedMultiplyHigh (JJ)J
-  //   abs (I)I
-  //   abs (J)J
-  //   abs (F)F
-  //   abs (D)D
-  //   max (II)I
-  //   max (JJ)J
-  //   max (FF)F
-  //   max (DD)D
-  //   min (II)I
-  //   min (JJ)J
-  //   min (FF)F
-  //   min (DD)D
-  //   fma (DDD)D
-  //   fma (FFF)F
-  //   signum (D)D
-  //   signum (F)F
-  //   copySign (DD)D
-  //   copySign (FF)F
-
+  // Non-Intrinsic
+  private void visit_compare_i()           { mv.visitMethodInsn(Opcodes.INVOKESTATIC, "java/lang/Integer", "compare", "(II)I", false); }
+  private void visit_floorMod_i()          { mv.visitMethodInsn(Opcodes.INVOKESTATIC, "java/lang/Math", "floorMod", "(II)I", false); }
+  private void visit_floorMod_l()          { mv.visitMethodInsn(Opcodes.INVOKESTATIC, "java/lang/Math", "floorMod", "(JJ)J", false); }
 
 }
