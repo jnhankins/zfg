@@ -4,6 +4,7 @@ channels { WHITESPACE_CHANNEL, COMMENTS_CHANNEL }
 // Keywords
 LET: 'let'; // Immutable variable declaration, cannot be reassinged without redecalration
 MUT: 'mut'; // Mutable variable declaration, can be reassigned without redecalration
+PUB: 'pub'; // Public visibility modifier, can be accessed from other modules
 FUN: 'fun'; // Function declaration
 RET: 'ret'; // Function return value
 
@@ -26,6 +27,8 @@ COMMA: ',' ; // Argument separator, array element separator, object field separa
 POINT: '.' ; // Path separator (e.g. 'std.io.println')
 COLON: ':' ; // Variable id-type separator, field id-type separator, literal id-value separator
 SEMIC: ';' ; // Statement separator, type member separator
+DOUBC: '::'; // Path separator (e.g. 'std::io::println')
+
 
 // Grouping Circumfix Operators
 LPAREN: '(' ; // Expression grouping, function parameters
@@ -44,7 +47,9 @@ MUL: '*'  ; // Multiplication infix operator, e.g. 'x * y'
 DIV: '/'  ; // Division infix operator, e.g. 'x / y'
 REM: '%'  ; // Remainder infix operator, e.g. 'x % y'
 MOD: '%%' ; // Modulo infix operator, e.g. 'x %% y'
-NOT: '!'  ; // Bitwise NOT prefix operator, e.g. '!x'
+NOT: '~'  ; // Bitwise NOT prefix operator, e.g. '~x'
+
+// Bitwise Operators
 AND: '&'  ; // Bitwise AND infix operator, e.g. 'x & y'
 IOR: '|'  ; // Bitwise OR infix operator, e.g. 'x | y'
 XOR: '^'  ; // Bitwise XOR infix operator, e.g. 'x ^ y'
@@ -66,15 +71,19 @@ SHLA: '<<=' ; // Shift left assignment infix operator, e.g. 'x <<= y'
 SHRA: '>>=' ; // Shift right assignment infix operator, e.g. 'x >>= y'
 
 // Relational Operators
-LT:  '<'   ; // Less than infix operator, e.g. 'x < y'
-GT:  '>'   ; // Greater than infix operator, e.g. 'x > y'
-LE:  '<='  ; // Less than or equal to infix operator, e.g. 'x <= y'
-GE:  '>='  ; // Greater than or equal to infix operator, e.g. 'x >= y'
-EQ:  '=='  ; // Equal to infix operator, e.g. 'x == y'
-NE:  '!='  ; // Not equal to infix operator, e.g. 'x != y'
-EQR: '===' ; // Equal references infix operator, e.g. 'x <?> y'
-NER: '!==' ; // Not equal references infix operator, e.g. 'x <!> y'
-CMP: '<=>' ; // Compare infix operator, e.g. 'x <=> y'
+CMP: '<=>' ;  // Compare infix operator, e.g. 'x <=> y'
+EQL: '=='  ; // Equal to infix operator, e.g. 'x == y'
+NEQ: '!='  ; // Not equal to infix operator, e.g. 'x != y'
+LTN: '<'   ; // Less than infix operator, e.g. 'x < y'
+GTN: '>'   ; // Greater than infix operator, e.g. 'x > y'
+LEQ: '<='  ; // Less than or equal to infix operator, e.g. 'x <= y'
+GEQ:  '>='  ; // Greater than or equal to infix operator, e.g. 'x >= y'
+
+// Logical Operators
+LNT: '!'  ; // Logical NOT prefix operator, e.g. '!x'
+LCJ: '&&' ; // Logical AND infix operator, e.g. 'x && y'
+LDJ: '||' ; // Logical OR infix operator, e.g. 'x || y'
+
 
 // Litearls
 BitLit: 'true' | 'false';

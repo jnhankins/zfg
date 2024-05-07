@@ -23,54 +23,151 @@ options { tokenVocab = ZfgLexer; }
   }
 }
 
-start
-  : returnBlock EOF
+module
+  : body=statementBlock? EOF
   ;
 
-returnBlock
-  : LBRACE (stmt=statement (SEMIC | {EOL()}?))* ret=return (SEMIC | {EOL()}?) RBRACE
+statementBlock
+  : statements=statement ((SEMIC | {EOL()}) statements=statement)* (SEMIC | {EOL()})?
   ;
 
 statement
-  : variable
-  | assignment
+  : modifier=(LET | MUT | PUB) name=LowerId type=functionType EQL body=functionBody # FunctionDeclaration
+  | modifier=(LET | MUT | PUB) name=LowerId type=anyType EQL body=expression        # VariableDeclaration
+  | child=assignment                                                                # AssignmentStatement
+  | child=functionCall                                                              # FunctionCallStatement
   ;
 
-variable
-  : mod=(LET | MUT) id=LowerId (COLON type=(VAR | I08 | I16 | I32 | I64 | F32 | F64))? SETA rhs=expression
+functionBody
+  : LBRACE body=statementBlock? RBRACE # FunctionBlock
+  | body=expression                    # FunctionExpression
   ;
 
 assignment
-  : lhs=path op=(SETA | ADDA | SUBA | MULA | DIVA | REMA | MODA | ANDA | IORA | XORA | SHLA | SHRA) rhs=expression
+  : lhs=path
+    op=(SETA | ADDA | SUBA | MULA | DIVA | REMA | MODA | ANDA | IORA | XORA | SHLA | SHRA)
+    rhs=expression
   ;
 
-return
-  : RET expr=expression
-  ;
+functionCall
+  : path LPAREN (arguments=expression (COMMA arguments=expression)* COMMA?)? RPAREN
+  ; // TODO: named parameters
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Expressions
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 expression
-  : path                                                     # PathExpr
-  | lit=(BitLit | IntLit | FltLit)                           # LiteralExpr
-  | LPAREN expression RPAREN                                 # GroupExpr
-  | lhs=expression op=(INC | DEC)                            # PostfixExpr
-  | op=(INC | DEC | ADD | SUB | NOT) rhs=expression          # PrefixExpr
-  | lhs=expression op=(MUL | DIV | REM | MOD) rhs=expression # InfixExpr
-  | lhs=expression op=(ADD | SUB) rhs=expression             # InfixExpr
-  | lhs=expression op=(SHL | SHR) rhs=expression             # InfixExpr
-  | lhs=expression op=AND rhs=expression                     # InfixExpr
-  | lhs=expression op=XOR rhs=expression                     # InfixExpr
-  | lhs=expression op=IOR rhs=expression                     # InfixExpr
-  | lhs=expression op=CMP rhs=expression                     # InfixExpr
-  | lhs=expression op=(LT | GT | LE | GE) rhs=expression     # InfixExpr
-  | lhs=expression op=(EQ | NE | EQR | NER) rhs=expression   # InfixExpr
-  | assignment                                               # AssignExpr
+  : unambigExpression
+  | algebraExpression
+  | bitwiseExpression
+  | compareExpression
+  | logicalExpression
   ;
+
+unambigExpression
+  : lhs=path op=(INC | DEC)                                                      # SuffixExpr
+  | op=(INC | DEC) rhs=path                                                      # PrefixExpr
+  | child=functionCall                                                           # FunctionCallExpr
+  | child=path                                                                   # VariablePathExpr
+  | literal=(BitLit | IntLit | FltLit)                                           # LiteralValueExpr
+  | op=(ADD | SUB | NOT | LNT) rhs=unambigExpression                             # PrefixExpr
+  | LPAREN expr=assignment RPAREN                                                # AssignmentExpr
+  | LPAREN expr=expression RPAREN                                                # PrecedenceExpr
+  ;
+
+algebraExpression
+  : lhs=algebraOperand op=(MUL | DIV | REM | MOD) rhs=algebraOperand             # AlgebraInfixExpr
+  | lhs=algebraOperand op=(ADD | SUB) rhs=algebraOperand                         # AlgebraInfixExpr
+  ;
+algebraOperand
+  : expr=algebraExpression
+  | expr=unambigExpression
+  ;
+
+bitwiseExpression
+  : opd=bitwiseOperand (op=AND opd=bitwiseOperand)+                              # BitwiseChianExpr
+  | opd=bitwiseOperand (op=IOR opd=bitwiseOperand)+                              # BitwiseChianExpr
+  | opd=bitwiseOperand (op=XOR opd=bitwiseOperand)+                              # BitwiseChianExpr
+  | lhs=bitwiseOperand op=(SHL | SHR | CMP) rhs=bitwiseOperand                   # BitwiseInfixExpr
+  ;
+bitwiseOperand
+  : expr=unambigExpression
+  ;
+
+compareExpression
+  : lhs=compareOperand op=(EQL | NEQ | LTN | GTN | LEQ | GEQ) rhs=compareOperand
+  ;
+compareOperand
+  : expr=bitwiseExpression
+  | expr=algebraExpression
+  | expr=unambigExpression
+  ;
+
+logicalExpression
+  : opd=logicalOperand (op=LCJ opd=logicalOperand)+
+  | opd=logicalOperand (op=LDJ opd=logicalOperand)+
+  ;
+logicalOperand
+  : expr=compareExpression
+  | expr=bitwiseExpression
+  | expr=algebraExpression
+  | expr=unambigExpression
+  ;
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Types
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// TODO: type path
+anyType
+  : primitiveType
+  | arrayType
+  | tupleType
+  | recordType
+  | functionType
+  ;
+
+primitiveType:
+  BIT | U08 | U16 | U32 | U64 | I08 | I16 | I32 | I64 | F32 | F64;
+
+arrayType:
+  LBRACK
+  elementsModifier=(LET | MUT) elementsType=anyType
+  (SEMIC staticLength=IntLit)?
+  RBRACK;
+
+tupleType:
+  LPAREN (
+  fieldModifiers=(LET | MUT) fieldTypes=anyType (COMMA
+  fieldModifiers=(LET | MUT) fieldTypes=anyType)* COMMA?)?
+  RPAREN;
+
+recordType:
+  LPAREN (
+  fieldModifiers=(LET | MUT) fieldNames=LowerId fieldTypes=anyType (COMMA
+  fieldModifiers=(LET | MUT) fieldNames=LowerId fieldTypes=anyType)* COMMA?)?
+  RPAREN;
+
+functionType:
+  LPAREN (
+  parameterModifiers=(LET | MUT) parameterNames=LowerId parameterTypes=anyType (COMMA
+  parameterModifiers=(LET | MUT) parameterNames=LowerId parameterTypes=anyType)* COMMA?)?
+  RPAREN
+  returnType=anyType;
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Paths
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 path
-  : part=identifier ('.' part=identifier)*
+  : (modulePath=UpperId DOUBC)* root=LowerId (fieldPath=accessor)*
   ;
 
-identifier
-  : LowerId
-  | UpperId
+accessor
+  : POINT name=LowerId             # NamedAccessor
+  | POINT index=IntLit             # IndexAccessor
+  | LBRACK index=expression RBRACK # ArrayAccessor
   ;
