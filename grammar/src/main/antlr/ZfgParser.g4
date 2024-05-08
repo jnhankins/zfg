@@ -28,14 +28,15 @@ module
   ;
 
 statementBlock
-  : statements=statement ((SEMIC | {EOL()}) statements=statement)* (SEMIC | {EOL()})?
+  : statements=statement  ((SEMIC | {EOL()})
+    statements=statement)* (SEMIC | {EOL()})?
   ;
 
 statement
-  : modifier=(LET | MUT | PUB) name=LowerId type=functionType EQL body=functionBody # FunctionDeclaration
-  | modifier=(LET | MUT | PUB) name=LowerId type=anyType EQL body=expression        # VariableDeclaration
-  | child=assignment                                                                # AssignmentStatement
-  | child=functionCall                                                              # FunctionCallStatement
+  : modifier=(LET | MUT | PUB) name=LowerId funType=functionType SETA body=functionBody # FunctionDeclaration
+  | modifier=(LET | MUT | PUB) name=LowerId varType=type SETA body=expression           # VariableDeclaration
+  | child=assignment                                                                    # AssignmentStatement
+  | child=functionCall                                                                  # FunctionCallStatement
   ;
 
 functionBody
@@ -58,11 +59,11 @@ functionCall
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 expression
-  : unambigExpression
-  | algebraExpression
-  | bitwiseExpression
-  | compareExpression
-  | logicalExpression
+  : expr=unambigExpression
+  | expr=algebraExpression
+  | expr=bitwiseExpression
+  | expr=compareExpression
+  | expr=logicalExpression
   ;
 
 unambigExpression
@@ -89,14 +90,14 @@ bitwiseExpression
   : opd=bitwiseOperand (op=AND opd=bitwiseOperand)+                              # BitwiseChianExpr
   | opd=bitwiseOperand (op=IOR opd=bitwiseOperand)+                              # BitwiseChianExpr
   | opd=bitwiseOperand (op=XOR opd=bitwiseOperand)+                              # BitwiseChianExpr
-  | lhs=bitwiseOperand op=(SHL | SHR | CMP) rhs=bitwiseOperand                   # BitwiseInfixExpr
+  | lhs=bitwiseOperand op=(SHL | SHR) rhs=bitwiseOperand                         # BitwiseInfixExpr
   ;
 bitwiseOperand
   : expr=unambigExpression
   ;
 
 compareExpression
-  : lhs=compareOperand op=(EQL | NEQ | LTN | GTN | LEQ | GEQ) rhs=compareOperand
+  : lhs=compareOperand op=(EQL | NEQ | LTN | GTN | LEQ | GEQ | TWC) rhs=compareOperand
   ;
 compareOperand
   : expr=bitwiseExpression
@@ -121,41 +122,41 @@ logicalOperand
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // TODO: type path
-anyType
-  : primitiveType
-  | arrayType
-  | tupleType
+type
+  : functionType
   | recordType
-  | functionType
+  | tupleType
+  | arrayType
+  | primitiveType
   ;
-
-primitiveType:
-  BIT | U08 | U16 | U32 | U64 | I08 | I16 | I32 | I64 | F32 | F64;
-
-arrayType:
-  LBRACK
-  elementsModifier=(LET | MUT) elementsType=anyType
-  (SEMIC staticLength=IntLit)?
-  RBRACK;
-
-tupleType:
-  LPAREN (
-  fieldModifiers=(LET | MUT) fieldTypes=anyType (COMMA
-  fieldModifiers=(LET | MUT) fieldTypes=anyType)* COMMA?)?
-  RPAREN;
-
-recordType:
-  LPAREN (
-  fieldModifiers=(LET | MUT) fieldNames=LowerId fieldTypes=anyType (COMMA
-  fieldModifiers=(LET | MUT) fieldNames=LowerId fieldTypes=anyType)* COMMA?)?
-  RPAREN;
 
 functionType:
   LPAREN (
-  parameterModifiers=(LET | MUT) parameterNames=LowerId parameterTypes=anyType (COMMA
-  parameterModifiers=(LET | MUT) parameterNames=LowerId parameterTypes=anyType)* COMMA?)?
+  parameterModifiers=(LET | MUT) parameterNames=LowerId parameterTypes=type  (COMMA
+  parameterModifiers=(LET | MUT) parameterNames=LowerId parameterTypes=type)* COMMA?)?
   RPAREN
-  returnType=anyType;
+  returnType=type;
+
+recordType:
+  LPAREN (
+  fieldModifiers=(LET | MUT) fieldNames=LowerId fieldTypes=type  (COMMA
+  fieldModifiers=(LET | MUT) fieldNames=LowerId fieldTypes=type)* COMMA?)?
+  RPAREN;
+
+tupleType:
+  LPAREN (
+  fieldModifiers=(LET | MUT) fieldTypes=type  (COMMA
+  fieldModifiers=(LET | MUT) fieldTypes=type)* COMMA?)?
+  RPAREN;
+
+arrayType:
+  LBRACK
+  elementsModifier=(LET | MUT) elementsType=type
+  (SEMIC elementCount=IntLit)?
+  RBRACK;
+
+primitiveType:
+  BIT | U08 | U16 | U32 | U64 | I08 | I16 | I32 | I64 | F32 | F64;
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
