@@ -120,63 +120,11 @@ public final class nodes {
   // Expressions
   //////////////////////////////////////////////////////////////////////////////////////////////////
 
-  public static enum PostfixOp {
-    INC, // Post-increment: x++
-    DEC; // Post-decrement: x--
-  }
 
-  public static enum PrefixOp {
-    INC, // Pre-increment:      ++x
-    DEC, // Pre-decrement:      --x
-    POS, // Arithmetic Identity: +x
-    NEG, // Arithmetic Negation: -x
-    NOT, // Bitwise Complement:  ~x
-    LNT, // Logical Negation:    !x
-  }
-
-  public static enum AlgebraInfixOp {
-    ADD, // Addition:       x + y
-    SUB, // Subtraction:    x - y
-    MUL, // Multiplication: x * y
-    DIV, // Division:       x / y
-    REM, // Remainder:      x % y
-    MOD, // Modulo:         x %% y
-  }
-
-  public static enum BitwiseChainOp {
-    AND, // Bitwise AND: x & y & z
-    IOR, // Bitwise IOR: x | y | z
-    XOR, // Bitwise XOR: x ^ y ^ z
-  }
-
-  public static enum BitwiseInfixOp {
-    SHL, // Shift Left:  x << y
-    SHR, // Shift Right: x >> y
-  }
-
-  public static enum CompareChainOp {
-    EQL, // Equal:                 x == y == z
-    NEQ, // Not Equal:             x != y != z
-    LTN, // Less Than:             x <  y <  z
-    GTN, // Greater Than:          x >  y >  z
-    LEQ, // Less Than or Equal:    x <= y <= z
-    GEQ, // Greater Than or Equal: x >= y >= z
-  }
-
-  public static enum CompareInfixOp {
-    TWC, // Three-Way Compare: x <=> y
-  }
-
-  public static enum LogicalChainOp {
-    LCJ, // Logical AND: x && y && z
-    LDJ, // Logical IOR: x || y || z
-  }
-
-
-  public static final class ConstantExprNode implements Node {
+  public static final class ConstantNode implements Node {
     public final insts.Inst value;
 
-    public ConstantExprNode(final insts.Inst value) {
+    public ConstantNode(final insts.Inst value) {
       assert value != null;
       this.value = value;
     }
@@ -187,7 +135,7 @@ public final class nodes {
     @Override public void toString(final StringBuilder sb, final Map<Object, Integer> seen) { value.toString(sb); }
   }
 
-  public static final class VariableExprNode implements Node {
+  public static final class VariableNode implements Node {
     public static enum Site { Static, Member, Local }
     public final Type type;
     public final Site site;
@@ -195,7 +143,7 @@ public final class nodes {
     public final String owner; // null if the site is Local
     public final int index; // -1 if the site is not Local
 
-    public VariableExprNode(final Type type, final Site site, final String name, final int index) {
+    public VariableNode(final Type type, final Site site, final String name, final int index) {
       assert type != null;
       assert site != null && site == Site.Local;
       assert name != null && names.isLowerSnakeCase(name);
@@ -207,7 +155,7 @@ public final class nodes {
       this.index = index;
     }
 
-    public VariableExprNode(final Type type, final Site site, final String name, final String owner) {
+    public VariableNode(final Type type, final Site site, final String name, final String owner) {
       assert type != null;
       assert site != null && (site == Site.Static || site == Site.Member);
       assert name != null && names.isLowerSnakeCase(name);
@@ -366,9 +314,7 @@ public final class nodes {
   }
 
   public static final class CompareExprNode implements Node {
-    public static enum Op {
-      EQL, NEQ, LTN, GTN, LEQ, GEQ,
-    }
+    public static enum Op { EQL, NEQ, LTN, GTN, LEQ, GEQ }
     public final Type type;
     public final List<Op> ops;
     public final List<Node> opds;
@@ -407,5 +353,46 @@ public final class nodes {
         sb.append(')');
       }
     }
+  }
+
+  public static final class AssignmentNode implements Node {
+    public static enum Mode { EXPR, STMT }
+    public final Mode mode;
+    public final VariableNode lhs;
+    public final Node rhs;
+
+    public AssignmentNode(final Mode mode, final VariableNode lhs, final Node rhs) {
+      assert mode != null;
+      assert lhs != null;
+      assert rhs != null && rhs.type().equals(lhs.type());
+      this.mode = mode;
+      this.lhs = lhs;
+      this.rhs = rhs;
+    }
+
+    @Override public Type type() { return mode == Mode.EXPR ? lhs.type() : types.Unit; }
+    @Override public String toString() { final StringBuilder sb = new StringBuilder(); toString(sb); return sb.toString(); }
+    @Override public void toString(final StringBuilder sb) { toString(sb, new HashMap<>()); }
+    @Override public void toString(final StringBuilder sb, final Map<Object, Integer> seen) {
+      if (seen.get(this) instanceof Integer idx) {
+        sb.append("Assignment");
+        sb.append("#").append(idx);
+        sb.append("[").append(type()).append("]");
+      } else {
+        final int idx = seen.size();
+        seen.put(this, idx);
+        sb.append("Assignment");
+        sb.append("#").append(idx);
+        sb.append("[").append(type()).append("]");
+        sb.append('(');
+        sb.append(mode.name());
+        sb.append(", ");
+        lhs.toString(sb, seen);
+        sb.append(", ");
+        rhs.toString(sb, seen);
+        sb.append(')');
+      }
+    }
+
   }
 }

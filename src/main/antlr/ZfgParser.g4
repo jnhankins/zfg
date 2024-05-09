@@ -24,29 +24,18 @@ module
   ;
 
 scope
-  : statement ((SEMIC | {EOL()}) statement)* SEMIC?
+  : statement ((SEMIC | {EOL()}?) statement)* SEMIC?
   ;
 
 statement
   : modifier=(LET | MUT | PUB) name=LowerId type=anyType SETA rhs=definition   # DefinitionStatement
   | child=assignment                                                           # AssignmentStatement
-  | child=functionCall                                                         # FunctionCallStatement
+  | child=invocation                                                           # InvocationStatement
   ;
 
 definition
   : LBRACE body=scope? RBRACE                                                  # ScopedDefinition
   | body=expression                                                            # InlineDefinition
-  ;
-
-assignment
-  : lhs=path
-    op=(SETA | ADDA | SUBA | MULA | DIVA | REMA | MODA | ANDA | IORA | XORA | SHLA | SHRA)
-    rhs=expression
-  ;
-
- // TODO: named parameters
-functionCall
-  : path LPAREN (arguments=expression (COMMA arguments=expression)* COMMA?)? RPAREN
   ;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -62,11 +51,10 @@ expression
   ;
 
 unambigExpression
-  : lhs=path op=(INC | DEC)                                                    # PostfixExpr
-  | op=(INC | DEC) rhs=path                                                    # PrefixExpr
-  | child=functionCall                                                         # FunctionCallExpr
-  | child=path                                                                 # VariablePathExpr
-  | child=literal                                                              # LiteralExpr
+  : expr=successorAssignment                                                   # IncDecExpr
+  | expr=invocation                                                            # InvocationExpr
+  | expr=path                                                                  # VariableExpr
+  | expr=literal                                                               # LiteralExpr
   | op=(ADD | SUB | NOT | LNT) rhs=unambigExpression                           # PrefixExpr
   | LPAREN expr=expression RPAREN                                              # PrecedenceExpr
   | LPAREN expr=assignment RPAREN                                              # AssignmentExpr
@@ -84,15 +72,15 @@ algebraExpression
   ;
 
 bitwiseExpression
-  : unambigExpression (op=AND unambigExpression)+                              # BitwiseChianExpr
-  | unambigExpression (op=IOR unambigExpression)+                              # BitwiseChianExpr
-  | unambigExpression (op=XOR unambigExpression)+                              # BitwiseChianExpr
+  : opd+=unambigExpression (op=AND opd+=unambigExpression)+                    # BitwiseChianExpr
+  | opd+=unambigExpression (op=IOR opd+=unambigExpression)+                    # BitwiseChianExpr
+  | opd+=unambigExpression (op=XOR opd+=unambigExpression)+                    # BitwiseChianExpr
   | lhs=unambigExpression op=(SHL | SHR) rhs=unambigExpression                 # BitwiseInfixExpr
   ;
 
 compareExpression
-  : compareOperand (op=(EQL | NEQ | LTN | GTN | LEQ | GEQ) compareOperand)+    # CompareChianExpr
-  | lhs=compareOperand op=TWC rhs=compareOperand                               # CompareInfixExpr
+  : opd+=compareOperand (op=(EQL | NEQ | LTN | GTN | LEQ | GEQ) opd+=compareOperand)+ # CompareChianExpr
+  | lhs=compareOperand op=TWC rhs=compareOperand                                      # CompareInfixExpr
   ;
 compareOperand
   : expr=bitwiseExpression                                                     # BitwiseCompareOpd
@@ -101,14 +89,31 @@ compareOperand
   ;
 
 logicalExpression
-  : logicalOperand (op=LCJ logicalOperand)+                                    # LogicalChianExpr
-  | logicalOperand (op=LDJ logicalOperand)+                                    # LogicalChianExpr
+  : opd+=logicalOperand (op=LCJ opd+=logicalOperand)+                          # LogicalChianExpr
+  | opd+=logicalOperand (op=LDJ opd+=logicalOperand)+                          # LogicalChianExpr
   ;
 logicalOperand
   : expr=compareExpression                                                     # CompareLogicalOpd
   | expr=bitwiseExpression                                                     # BitwiseLogicalOpd
   | expr=algebraExpression                                                     # AlgebraLogicalOpd
   | expr=unambigExpression                                                     # UnambigLogicalOpd
+  ;
+
+assignment
+  : lhs=path op=SETA rhs=expression                                            # SetAssignment
+  | lhs=path op=(ADDA | SUBA | MULA | DIVA | REMA | MODA) rhs=expression       # AlgebraAssignment
+  | lhs=path op=(ANDA | IORA | XORA) rhs=expression                            # BitwiseAssignment
+  | lhs=path op=(SHLA | SHRA) rhs=expression                                   # BwShiftAssignment
+  | assign=successorAssignment                                                 # IncDecAssignment
+  ;
+successorAssignment
+  : lhs=path op=(INC | DEC)                                                    # PostfixSuccesor
+  | op=(INC | DEC) lhs=path                                                    # PrefixSuccesor
+  ;
+
+ // TODO: named parameters
+invocation
+  : path LPAREN (arguments=expression (COMMA arguments=expression)* COMMA?)? RPAREN
   ;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -123,7 +128,7 @@ logicalOperand
 // - characterLiteral ?
 // - stringLiteral ?
 literal
-  : numericLiteral                                                             # NumericLit
+  : lit=numericLiteral                                                             # NumericLit
   ;
 
 numericLiteral
@@ -146,21 +151,21 @@ anyType
 
 functionType:
   LPAREN (
-  parameterModifiers=(LET | MUT) parameterNames=LowerId parameterTypes=anyType  (COMMA
-  parameterModifiers=(LET | MUT) parameterNames=LowerId parameterTypes=anyType)* COMMA?)?
+  parameterModifiers+=(LET | MUT) parameterNames+=LowerId parameterTypes+=anyType  (COMMA
+  parameterModifiers+=(LET | MUT) parameterNames+=LowerId parameterTypes+=anyType)* COMMA?)?
   RPAREN
   returnType=anyType;
 
 recordType:
   LPAREN (
-  fieldModifiers=(LET | MUT) fieldNames=LowerId fieldTypes=anyType  (COMMA
-  fieldModifiers=(LET | MUT) fieldNames=LowerId fieldTypes=anyType)* COMMA?)?
+  fieldModifiers+=(LET | MUT) fieldNames+=LowerId fieldTypes+=anyType  (COMMA
+  fieldModifiers+=(LET | MUT) fieldNames+=LowerId fieldTypes+=anyType)* COMMA?)?
   RPAREN;
 
 tupleType:
   LPAREN (
-  fieldModifiers=(LET | MUT) fieldTypes=anyType  (COMMA
-  fieldModifiers=(LET | MUT) fieldTypes=anyType)* COMMA?)?
+  fieldModifiers+=(LET | MUT) fieldTypes+=anyType  (COMMA
+  fieldModifiers+=(LET | MUT) fieldTypes+=anyType)* COMMA?)?
   RPAREN;
 
 arrayType:

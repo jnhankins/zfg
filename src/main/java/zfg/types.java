@@ -448,12 +448,12 @@ public final class types {
 
     public TypeCache() {}
 
-    public final Type Arr(final Type elementType) {
-      final Type type = new ArrType(elementType);
+    public final Type Arr(final boolean mut, final Type elementType) {
+      final Type type = new ArrType(mut, elementType);
       return cache.computeIfAbsent(type, t -> (Type)t);
     }
-    public final Type Arr(final Type elementType, final int length) {
-      final Type type = new ArrType(elementType, length);
+    public final Type Arr(final boolean mut, final Type elementType, final int length) {
+      final Type type = new ArrType(mut, elementType, length);
       return cache.computeIfAbsent(type, t -> (Type)t);
     }
     public final Type Tup(final boolean[] muts, final Type[] types) {
