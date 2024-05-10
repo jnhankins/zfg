@@ -187,16 +187,19 @@ public final class types {
   public static final class ArrType implements Type {
     private static final EnumSet<Kind> SIZED = EnumSet.of(Kind.BIT, Kind.U08, Kind.U16, Kind.U32, Kind.U64, Kind.I08, Kind.I16, Kind.I32, Kind.I64, Kind.F32, Kind.F64 );
     public static final int UNKNOWN_LENGTH = -1;
+    public final boolean elementMut;
     public final Type elementType;
     public final int length;
-    private ArrType(final Type type) {
+    private ArrType(final boolean mut, final Type type) {
       assert type != null && type != Err && type != Unk;
+      this.elementMut = mut;
       this.elementType = type;
       this.length = UNKNOWN_LENGTH;
     }
-    private ArrType(final Type type, final int length) {
+    private ArrType(final boolean mut, final Type type, final int length) {
       assert type != null && type != Err && type != Unk;
       assert length >= 0;
+      this.elementMut = mut;
       this.elementType = type;
       this.length = length;
     }

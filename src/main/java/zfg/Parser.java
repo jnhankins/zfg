@@ -14,17 +14,26 @@ import org.antlr.v4.runtime.Token;
 
 import zfg.insts.I32Inst;
 import zfg.insts.Inst;
-import zfg.nodes.AssignmentNode;
-import zfg.nodes.BinaryExprNode;
-import zfg.nodes.ConstantNode;
-import zfg.nodes.NaryExprNode;
+import zfg.nodes.AssignExpr;
+import zfg.nodes.AssignStmt;
+import zfg.nodes.BinaryExpr;
+import zfg.nodes.CastExpr;
+import zfg.nodes.ConstantExpr;
+import zfg.nodes.Expr;
+import zfg.nodes.FunCallExpr;
+import zfg.nodes.FunCallStmt;
+import zfg.nodes.FunRef;
+import zfg.nodes.NaryExpr;
 import zfg.nodes.Node;
-import zfg.nodes.VariableNode;
+import zfg.nodes.Stmt;
+import zfg.nodes.UnaryExpr;
+import zfg.nodes.VarLoadExpr;
+import zfg.nodes.VarRef;
 import zfg.types.RecType;
 import zfg.types.Type;
 import zfg.types.TypeCache;
 import zfg.antlr.ZfgLexer;
-import zfg.antlr.ZfgParser.AlgebraAssignmentContext;
+import zfg.antlr.ZfgParser.AlgebraAssignContext;
 import zfg.antlr.ZfgParser.AlgebraCompareOpdContext;
 import zfg.antlr.ZfgParser.AlgebraExprContext;
 import zfg.antlr.ZfgParser.AlgebraExpressionContext;
@@ -39,27 +48,29 @@ import zfg.antlr.ZfgParser.ArrayTypeContext;
 import zfg.antlr.ZfgParser.AssignmentContext;
 import zfg.antlr.ZfgParser.AssignmentExprContext;
 import zfg.antlr.ZfgParser.AssignmentStatementContext;
-import zfg.antlr.ZfgParser.BitwiseAssignmentContext;
+import zfg.antlr.ZfgParser.BitwiseAssignContext;
 import zfg.antlr.ZfgParser.BitwiseChianExprContext;
 import zfg.antlr.ZfgParser.BitwiseCompareOpdContext;
 import zfg.antlr.ZfgParser.BitwiseExprContext;
 import zfg.antlr.ZfgParser.BitwiseExpressionContext;
 import zfg.antlr.ZfgParser.BitwiseInfixExprContext;
 import zfg.antlr.ZfgParser.BitwiseLogicalOpdContext;
-import zfg.antlr.ZfgParser.BwShiftAssignmentContext;
+import zfg.antlr.ZfgParser.BwShiftAssignContext;
 import zfg.antlr.ZfgParser.CompareChianExprContext;
 import zfg.antlr.ZfgParser.CompareExprContext;
 import zfg.antlr.ZfgParser.CompareExpressionContext;
 import zfg.antlr.ZfgParser.CompareInfixExprContext;
 import zfg.antlr.ZfgParser.CompareLogicalOpdContext;
 import zfg.antlr.ZfgParser.CompareOperandContext;
+import zfg.antlr.ZfgParser.CrementAssignContext;
+import zfg.antlr.ZfgParser.CrementAssignmentContext;
+import zfg.antlr.ZfgParser.CrementExprContext;
 import zfg.antlr.ZfgParser.DefinitionStatementContext;
 import zfg.antlr.ZfgParser.ExpressionContext;
+import zfg.antlr.ZfgParser.FunCallExprContext;
 import zfg.antlr.ZfgParser.FunTypeContext;
 import zfg.antlr.ZfgParser.FunctionTypeContext;
-import zfg.antlr.ZfgParser.IncDecAssignmentContext;
-import zfg.antlr.ZfgParser.IncDecExprContext;
-import zfg.antlr.ZfgParser.InvocationExprContext;
+import zfg.antlr.ZfgParser.InvocationContext;
 import zfg.antlr.ZfgParser.InvocationStatementContext;
 import zfg.antlr.ZfgParser.LiteralContext;
 import zfg.antlr.ZfgParser.LiteralExprContext;
@@ -71,25 +82,24 @@ import zfg.antlr.ZfgParser.ModuleContext;
 import zfg.antlr.ZfgParser.NumericLitContext;
 import zfg.antlr.ZfgParser.NumericLiteralContext;
 import zfg.antlr.ZfgParser.PathContext;
-import zfg.antlr.ZfgParser.PostfixSuccesorContext;
 import zfg.antlr.ZfgParser.PrecedenceExprContext;
-import zfg.antlr.ZfgParser.PrefixExprContext;
+import zfg.antlr.ZfgParser.PrefixOpExprContext;
 import zfg.antlr.ZfgParser.PrefixSuccesorContext;
 import zfg.antlr.ZfgParser.PriTypeContext;
 import zfg.antlr.ZfgParser.PrimitiveTypeContext;
 import zfg.antlr.ZfgParser.RecTypeContext;
 import zfg.antlr.ZfgParser.RecordTypeContext;
 import zfg.antlr.ZfgParser.ScopeContext;
-import zfg.antlr.ZfgParser.SetAssignmentContext;
+import zfg.antlr.ZfgParser.SettingAssignContext;
 import zfg.antlr.ZfgParser.StatementContext;
-import zfg.antlr.ZfgParser.SuccessorAssignmentContext;
+import zfg.antlr.ZfgParser.SuffixSuccesorContext;
 import zfg.antlr.ZfgParser.TupTypeContext;
 import zfg.antlr.ZfgParser.TupleTypeContext;
 import zfg.antlr.ZfgParser.UnambigCompareOpdContext;
 import zfg.antlr.ZfgParser.UnambigExprContext;
 import zfg.antlr.ZfgParser.UnambigExpressionContext;
 import zfg.antlr.ZfgParser.UnambigLogicalOpdContext;
-import zfg.antlr.ZfgParser.VariableExprContext;
+import zfg.antlr.ZfgParser.VarLoadExprContext;
 
 public final class Parser {
   public Parser() {}
@@ -164,20 +174,23 @@ public final class Parser {
     throw new UnsupportedOperationException("TODO"); // TODO
   }
 
-  private Node parseAssignmentStatement(final AssignmentStatementContext ctx) {
-    return parseAssignment(ctx.child, AssignmentNode.Mode.STMT);
+  private Stmt parseAssignmentStatement(final AssignmentStatementContext ctx) {
+    final Node node = parseAssignment(ctx.child, false);
+    assert node == null || node instanceof Stmt;
+    return (Stmt) node;
   }
 
   private Node parseInvocationStatement(final InvocationStatementContext ctx) {
-    throw new UnsupportedOperationException("TODO"); // TODO
-    // return parseInvocation(ctx.child, InvocationNode.Mode.STMT);
+    final Node node = parseInvocation(ctx.child, false);
+    assert node == null || node instanceof Stmt;
+    return (Stmt) node;
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////
   // Expressions
   //////////////////////////////////////////////////////////////////////////////////////////////////
 
-  private Node parseExpression(final ExpressionContext ctx) {
+  private Expr parseExpression(final ExpressionContext ctx) {
     return switch (ctx) {
       case UnambigExprContext expr -> parseUnambigExpression(expr.expr);
       case AlgebraExprContext expr -> parseAlgebraExpression(expr.expr);
@@ -188,42 +201,140 @@ public final class Parser {
     };
   }
 
-  private Node parseUnambigExpression(final UnambigExpressionContext ctx) {
+  private Expr parseUnambigExpression(final UnambigExpressionContext ctx) {
     return switch (ctx) {
+      case CrementExprContext    expr -> parseCrementExpr(expr);
+      case FunCallExprContext    expr -> parseFunCallExpr(expr);
+      case VarLoadExprContext    expr -> parseVarLoadExpr(expr);
       case LiteralExprContext    expr -> parseLiteralExpr(expr);
-      case VariableExprContext   expr -> parseVariableExpr(expr);
-      case PrecedenceExprContext expr -> parsePrecedenceExpr(expr);
+      case PrefixOpExprContext   expr -> parsePrefixOpExpr(expr);
       case AssignmentExprContext expr -> parseAssignmentExpr(expr);
-      case InvocationExprContext expr -> parseInvocationExpr(expr);
-      case IncDecExprContext     expr -> parseIncDecExprContext(expr);
-      case PrefixExprContext     expr -> parsePrefixExpr(expr);
+      case PrecedenceExprContext expr -> parsePrecedenceExpr(expr);
       default -> throw new AssertionError();
     };
   }
 
-  private Node parseAlgebraExpression(final AlgebraExpressionContext ctx) {
+  private Expr parseCrementExpr(final CrementExprContext ctx) {
+    final Node node = parseCrementAssignment(ctx.expr, true);
+    assert node == null || node instanceof Expr;
+    return (Expr) node;
+  }
+
+  private Expr parseFunCallExpr(final FunCallExprContext ctx) {
+    final Node node = parseInvocation(ctx.expr, false);
+    assert node == null || node instanceof Expr;
+    return (Expr) node;
+  }
+
+  private Expr parseVarLoadExpr(final VarLoadExprContext ctx) {
+    final VarRef var = parseVarRef(ctx.expr, Mode.READ);
+    return var == null ? null : new VarLoadExpr(var);
+  }
+
+  private Expr parseLiteralExpr(final LiteralExprContext ctx) {
+    final Inst val = parseLiteral(ctx.expr);
+    return val == null ? null : new ConstantExpr(val);
+  }
+
+  private Expr parsePrefixOpExpr(final PrefixOpExprContext ctx) {
+    // 1. Parse the operands
+    final Expr opd = parseUnambigExpression(ctx.rhs);
+    // 2. Parse the operator
+    final UnaryExpr.Opr opr = switch (ctx.opr.getType()) {
+      case ZfgLexer.ADD -> null;
+      case ZfgLexer.SUB -> UnaryExpr.Opr.NEG;
+      case ZfgLexer.NOT -> UnaryExpr.Opr.NOT;
+      case ZfgLexer.LNT -> UnaryExpr.Opr.LNT;
+      default -> throw new AssertionError();
+    };
+    // 3. Error propagation
+    if (opd == null) return null;
+    // 4. Operand type checking
+    switch (opr) {
+      case null:
+        if (!isValidOperand(ctx.opr, ctx.rhs, opd, ALGEBRA_ACCEPTS)) return null;
+        return opd; // <-- early escape for unary plus since it's a no-op
+      case UnaryExpr.Opr.NEG:
+        if (!isValidOperand(ctx.opr, ctx.rhs, opd, ALGEBRA_ACCEPTS)) return null;
+        break;
+      case UnaryExpr.Opr.NOT:
+        if (!isValidOperand(ctx.opr, ctx.rhs, opd, BITWISE_ACCEPTS)) return null;
+        break;
+      case UnaryExpr.Opr.LNT:
+        if (!isValidOperand(ctx.opr, ctx.rhs, opd, LOGICAL_ACCEPTS)) return null;
+        break;
+      default: throw new AssertionError();
+    }
+    // 5. Output type deduction
+    final Type outType = opd.type();
+    // 6. Implicit casting
+    // N/A
+    // 7. Construct the node
+    return new UnaryExpr(outType, opr, opd);
+  }
+
+  private Expr parseAssignmentExpr(final AssignmentExprContext ctx) {
+    final Node node = parseAssignment(ctx.expr, true);
+    assert node == null || node instanceof Expr;
+    return (Expr) node;
+  }
+
+  private Expr parsePrecedenceExpr(final PrecedenceExprContext ctx) {
+    return parseExpression(ctx.expr);
+  }
+
+  private Expr parseAlgebraExpression(final AlgebraExpressionContext ctx) {
     return switch (ctx) {
-      case AlgebraInfixExprAAContext expr -> parseAlgebraInfixExpr(
-        ctx, expr.lhs, expr.rhs, expr.op,
-        parseAlgebraExpression(expr.lhs),
-        parseAlgebraExpression(expr.rhs));
-      case AlgebraInfixExprAUContext expr -> parseAlgebraInfixExpr(
-        ctx, expr.lhs, expr.rhs, expr.op,
-        parseAlgebraExpression(expr.lhs),
-        parseUnambigExpression(expr.rhs));
-      case AlgebraInfixExprUAContext expr -> parseAlgebraInfixExpr(
-        ctx, expr.lhs, expr.rhs, expr.op,
-        parseUnambigExpression(expr.lhs),
-        parseAlgebraExpression(expr.rhs));
-      case AlgebraInfixExprUUContext expr -> parseAlgebraInfixExpr(
-        ctx, expr.lhs, expr.rhs, expr.op,
-        parseUnambigExpression(expr.lhs),
-        parseUnambigExpression(expr.rhs));
+      case AlgebraInfixExprAAContext expr -> parseAlgebraExpr(expr, expr.lhs, expr.rhs, expr.opr);
+      case AlgebraInfixExprAUContext expr -> parseAlgebraExpr(expr, expr.lhs, expr.rhs, expr.opr);
+      case AlgebraInfixExprUAContext expr -> parseAlgebraExpr(expr, expr.lhs, expr.rhs, expr.opr);
+      case AlgebraInfixExprUUContext expr -> parseAlgebraExpr(expr, expr.lhs, expr.rhs, expr.opr);
       default -> throw new AssertionError();
     };
   }
 
-  private Node parseBitwiseExpression(final BitwiseExpressionContext ctx) {
+  private Expr parseAlgebraExpr(
+    final ParserRuleContext ctx,
+    final ParserRuleContext operand0,
+    final ParserRuleContext operand1,
+    final Token             oparator
+  ) {
+    // 1. Parse the operands
+    final Expr lhs = parseAlgebraOperand(operand0);
+    final Expr rhs = parseAlgebraOperand(operand1);
+    // 2. Parse the operator
+    final BinaryExpr.Opr opr = switch (oparator.getType()) {
+      case ZfgLexer.ADD -> BinaryExpr.Opr.ADD;
+      case ZfgLexer.SUB -> BinaryExpr.Opr.SUB;
+      case ZfgLexer.MUL -> BinaryExpr.Opr.MUL;
+      case ZfgLexer.DIV -> BinaryExpr.Opr.DIV;
+      case ZfgLexer.REM -> BinaryExpr.Opr.REM;
+      case ZfgLexer.MOD -> BinaryExpr.Opr.MOD;
+      default -> throw new AssertionError();
+    };
+    // 3. Error propagation
+    if (lhs == null || rhs == null) return null;
+    // 4. Operand type checking
+    if (!isValidOperands(oparator, operand0, operand1, lhs, rhs, ALGEBRA_ACCEPTS)) return null;
+    // 5. Output type deduction
+    final Type outType = commonType(ctx, oparator, lhs, rhs);
+    if (outType == types.Err) return null;
+    // 6. Implicit casting
+    final Expr lhsOpd = castIfNeeded(outType, lhs);
+    final Expr rhsOpd = castIfNeeded(outType, rhs);
+    // 7. Construct the node
+    return new BinaryExpr(outType, opr, lhsOpd, rhsOpd);
+  }
+
+  private Expr parseAlgebraOperand(final ParserRuleContext ctx) {
+    return switch (ctx) {
+      case AlgebraExpressionContext opd -> parseAlgebraExpression(opd);
+      case UnambigExpressionContext opd -> parseUnambigExpression(opd);
+      default -> throw new AssertionError();
+    };
+  }
+
+  private Expr parseBitwiseExpression(final BitwiseExpressionContext ctx) {
     return switch (ctx) {
       case BitwiseChianExprContext expr -> parseBitwiseChianExpr(expr);
       case BitwiseInfixExprContext expr -> parseBitwiseInfixExpr(expr);
@@ -231,7 +342,56 @@ public final class Parser {
     };
   }
 
-  private Node parseCompareExpression(final CompareExpressionContext ctx) {
+  private Expr parseBitwiseChianExpr(final BitwiseChianExprContext ctx) {
+    final List<UnambigExpressionContext> operands = ctx.opd;
+    final int operandsSize = operands.size();
+    // 1. Parse the operands
+    final Expr[] opds = new Expr[operandsSize];
+    for (int i = 0; i < operandsSize; i++) opds[i] = parseUnambigExpression(operands.get(i));
+    // 2. Parse the operator
+    final NaryExpr.Opr opr = switch (ctx.opr.getType()) {
+      case ZfgLexer.AND -> NaryExpr.Opr.AND;
+      case ZfgLexer.IOR -> NaryExpr.Opr.IOR;
+      case ZfgLexer.XOR -> NaryExpr.Opr.XOR;
+      default -> throw new AssertionError();
+    };
+    // 3. Error propagation
+    for (int i = 0; i < operandsSize; i++) if (opds[i] == null) return null;
+    // 4. Operand type checking
+    if (!isValidOperands(ctx.opr, operands, opds, BITWISE_ACCEPTS)) return null;
+    // 5. Output type deduction
+    final Type outType = commonType(ctx, ctx.opr, opds);
+    if (outType == types.Err) return null;
+    // 6. Implicit casting
+    for (int i = 0; i < operandsSize; i++) opds[i] = castIfNeeded(outType, opds[i]);
+    // 7. Construct the node
+    return new NaryExpr(outType, opr, opds);
+  }
+
+  private Expr parseBitwiseInfixExpr(final BitwiseInfixExprContext ctx) {
+    // 1. Parse the operands
+    final Expr lhs = parseUnambigExpression(ctx.lhs);
+    final Expr rhs = parseUnambigExpression(ctx.rhs);
+    // 2. Parse the operator
+    final BinaryExpr.Opr opr = switch (ctx.opr.getType()) {
+      case ZfgLexer.SHL -> BinaryExpr.Opr.SHL;
+      case ZfgLexer.SHR -> BinaryExpr.Opr.SHR;
+      default -> throw new AssertionError();
+    };
+    // 3. Error propagation
+    if (lhs == null || rhs == null) return null;
+    // 4. Operand type checking
+    if (!isValidOperands(ctx.opr, ctx.lhs, ctx.rhs, lhs, rhs, BWSHIFT_ACCEPTS)) return null;
+    // 5. Output type deduction
+    final Type outType = lhs.type();
+    // 6. Implicit casting
+    final Expr lhsOpd = lhs;
+    final Expr rhsOpd = castIfNeeded(types.I32, rhs);
+    // 7. Construct the node
+    return new BinaryExpr(outType, opr, lhsOpd, rhsOpd);
+  }
+
+  private Expr parseCompareExpression(final CompareExpressionContext ctx) {
     return switch (ctx) {
       case CompareChianExprContext expr -> parseCompareChianExpr(expr);
       case CompareInfixExprContext expr -> parseCompareInfixExpr(expr);
@@ -239,158 +399,42 @@ public final class Parser {
     };
   }
 
-  private Node parseLogicalExpression(final LogicalExpressionContext ctx) {
-    return switch (ctx) {
-      case LogicalChianExprContext expr -> parseLogicalChianExpr(expr);
-      default -> throw new AssertionError();
-    };
-  }
-
-  private Node parseLiteralExpr(final LiteralExprContext ctx) {
-    return parseLiteral(ctx.expr);
-  }
-
-  private Node parseVariableExpr(final VariableExprContext ctx) {
-    return parseVariablePath(ctx.expr, Mode.READ);
-  }
-
-  private Node parsePrecedenceExpr(final PrecedenceExprContext ctx) {
-    return parseExpression(ctx.expr);
-  }
-
-  private Node parseAssignmentExpr(final AssignmentExprContext ctx) {
-    return parseAssignment(ctx.expr, AssignmentNode.Mode.EXPR);
-  }
-
-  private Node parseInvocationExpr(final InvocationExprContext ctx) {
-    throw new UnsupportedOperationException("TODO"); // TODO
-    // return parseAssignment(ctx.expr, InvocationNode.Mode.EXPR);
-  }
-
-  private Node parseIncDecExpr(final IncDecExprContext ctx) {
-    return successorAssignment(ctx.expr, AssignmentNode.Mode.EXPR);
-  }
-
-  private Node parsePrefixExpr(final PrefixExprContext ctx) {
+  private Expr parseCompareChianExpr(final CompareChianExprContext ctx) {
     // 1. Parse the operands
     // 2. Parse the operator
-    // 3. Operand type checking and error propagation
-    // 4. Output type deduction
-    // 5. Implicit casting
-    // 6. Construct the node
+    // 3. Error propagation
+    // 4. Operand type checking
+    // 5. Output type deduction
+    // 6. Implicit casting
+    // 7. Construct the node
     throw new UnsupportedOperationException("TODO"); // TODO
   }
 
-  private Node parseAlgebraInfixExpr(
-    final ParserRuleContext ctx,
-    final ParserRuleContext ctxLhs,
-    final ParserRuleContext ctxRhs,
-    final Token ctxOp,
-    final Node lhs,
-    final Node rhs
-  ) {
+  private Expr parseCompareInfixExpr(final CompareInfixExprContext ctx) {
     // 1. Parse the operands
-    // N/A (already parsed in the caller method)
+    final Expr lhs = parseCompareOperand(ctx.lhs);
+    final Expr rhs = parseCompareOperand(ctx.rhs);
     // 2. Parse the operator
-    final BinaryExprNode.Op op = switch (ctxOp.getType()) {
-      case ZfgLexer.ADD -> BinaryExprNode.Op.ADD;
-      case ZfgLexer.SUB -> BinaryExprNode.Op.SUB;
-      case ZfgLexer.MUL -> BinaryExprNode.Op.MUL;
-      case ZfgLexer.DIV -> BinaryExprNode.Op.DIV;
-      case ZfgLexer.REM -> BinaryExprNode.Op.REM;
-      case ZfgLexer.MOD -> BinaryExprNode.Op.MOD;
+    final BinaryExpr.Opr opr = switch (ctx.opr.getType()) {
+      case ZfgLexer.TWC -> BinaryExpr.Opr.TWC;
       default -> throw new AssertionError();
     };
-    // 3. Operand type checking and error propagation
-    if (!isValidOperands(ctxOp, ctxLhs, ctxRhs, lhs, rhs, ALGEBRA_ACCEPTS)) return nodes.error;
-    // 4. Output type deduction
-    final Type outType = commonType(ctx, ctxOp, lhs, rhs);
-    if (outType == types.Err) return nodes.error;
-    // 5. Implicit casting
-    final Node lhsOpd = castIfNeeded(outType, lhs);
-    final Node rhsOpd = castIfNeeded(outType, rhs);
-    // 6. Construct the node
-    return new BinaryExprNode(outType, op, lhsOpd, rhsOpd);
-  }
-
-  private Node parseBitwiseChianExpr(final BitwiseChianExprContext ctx) {
-    final List<UnambigExpressionContext> children = ctx.opd;
-    final int childrenSize = children.size();
-    // 1. Parse the operands
-    final List<Node> operands = new ArrayList<>(childrenSize);
-    for (int i = 0; i < childrenSize; i++) operands.add(parseUnambigExpression(children.get(i)));
-    // 2. Parse the operator
-    final NaryExprNode.Op op = switch (ctx.op.getType()) {
-      case ZfgLexer.AND -> NaryExprNode.Op.AND;
-      case ZfgLexer.IOR -> NaryExprNode.Op.IOR;
-      case ZfgLexer.XOR -> NaryExprNode.Op.XOR;
-      default -> throw new AssertionError();
-    };
-    // 3. Operand type checking and error propagation
-    if (!isValidOperands(ctx.op, children, operands, BITWISE_ACCEPTS)) return nodes.error;
-    // 4. Output type deduction
-    final Type outType = commonType(ctx, ctx.op, operands);
-    if (outType == types.Err) return nodes.error;
-    // 5. Implicit casting
-    for (int i = 0; i < childrenSize; i++) operands.set(i, castIfNeeded(outType, operands.get(i)));
-    // 6. Construct the node
-    return new NaryExprNode(outType, op, operands);
-  }
-
-  private Node parseBitwiseInfixExpr(final BitwiseInfixExprContext ctx) {
-    // 1. Parse the operands
-    final Node lhs = parseUnambigExpression(ctx.lhs);
-    final Node rhs = parseUnambigExpression(ctx.rhs);
-    // 2. Parse the operator
-    final BinaryExprNode.Op op = switch (ctx.op.getType()) {
-      case ZfgLexer.SHL -> BinaryExprNode.Op.SHL;
-      case ZfgLexer.SHR -> BinaryExprNode.Op.SHR;
-      default -> throw new AssertionError();
-    };
-    // 3. Operand type checking and error propagation
-    if (!isValidOperands(ctx.op, ctx.lhs, ctx.rhs, lhs, rhs, BWSHIFT_ACCEPTS)) return nodes.error;
-    // 4. Output type deduction
-    final Type outType = lhs.type();
-    // 5. Implicit casting
-    final Node lhsOpd = lhs;
-    final Node rhsOpd = castIfNeeded(types.I32, rhs);
-    // 6. Construct the node
-    return new BinaryExprNode(outType, op, lhsOpd, rhsOpd);
-  }
-
-  private Node parseCompareChianExpr(final CompareChianExprContext ctx) {
-    // 1. Parse the operands
-    // 2. Parse the operator
-    // 3. Operand type checking and error propagation
-    // 4. Output type deduction
-    // 5. Implicit casting
-    // 6. Construct the node
-    throw new UnsupportedOperationException("TODO"); // TODO
-  }
-
-  private Node parseCompareInfixExpr(final CompareInfixExprContext ctx) {
-    // 1. Parse the operands
-    final Node lhs = parseCompareOperand(ctx.lhs);
-    final Node rhs = parseCompareOperand(ctx.rhs);
-    // 2. Parse the operator
-    final BinaryExprNode.Op op = switch (ctx.op.getType()) {
-      case ZfgLexer.TWC -> BinaryExprNode.Op.TWC;
-      default -> throw new AssertionError();
-    };
-    // 3. Operand type checking and error propagation
-    if (!isValidOperands(ctx.op, ctx.lhs, ctx.rhs, lhs, rhs, COMPARE_ACCEPTS)) return nodes.error;
-    // 4. Output type deduction
+    // 3. Error propagation
+    if (lhs == null || rhs == null) return null;
+    // 4. Operand type checking
+    if (!isValidOperands(ctx.opr, ctx.lhs, ctx.rhs, lhs, rhs, COMPARE_ACCEPTS)) return null;
+    // 5. Output type deduction
     final Type outType = types.I08;
-    // 5. Implicit casting
-    final Type commonType = commonType(ctx, ctx.op, lhs, rhs);
-    if (commonType == types.Err) return nodes.error;
-    final Node lhsOpd = castIfNeeded(commonType, lhs);
-    final Node rhsOpd = castIfNeeded(commonType, rhs);
-    // 6. Construct the node
-    return new BinaryExprNode(outType, op, lhsOpd, rhsOpd);
+    // 6. Implicit casting
+    final Type commonType = commonType(ctx, ctx.opr, lhs, rhs);
+    if (commonType == types.Err) return null;
+    final Expr lhsOpd = castIfNeeded(commonType, lhs);
+    final Expr rhsOpd = castIfNeeded(commonType, rhs);
+    // 7. Construct the node
+    return new BinaryExpr(outType, opr, lhsOpd, rhsOpd);
   }
 
-  private Node parseCompareOperand(final CompareOperandContext ctx) {
+  private Expr parseCompareOperand(final CompareOperandContext ctx) {
     return switch (ctx) {
       case BitwiseCompareOpdContext opd -> parseBitwiseExpression(opd.expr);
       case AlgebraCompareOpdContext opd -> parseAlgebraExpression(opd.expr);
@@ -399,29 +443,38 @@ public final class Parser {
     };
   }
 
-  private Node parseLogicalChianExpr(final LogicalChianExprContext ctx) {
+  private Expr parseLogicalExpression(final LogicalExpressionContext ctx) {
+    return switch (ctx) {
+      case LogicalChianExprContext expr -> parseLogicalChianExpr(expr);
+      default -> throw new AssertionError();
+    };
+  }
+
+  private Expr parseLogicalChianExpr(final LogicalChianExprContext ctx) {
     final List<LogicalOperandContext> children = ctx.opd;
     final int childrenSize = children.size();
     // 1. Parse the operands
-    final List<Node> operands = new ArrayList<>(childrenSize);
-    for (int i = 0; i < childrenSize; i++) operands.add(parseLogicalOperand(children.get(i)));
+    final Expr[] opds = new Expr[childrenSize];
+    for (int i = 0; i < childrenSize; i++) opds[i] = parseLogicalOperand(children.get(i));
     // 2. Parse the operator
-    final NaryExprNode.Op op = switch (ctx.op.getType()) {
-      case ZfgLexer.LCJ -> NaryExprNode.Op.LCJ;
-      case ZfgLexer.LDJ -> NaryExprNode.Op.LDJ;
+    final NaryExpr.Opr opr = switch (ctx.opr.getType()) {
+      case ZfgLexer.LCJ -> NaryExpr.Opr.LCJ;
+      case ZfgLexer.LDJ -> NaryExpr.Opr.LDJ;
       default -> throw new AssertionError();
     };
-    // 3. Operand type checking and error propagation
-    if (!isValidOperands(ctx.op, children, operands, LOGICAL_ACCEPTS)) return nodes.error;
-    // 4. Output type deduction
+    // 3. Error propagation
+    for (int i = 0; i < childrenSize; i++) if (opds[i] == null) return null;
+    // 4. Operand type checking
+    if (!isValidOperands(ctx.opr, children, opds, LOGICAL_ACCEPTS)) return null;
+    // 5. Output type deduction
     final Type outType = types.Bit;
-    // 5. Implicit casting
+    // 6. Implicit casting
     // N/A
-    // 6. Construct the node
-    return new NaryExprNode(outType, op, operands);
+    // 7. Construct the node
+    return new NaryExpr(outType, opr, opds);
   }
 
-  private Node parseLogicalOperand(final LogicalOperandContext ctx) {
+  private Expr parseLogicalOperand(final LogicalOperandContext ctx) {
     return switch (ctx) {
       case CompareLogicalOpdContext opd -> parseCompareExpression(opd.expr);
       case BitwiseLogicalOpdContext opd -> parseBitwiseExpression(opd.expr);
@@ -435,189 +488,203 @@ public final class Parser {
   // Assignment
   //////////////////////////////////////////////////////////////////////////////////////////////////
 
-  private Node parseAssignment(final AssignmentContext ctx, final AssignmentNode.Mode mode) {
+  private Node parseAssignment(final AssignmentContext ctx, final boolean isExpr) {
     return switch (ctx) {
-      case SetAssignmentContext     assign -> parseSetAssignment(assign, mode);
-      case AlgebraAssignmentContext assign -> parseAlgebraAssignment(assign, mode);
-      case BitwiseAssignmentContext assign -> parseBitwiseAssignment(assign, mode);
-      case BwShiftAssignmentContext assign -> parseBwShiftAssignment(assign, mode);
-      case IncDecAssignmentContext  assign -> parseIncDecAssignment(assign, mode);
+      case SettingAssignContext assign -> parseSettingAssign(assign, isExpr);
+      case AlgebraAssignContext assign -> parseAlgebraAssign(assign, isExpr);
+      case BitwiseAssignContext assign -> parseBitwiseAssign(assign, isExpr);
+      case BwShiftAssignContext assign -> parseBwShiftAssign(assign, isExpr);
+      case CrementAssignContext assign -> parseCrementAssign(assign, isExpr);
       default -> throw new AssertionError();
     };
   }
 
-  private Node parseSetAssignment(
-    final SetAssignmentContext ctx,
-    final AssignmentNode.Mode mode
-  ) {
+  private Node parseSettingAssign(final SettingAssignContext ctx, final boolean isExpr) {
     // 1. Parse the operands
-    final VariableNode lhs = parseVariablePath(ctx.lhs, Mode.READ);
-    final Node rhs = parseExpression(ctx.rhs);
+    final VarRef var = parseVarRef(ctx.lhs, Mode.WRITE);
+    final VarLoadExpr lhs = var == null ? null : new VarLoadExpr(var);
+    final Expr rhs = parseExpression(ctx.rhs);
     // 2. Parse the operator
-    switch (ctx.op.getType()) {
+    switch (ctx.opr.getType()) {
       case ZfgLexer.SETA: break;
       default: throw new AssertionError();
     };
-    // 3. Operand type checking and error propagation
-    if (!isAssignableType(ctx, ctx.op, lhs, rhs)) return nodes.error;
-    // 4. Output type deduction
+    // 3. Error propagation
+    if (lhs == null || rhs == null) return null;
+    // 4. Operand type checking
+    if (!isAssignableType(ctx, ctx.opr, lhs, rhs)) return null;
+    // 5. Output type deduction
     final Type outType = lhs.type();
-    // 5. Implicit casting
-    final Node rhsOpd = castIfNeeded(outType, rhs);
-    // 6. Construct the node
-    return new AssignmentNode(mode, lhs, rhsOpd);
+    // 6. Implicit casting
+    final Expr opd = castIfNeeded(outType, rhs);
+    // 7. Construct the node
+    return isExpr
+      ? new AssignExpr(AssignExpr.Mode.SET_GET, var, opd)
+      : new AssignStmt(var, opd);
   }
 
-  private Node parseAlgebraAssignment(
-    final AlgebraAssignmentContext ctx,
-    final AssignmentNode.Mode mode
-  ) {
+  private Node parseAlgebraAssign(final AlgebraAssignContext ctx, final boolean isExpr) {
     // 1. Parse the operands
-    final VariableNode lhs = parseVariablePath(ctx.lhs, Mode.READWRITE);
-    final Node rhs = parseExpression(ctx.rhs);
+    final VarRef var = parseVarRef(ctx.lhs, Mode.READWRITE);
+    final VarLoadExpr lhs = var == null ? null : new VarLoadExpr(var);
+    final Expr rhs = parseExpression(ctx.rhs);
     // 2. Parse the operator
-    final BinaryExprNode.Op op = switch (ctx.op.getType()) {
-      case ZfgLexer.ADDA -> BinaryExprNode.Op.ADD;
-      case ZfgLexer.SUBA -> BinaryExprNode.Op.SUB;
-      case ZfgLexer.MULA -> BinaryExprNode.Op.MUL;
-      case ZfgLexer.DIVA -> BinaryExprNode.Op.DIV;
-      case ZfgLexer.REMA -> BinaryExprNode.Op.REM;
-      case ZfgLexer.MODA -> BinaryExprNode.Op.MOD;
+    final BinaryExpr.Opr opr = switch (ctx.opr.getType()) {
+      case ZfgLexer.ADDA -> BinaryExpr.Opr.ADD;
+      case ZfgLexer.SUBA -> BinaryExpr.Opr.SUB;
+      case ZfgLexer.MULA -> BinaryExpr.Opr.MUL;
+      case ZfgLexer.DIVA -> BinaryExpr.Opr.DIV;
+      case ZfgLexer.REMA -> BinaryExpr.Opr.REM;
+      case ZfgLexer.MODA -> BinaryExpr.Opr.MOD;
       default -> throw new AssertionError();
     };
-    // 3. Operand type checking and error propagation
-    if (!isValidOperands(ctx.op, ctx.lhs, ctx.rhs, lhs, rhs, ALGEBRA_ACCEPTS)) return nodes.error;
-    if (!isAssignableType(ctx, ctx.op, lhs, rhs)) return nodes.error;
-    // 4. Output type deduction
+    // 3. Error propagation
+    if (lhs == null || rhs == null) return null;
+    // 4. Operand type checking
+    if (!isValidOperands(ctx.opr, ctx.lhs, ctx.rhs, lhs, rhs, ALGEBRA_ACCEPTS)) return null;
+    if (!isAssignableType(ctx, ctx.opr, lhs, rhs)) return null;
+    // 5. Output type deduction
     final Type outType = lhs.type();
-    // 5. Implicit casting
-    final Node rhsOpd = castIfNeeded(outType, rhs);
-    // 6. Construct the expression and assignment nodes
-    final Node expr = new BinaryExprNode(outType, op, lhs, rhsOpd);
-    return new AssignmentNode(mode, lhs, expr);
+    // 6. Implicit casting
+    final Expr opd = castIfNeeded(outType, rhs);
+    // 7. Construct the node
+    final Expr expr = new BinaryExpr(outType, opr, lhs, opd);
+    return isExpr
+      ? new AssignExpr(AssignExpr.Mode.SET_GET, var, expr)
+      : new AssignStmt(var, expr);
   }
 
-  private Node parseBitwiseAssignment(
-    final BitwiseAssignmentContext ctx,
-    final AssignmentNode.Mode mode
-  ) {
+  private Node parseBitwiseAssign(final BitwiseAssignContext ctx, final boolean isExpr) {
     // 1. Parse the operands
-    final VariableNode lhs = parseVariablePath(ctx.lhs, Mode.READWRITE);
-    final Node rhs = parseExpression(ctx.rhs);
+    final VarRef var = parseVarRef(ctx.lhs, Mode.READWRITE);
+    final VarLoadExpr lhs = var == null ? null : new VarLoadExpr(var);
+    final Expr rhs = parseExpression(ctx.rhs);
     // 2. Parse the operator
-    final NaryExprNode.Op op = switch (ctx.op.getType()) {
-      case ZfgLexer.ANDA -> NaryExprNode.Op.AND;
-      case ZfgLexer.IORA -> NaryExprNode.Op.IOR;
-      case ZfgLexer.XORA -> NaryExprNode.Op.XOR;
+    final NaryExpr.Opr op = switch (ctx.opr.getType()) {
+      case ZfgLexer.ANDA -> NaryExpr.Opr.AND;
+      case ZfgLexer.IORA -> NaryExpr.Opr.IOR;
+      case ZfgLexer.XORA -> NaryExpr.Opr.XOR;
       default -> throw new AssertionError();
     };
-    // 3. Operand type checking and error propagation
-    if (!isValidOperands(ctx.op, ctx.lhs, ctx.rhs, lhs, rhs, BITWISE_ACCEPTS)) return nodes.error;
-    if (!isAssignableType(ctx, ctx.op, lhs, rhs)) return nodes.error;
-    // 4. Output type deduction
+    // 3. Error propagation
+    if (lhs == null || rhs == null) return null;
+    // 4. Operand type checking
+    if (!isValidOperands(ctx.opr, ctx.lhs, ctx.rhs, lhs, rhs, BITWISE_ACCEPTS)) return null;
+    if (!isAssignableType(ctx, ctx.opr, lhs, rhs)) return null;
+    // 5. Output type deduction
     final Type outType = lhs.type();
-    // 5. Implicit casting
-    final Node rhsOpd = castIfNeeded(outType, rhs);
-    // 6. Construct the expression and assignment nodes
-    final Node expr = new NaryExprNode(outType, op, List.of(lhs, rhsOpd));
-    return new AssignmentNode(mode, lhs, expr);
+    // 6. Implicit casting
+    final Expr opd = castIfNeeded(outType, rhs);
+    // 7. Construct the node
+    final Expr expr = new NaryExpr(outType, op, new Expr[]{lhs, opd});
+    return isExpr
+      ? new AssignExpr(AssignExpr.Mode.SET_GET, var, expr)
+      : new AssignStmt(var, expr);
   }
 
-  private Node parseBwShiftAssignment(
-    final BwShiftAssignmentContext ctx,
-    final AssignmentNode.Mode mode
-  ) {
+  private Node parseBwShiftAssign(final BwShiftAssignContext ctx, final boolean isExpr) {
     // 1. Parse the operands
-    final VariableNode lhs = parseVariablePath(ctx.lhs, Mode.READWRITE);
-    final Node rhs = parseExpression(ctx.rhs);
+    final VarRef var = parseVarRef(ctx.lhs, Mode.READWRITE);
+    final VarLoadExpr lhs = var == null ? null : new VarLoadExpr(var);
+    final Expr rhs = parseExpression(ctx.rhs);
     // 2. Parse the operator
-    final BinaryExprNode.Op op = switch (ctx.op.getType()) {
-      case ZfgLexer.SHLA -> BinaryExprNode.Op.SHL;
-      case ZfgLexer.SHRA -> BinaryExprNode.Op.SHR;
+    final BinaryExpr.Opr opr = switch (ctx.opr.getType()) {
+      case ZfgLexer.SHLA -> BinaryExpr.Opr.SHL;
+      case ZfgLexer.SHRA -> BinaryExpr.Opr.SHR;
       default -> throw new AssertionError();
     };
-    // 3. Operand type checking and error propagation
-    if (!isValidOperands(ctx.op, ctx.lhs, ctx.rhs, lhs, rhs, BITWISE_ACCEPTS)) return nodes.error;
-    // 4. Output type deduction
+    // 3. Error propagation
+    if (lhs == null || rhs == null) return null;
+    // 4. Operand type checking
+    if (!isValidOperands(ctx.opr, ctx.lhs, ctx.rhs, lhs, rhs, BITWISE_ACCEPTS)) return null;
+    // 5. Output type deduction
     final Type outType = lhs.type();
-    // 5. Implicit casting
-    final Node rhsOpd = castIfNeeded(types.I32, rhs);
-    // 6. Construct the expression node
-    final Node expr = new BinaryExprNode(outType, op, lhs, rhsOpd);
-    return new AssignmentNode(mode, lhs, expr);
+    // 6. Implicit casting
+    final Expr opd = castIfNeeded(types.I32, rhs);
+    // 7. Construct the node
+    final Expr expr = new BinaryExpr(outType, opr, lhs, opd);
+    return isExpr
+      ? new AssignExpr(AssignExpr.Mode.SET_GET, var, expr)
+      : new AssignStmt(var, expr);
   }
 
-  private Node successorAssignment(
-    final SuccessorAssignmentContext ctx,
-    final AssignmentNode.Mode mode
-  ) {
+  private Node parseCrementAssign(final CrementAssignContext ctx, final boolean isExpr) {
+    return parseCrementAssignment(ctx.assign, isExpr);
+  }
+
+  private Node parseCrementAssignment(final CrementAssignmentContext ctx, final boolean isExpr) {
     return switch (ctx) {
-      case PostfixSuccesorContext suc -> parsePostfixSuccessor(suc, mode);
-      case PrefixSuccesorContext suc -> parsePrefixSuccessor(suc, mode);
+      case SuffixSuccesorContext suc -> parseCrementAssignment(
+        AssignExpr.Mode.GET_SET, suc.opr, suc.lhs, isExpr);
+      case PrefixSuccesorContext suc -> parseCrementAssignment(
+        AssignExpr.Mode.SET_GET, suc.opr, suc.lhs, isExpr);
       default -> throw new AssertionError();
     };
   }
 
-  private Node parsePostfixSuccessor(
-    final PostfixSuccesorContext ctx,
-    final AssignmentNode.Mode mode
+  private Node parseCrementAssignment(
+    final AssignExpr.Mode mode,
+    final Token           operator,
+    final PathContext     operand,
+    final boolean         isExpr
   ) {
-    // 1. Parse the operand
-    final VariableNode lhs = parseVariablePath(ctx.lhs, Mode.READWRITE);
-    final Node rhs = ConstantNode()
+    // 1. Parse the operands
+    final VarRef var = parseVarRef(operand, Mode.READWRITE);
+    final VarLoadExpr opd = var == null ? null : new VarLoadExpr(var);
     // 2. Parse the operator
-    final BinaryExprNode.Op op = switch (ctx.op.getType()) {
-      case ZfgLexer.INC -> BinaryExprNode.Op.ADD;
-      case ZfgLexer.DEC -> BinaryExprNode.Op.SUB;
+    final UnaryExpr.Opr opr = switch (operator.getType()) {
+      case ZfgLexer.INC -> UnaryExpr.Opr.INC;
+      case ZfgLexer.DEC -> UnaryExpr.Opr.DEC;
       default -> throw new AssertionError();
     };
-    // 3. Operand type checking and error propagation
-    if (!isValidOperands(ctx.op, ctx.lhs, lhs, lhs, nodes.one)) return nodes.error;
-    // 4. Output type deduction
-    final Type outType = lhs.type();
-    // 5. Implicit casting
+    // 3. Error propagation
+    if (var == null || opd == null) return null;
+    // 4. Operand type checking and error propagation
+    if (!isValidOperand(operator, operand, opd, ALGEBRA_ACCEPTS)) return null;
+    // 5. Output type deduction
+    final Type outType = opd.type();
+    // 6. Implicit casting
     // N/A
-    // 6. Construct the expression and assignment nodes
-    final Node expr = new BinaryExprNode(outType, op, lhs, nodes.one);
-    return new AssignmentNode(mode, lhs, expr);
+    // 7. Construct the node
+    final Expr expr = new UnaryExpr(outType, opr, opd);
+    return isExpr
+      ? new AssignExpr(mode, var, expr)
+      : new AssignStmt(var, expr);
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////
   // Literals
   //////////////////////////////////////////////////////////////////////////////////////////////////
 
-  private Node parseLiteral(final LiteralContext ctx) {
+  private Inst parseLiteral(final LiteralContext ctx) {
     return switch (ctx) {
       case NumericLitContext lit -> parseNumericLit(lit.lit);
       default -> throw new AssertionError();
     };
   }
 
-  private Node parseNumericLit(final NumericLiteralContext ctx) {
+  private Inst parseNumericLit(final NumericLiteralContext ctx) {
     final String text = ctx.token.getText();
     final int    type = ctx.token.getType();
     switch (type) {
       case ZfgLexer.BitLit: {
         final Inst parsed = parseBitLit(text);
-        if (parsed != null) return new ConstantNode(parsed);
-        err(ctx, "Invalid bit literal: \"" + text + "\"");
-        return nodes.error;
+        if (parsed == null) err(ctx, "Invalid bit literal: \"" + text + "\"");
+        return parsed;
       }
       case ZfgLexer.IntLit: {
         final boolean hasMinusPrefix =
-            ctx.parent instanceof PrefixExprContext parent &&
-            parent.op.getType() == ZfgLexer.SUB &&
-            parent.op.getStopIndex() + 1 == ctx.getStart().getStartIndex();
+            ctx.parent instanceof PrefixOpExprContext parent &&
+            parent.opr.getType() == ZfgLexer.SUB &&
+            parent.opr.getStopIndex() + 1 == ctx.getStart().getStartIndex();
         final Inst parsed = parseIntLit(text, hasMinusPrefix);
-        if (parsed != null) return new ConstantNode(parsed);
-        err(ctx, "Invalid int literal: \"" + text + "\"");
-        return nodes.error;
+        if (parsed == null) err(ctx, "Invalid int literal: \"" + text + "\"");
+        return parsed;
       }
       case ZfgLexer.FltLit: {
         final Inst parsed = parseFltLit(text);
-        if (parsed != null) return new ConstantNode(parsed);
-        err(ctx, "Invalid flt literal: \"" + text + "\"");
-        return nodes.error;
+        if (parsed == null) err(ctx, "Invalid flt literal: \"" + text + "\"");
+        return parsed;
       }
       default: throw new AssertionError();
     }
@@ -663,7 +730,7 @@ public final class Parser {
     // Error propagation
     for (int i = 0; i < fieldCount; i++) if (typez[i] == types.Err) return types.Err;
     if (returnType == types.Err) return types.Err;
-    // Construct the tuple type
+    // Construct the node
     final RecType parametersType = (RecType) typeCache.Rec(muts, names, typez);
     return typeCache.Fun(parametersType, returnType);
   }
@@ -688,7 +755,7 @@ public final class Parser {
     if (!uniqueNames(names)) return types.Err;
     // Error propagation
     for (int i = 0; i < fieldCount; i++) if (typez[i] == types.Err) return types.Err;
-    // Construct the tuple type
+    // Construct the node
     return typeCache.Rec(muts, names, typez);
   }
 
@@ -705,7 +772,7 @@ public final class Parser {
     for (int i = 0; i < fieldCount; i++) typez[i] = parseAnyType(fieldTypes.get(i));
     // Error propagation
     for (int i = 0; i < fieldCount; i++) if (typez[i] == types.Err) return types.Err;
-    // Construct the tuple type
+    // Construct the node
     return typeCache.Tup(muts, typez);
   }
 
@@ -730,7 +797,7 @@ public final class Parser {
     }
     // Error propagation
     if (type == types.Err || length == -2) return types.Err;
-    // Construct the array type
+    // Construct the node
     return length == -1
       ? typeCache.Arr(mut, type)
       : typeCache.Arr(mut, type, length);
@@ -777,22 +844,91 @@ public final class Parser {
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////
+  // Function Invocation
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+
+  private Node parseInvocation(final InvocationContext ctx, final boolean isExpr) {
+    final List<ExpressionContext> operands = ctx.arguments;
+    final int operandsSize = operands.size();
+    // 1. Parse the operands
+    final Expr[] opds = new Expr[operandsSize];
+    for (int i = 0; i < operandsSize; i++) opds[i] = parseExpression(operands.get(i));
+    // 2. Parse the operator
+    final FunRef fun = parseFunRef(ctx.fun, Mode.READ);
+    // 3. Error propagation
+    if (fun == null) return null;
+    for (int i = 0; i < operandsSize; i++) if (opds[i] == null) return null;
+    // 4. Operand type checking
+    if (!isValidParameters(ctx, fun.type.paramsType.types, opds)) return null;
+    // 4. Output type deduction
+    // N/A
+    // 5. Implicit casting
+    for (int i = 0; i < operandsSize; i++)
+      opds[i] = castIfNeeded(fun.type.paramsType.types[i], opds[i]);
+    // 6. Construct the node
+    return isExpr
+      ? new FunCallExpr(fun, opds)
+      : new FunCallStmt(fun, opds);
+  }
+
+  private boolean isValidParameters(
+    final InvocationContext ctx,
+    final FunRef            operator,
+    final Expr[]            operands
+  ) {
+    if (isValidParameters(ctx, operator.type.paramsType.types, operands)) return true;
+
+    final StringBuilder sb = new StringBuilder();
+    sb.append("invalid arguments for function \"");
+    sb.append(operator.owner);
+    sb.append(".");
+    sb.append(operator.name);
+    operator.type.paramsType.toString(sb);
+    sb.append("\": (");
+    for (int i = 0; i < operands.length; i++) {
+      if (i > 0) sb.append(",")
+      operands[i].type().toString(sb);
+    }
+    sb.append(")");
+    err(ctx, sb.toString());
+    return false;
+  }
+
+
+  private static boolean isValidParameters(
+    final InvocationContext ctx,
+    final Type[]            expected,
+    final Expr[]            operands
+  ) {
+    // TODO: think about mutablity requirements
+    // TODO: named parameters
+    // TODO: varargs
+    if (operands.length != expected.length) return false;
+    for (int i = 0; i < operands.length; i++)
+      if (!operands[i].type().isAssignableTo(expected[i])) return false;
+    return true;
+  }
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////
   // Symbol Table
   //////////////////////////////////////////////////////////////////////////////////////////////////
 
   private static enum Mode { READ, WRITE, READWRITE };
-  private VariableNode parseVariablePath(final PathContext ctx, final Mode mode) {
+  private VarRef parseVarRef(final PathContext ctx, final Mode mode) {
     throw new UnsupportedOperationException("TODO");
   }
 
+  private FunRef parseFunRef(final PathContext ctx, final Mode mode) {
+    throw new UnsupportedOperationException("TODO");
+  }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////
   // Helper Functions
   //////////////////////////////////////////////////////////////////////////////////////////////////
 
-  private Node castIfNeeded(final Type targetType, final Node node) {
+  private Expr castIfNeeded(final Type targetType, final Expr node) {
     final Type nodeType = node.type();
-    return nodeType.equals(targetType) ? node : new CastNode(targetType, node);
+    return nodeType.equals(targetType) ? node : new CastExpr(targetType, node);
   }
 
   private boolean isAssignableType(
@@ -846,14 +982,14 @@ public final class Parser {
   private Type commonType(
     final ParserRuleContext operatorCtx,
     final Token             operatorToken,
-    final List<Node>        operandNodes
+    final Node[]            operandNodes
   ) {
-    final int operandsSize = operandNodes.size();
+    final int operandsSize = operandNodes.length;
     assert operandsSize >= 2;
     // Get the common type
-    Type commonType = operandNodes.get(0).type();
+    Type commonType = operandNodes[0].type();
     for (int i = 1; i < operandsSize && commonType != types.Err; i++)
-      commonType = commonType(commonType, operandNodes.get(i).type());
+      commonType = commonType(commonType, operandNodes[i].type());
     // Report the error if a common type cannot be found
     if (commonType == types.Err) {
       final StringBuilder sb = new StringBuilder();
@@ -862,7 +998,7 @@ public final class Parser {
       sb.append("\": ");
       for (int i = 0; i < operandsSize; i++) {
         if (i > 0) sb.append(i == operandsSize - 1 ? ", and " : ", ");
-        operandNodes.get(i).type().toString(sb);
+        operandNodes[i].type().toString(sb);
       }
       err(operatorCtx, sb.toString());
     }
@@ -889,14 +1025,14 @@ public final class Parser {
   private boolean isValidOperands(
     final Token                             operatorToken,
     final List<? extends ParserRuleContext> operandCtxs,
-    final List<Node>                        operandNodes,
+    final Node[]                            operandNodes,
     final EnumSet<types.Kind>               operatorAccepts
   ) {
     boolean hasError = true;
-    final int operandsSize = operandNodes.size();
+    final int operandsSize = operandNodes.length;
     for (int i = 0; i < operandsSize; i++) {
       final ParserRuleContext operandCtx = operandCtxs.get(i);
-      final Node operandNode = operandNodes.get(i);
+      final Node operandNode = operandNodes[i];
       hasError &= isValidOperand(operatorToken, operandCtx, operandNode, LOGICAL_ACCEPTS);
     }
     return hasError;
@@ -908,7 +1044,7 @@ public final class Parser {
     final Node                operandNode,
     final EnumSet<types.Kind> operatorAccepts
   ) {
-    if (operandNode == nodes.error) return false;
+    if (operandNode == null) return false;
     final Type operandType = operandNode.type();
     if (operatorAccepts.contains(operandType.kind())) return true;
     err(operandCtx, "invalid operand for operator \"" + operatorToken + "\": " + operandType);

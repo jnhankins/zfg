@@ -51,36 +51,36 @@ expression
   ;
 
 unambigExpression
-  : expr=successorAssignment                                                   # IncDecExpr
-  | expr=invocation                                                            # InvocationExpr
-  | expr=path                                                                  # VariableExpr
+  : expr=crementAssignment                                                     # CrementExpr
+  | expr=invocation                                                            # FunCallExpr
+  | expr=path                                                                  # VarLoadExpr
   | expr=literal                                                               # LiteralExpr
-  | op=(ADD | SUB | NOT | LNT) rhs=unambigExpression                           # PrefixExpr
-  | LPAREN expr=expression RPAREN                                              # PrecedenceExpr
+  | opr=(ADD | SUB | NOT | LNT) rhs=unambigExpression                          # PrefixOpExpr
   | LPAREN expr=assignment RPAREN                                              # AssignmentExpr
+  | LPAREN expr=expression RPAREN                                              # PrecedenceExpr
   ;
 
 algebraExpression
-  : lhs=algebraExpression op=(MUL | DIV | REM | MOD) rhs=algebraExpression     # AlgebraInfixExprAA
-  | lhs=algebraExpression op=(MUL | DIV | REM | MOD) rhs=unambigExpression     # AlgebraInfixExprAU
-  | lhs=unambigExpression op=(MUL | DIV | REM | MOD) rhs=algebraExpression     # AlgebraInfixExprUA
-  | lhs=unambigExpression op=(MUL | DIV | REM | MOD) rhs=unambigExpression     # AlgebraInfixExprUU
-  | lhs=algebraExpression op=(ADD | SUB) rhs=algebraExpression                 # AlgebraInfixExprAA
-  | lhs=algebraExpression op=(ADD | SUB) rhs=unambigExpression                 # AlgebraInfixExprAU
-  | lhs=unambigExpression op=(ADD | SUB) rhs=algebraExpression                 # AlgebraInfixExprUA
-  | lhs=unambigExpression op=(ADD | SUB) rhs=unambigExpression                 # AlgebraInfixExprUU
+  : lhs=algebraExpression opr=(MUL | DIV | REM | MOD) rhs=algebraExpression    # AlgebraInfixExprAA
+  | lhs=algebraExpression opr=(MUL | DIV | REM | MOD) rhs=unambigExpression    # AlgebraInfixExprAU
+  | lhs=unambigExpression opr=(MUL | DIV | REM | MOD) rhs=algebraExpression    # AlgebraInfixExprUA
+  | lhs=unambigExpression opr=(MUL | DIV | REM | MOD) rhs=unambigExpression    # AlgebraInfixExprUU
+  | lhs=algebraExpression opr=(ADD | SUB) rhs=algebraExpression                # AlgebraInfixExprAA
+  | lhs=algebraExpression opr=(ADD | SUB) rhs=unambigExpression                # AlgebraInfixExprAU
+  | lhs=unambigExpression opr=(ADD | SUB) rhs=algebraExpression                # AlgebraInfixExprUA
+  | lhs=unambigExpression opr=(ADD | SUB) rhs=unambigExpression                # AlgebraInfixExprUU
   ;
 
 bitwiseExpression
-  : opd+=unambigExpression (op=AND opd+=unambigExpression)+                    # BitwiseChianExpr
-  | opd+=unambigExpression (op=IOR opd+=unambigExpression)+                    # BitwiseChianExpr
-  | opd+=unambigExpression (op=XOR opd+=unambigExpression)+                    # BitwiseChianExpr
-  | lhs=unambigExpression op=(SHL | SHR) rhs=unambigExpression                 # BitwiseInfixExpr
+  : opd+=unambigExpression (opr=AND opd+=unambigExpression)+                    # BitwiseChianExpr
+  | opd+=unambigExpression (opr=IOR opd+=unambigExpression)+                    # BitwiseChianExpr
+  | opd+=unambigExpression (opr=XOR opd+=unambigExpression)+                    # BitwiseChianExpr
+  | lhs=unambigExpression opr=(SHL | SHR) rhs=unambigExpression                 # BitwiseInfixExpr
   ;
 
 compareExpression
-  : opd+=compareOperand (op=(EQL | NEQ | LTN | GTN | LEQ | GEQ) opd+=compareOperand)+ # CompareChianExpr
-  | lhs=compareOperand op=TWC rhs=compareOperand                                      # CompareInfixExpr
+  : opd+=compareOperand (opr=(EQL | NEQ | LTN | GTN | LEQ | GEQ) opd+=compareOperand)+ # CompareChianExpr
+  | lhs=compareOperand opr=TWC rhs=compareOperand                                      # CompareInfixExpr
   ;
 compareOperand
   : expr=bitwiseExpression                                                     # BitwiseCompareOpd
@@ -89,8 +89,8 @@ compareOperand
   ;
 
 logicalExpression
-  : opd+=logicalOperand (op=LCJ opd+=logicalOperand)+                          # LogicalChianExpr
-  | opd+=logicalOperand (op=LDJ opd+=logicalOperand)+                          # LogicalChianExpr
+  : opd+=logicalOperand (opr=LCJ opd+=logicalOperand)+                         # LogicalChianExpr
+  | opd+=logicalOperand (opr=LDJ opd+=logicalOperand)+                         # LogicalChianExpr
   ;
 logicalOperand
   : expr=compareExpression                                                     # CompareLogicalOpd
@@ -100,20 +100,20 @@ logicalOperand
   ;
 
 assignment
-  : lhs=path op=SETA rhs=expression                                            # SetAssignment
-  | lhs=path op=(ADDA | SUBA | MULA | DIVA | REMA | MODA) rhs=expression       # AlgebraAssignment
-  | lhs=path op=(ANDA | IORA | XORA) rhs=expression                            # BitwiseAssignment
-  | lhs=path op=(SHLA | SHRA) rhs=expression                                   # BwShiftAssignment
-  | assign=successorAssignment                                                 # IncDecAssignment
+  : lhs=path opr=SETA rhs=expression                                           # SettingAssign
+  | lhs=path opr=(ADDA | SUBA | MULA | DIVA | REMA | MODA) rhs=expression      # AlgebraAssign
+  | lhs=path opr=(ANDA | IORA | XORA) rhs=expression                           # BitwiseAssign
+  | lhs=path opr=(SHLA | SHRA) rhs=expression                                  # BwShiftAssign
+  | assign=crementAssignment                                                   # CrementAssign
   ;
-successorAssignment
-  : lhs=path op=(INC | DEC)                                                    # PostfixSuccesor
-  | op=(INC | DEC) lhs=path                                                    # PrefixSuccesor
+crementAssignment
+  : lhs=path opr=(INC | DEC)                                                   # SuffixSuccesor
+  | opr=(INC | DEC) lhs=path                                                   # PrefixSuccesor
   ;
 
  // TODO: named parameters
 invocation
-  : path LPAREN (arguments=expression (COMMA arguments=expression)* COMMA?)? RPAREN
+  : fun=path LPAREN (arguments+=expression (COMMA arguments+=expression)* COMMA?)? RPAREN
   ;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -256,23 +256,23 @@ accessor
 //   | id=identifier                                            # VariableExpr
 //   | lit=(BitLit | IntLit | FltLit)                           # LiteralExpr
 //   | LPAREN expr=expression RPAREN                            # GroupedExpr
-//   | lhs=expression op=(INC | DEC)                            # PostfixOpExpr
-//   | op=(INC | DEC | ADD | SUB | NOT) rhs=expression          # PrefixOpExpr
-//   | lhs=expression op=(MUL | DIV | REM | MOD) rhs=expression # InfixOpExpr
-//   | lhs=expression op=(ADD | SUB) rhs=expression             # InfixOpExpr
-//   | lhs=expression op=(SHL | SHR) rhs=expression             # InfixOpExpr
-//   | lhs=expression op=AND rhs=expression                     # InfixOpExpr
-//   | lhs=expression op=XOR rhs=expression                     # InfixOpExpr
-//   | lhs=expression op=IOR rhs=expression                     # InfixOpExpr
-//   | lhs=expression op=CMP rhs=expression                     # InfixOpExpr
-//   | lhs=expression op=(LTN | GTN | LEQ | GEQ) rhs=expression # InfixOpExpr
-//   | lhs=expression op=(EQL | NEQ)  rhs=expression            # InfixOpExpr
+//   | lhs=expression opr=(INC | DEC)                            # PostfixOpExpr
+//   | opr=(INC | DEC | ADD | SUB | NOT) rhs=expression          # PrefixOpExpr
+//   | lhs=expression opr=(MUL | DIV | REM | MOD) rhs=expression # InfixOpExpr
+//   | lhs=expression opr=(ADD | SUB) rhs=expression             # InfixOpExpr
+//   | lhs=expression opr=(SHL | SHR) rhs=expression             # InfixOpExpr
+//   | lhs=expression opr=AND rhs=expression                     # InfixOpExpr
+//   | lhs=expression opr=XOR rhs=expression                     # InfixOpExpr
+//   | lhs=expression opr=IOR rhs=expression                     # InfixOpExpr
+//   | lhs=expression opr=CMP rhs=expression                     # InfixOpExpr
+//   | lhs=expression opr=(LTN | GTN | LEQ | GEQ) rhs=expression # InfixOpExpr
+//   | lhs=expression opr=(EQL | NEQ)  rhs=expression            # InfixOpExpr
 //   | assign=assignment                                        # AssignmentExpr
-//   | lhs=expression op=(LCJ | LDJ) rhs=expression             # InfixOpExpr
+//   | lhs=expression opr=(LCJ | LDJ) rhs=expression             # InfixOpExpr
 //   ;
 
 // assignment
-//   : lhs=identifier op=(SETA | ADDA | SUBA | MULA | DIVA | REMA | MODA | ANDA | IORA | XORA | SHLA | SHRA) rhs=expression
+//   : lhs=identifier opr=(SETA | ADDA | SUBA | MULA | DIVA | REMA | MODA | ANDA | IORA | XORA | SHLA | SHRA) rhs=expression
 //   ;
 
 // functionCall
