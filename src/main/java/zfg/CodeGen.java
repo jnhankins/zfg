@@ -25,6 +25,7 @@ import zfg.nodes.Stmt;
 import zfg.nodes.UnaryExpr;
 import zfg.nodes.VarLoadExpr;
 import zfg.nodes.VarRef;
+import zfg.types.JvmCateory;
 import zfg.types.Kind;
 import zfg.types.NomType;
 import zfg.types.Type;
@@ -420,10 +421,161 @@ public final class CodeGen {
     }
   }
 
+  private Type commonType(final Type a, final Type b) {
+    // TODO
+    return null;
+  }
+  private void visitCastIfNeeded(final Type into, final Type from) {
+    if (!into.equals(from)) visitCast(into, from);
+  }
+
   private void visitCompareExpr(final CompareExpr expr) {
+    final int cmpCount = expr.oprs.length;
+
+    final Label val0 = new Label();
+    final Label done = new Label();
+
+    if (cmpCount == 1) {
+      final CompareExpr.Opr opr = expr.oprs[0];
+      final Expr lhs = expr.opds[0];
+      final Expr rhs = expr.opds[1];
+      final Type lhsType = lhs.type();
+      final Type rhsType = rhs.type();
+      final Type cmpType = commonType(lhsType, rhsType);
+      visitExpr(lhs);
+      visitCastIfNeeded(cmpType, lhsType);
+      visitExpr(rhs);
+      visitCastIfNeeded(cmpType, rhsType);
+      visitCompare(cmpType, opr, val0);
+    } else {
+      final Type[] cmpTypes = new Type[cmpCount];
+      for (int i = 0; i < cmpCount; i++) {
+        final Expr lhs = expr.opds[i];
+        final Expr rhs = expr.opds[i + 1];
+        final Type type = commonType(lhs.type(), rhs.type());
+        cmpTypes[i] = type;
+      }
+
+
+
+      for (int i = 0; i < cmpCount; i++) {
+        final Expr lhs = expr.opds[i];
+        final Expr rhs = expr.opds[i + 1];
+        final CompareExpr.Opr opr = expr.oprs[i];
+        final Type lhsType = lhs.type();
+        final Type rhsType = rhs.type();
+        final Type cmpType = cmpTypes[i];
+
+        // Prepare the left-hand side
+        if (i == 0) {
+          // <-- First comparison
+          // Stack -> ...
+          visit(lhs);
+          // Stack -> ..., a
+          visitCastIfNeeded(cmpType, lhsType);
+          // Stack -> ..., A
+        } else {
+          final Type prevType = cmpTypes[i-1];
+          // Stack -> ..., a
+          visitCastIfNeeded(cmpType, prevType);
+          // Stack -> ..., A
+        }
+
+        // Prepare the right-hand side
+        if (i + 1 < cmpCount) {
+          final Type nextType = cmpTypes[i+1];
+          // Stack -> ..., A
+          visit(rhs);
+          // Stack -> ..., A, b
+          if (cmpType.equals(nextType)) {
+            // Stack -> ..., A, b
+            visitCastIfNeeded(cmpType, rhsType);
+            // Stack -> ..., A, B
+            visitDupNxN(cmpType, cmpType);
+            // Stack -> ..., B, A, B
+          } else {
+            // Stack -> ..., A, b
+            visitDupNxN(cmpType, cmpType);
+            // Stack -> ..., b, A, b
+            visitCastIfNeeded(cmpType, rhsType);
+            // Stack -> ..., b, A, B
+
+          }
+
+          visitCastIfNeeded(cmpType, rhsType);
+        } else {
+          // <-- Last comparison
+          // Stack -> ..., a, b
+          visit(rhs);
+          // Stack -> ..., a, b
+          visitCastIfNeeded(cmpType, rhsType);
+          //
+          visitCompare(cmpType, opr, res1);
+        }
+
+
+          if (i + 1 < cmpCount) {
+            if (cmpTypes[i+1].equals(type)) {
+              visitCastIfNeeded(type, rhs); // Stack -> ..., a, b
+              // DUP_*_X*                   // Stack -> ..., b, a, b
+              switch (lhs.type().kind().category) {
+                case JvmCateory.C1 -> {
+                  switch (rhs.type().kind().category) {
+                    case JvmCateory.C1 -> { mv.visitInsn(Opcodes.DUP_X1); }
+                    case JvmCateory.C2 -> { mv.visitInsn(Opcodes.DUP2_X1); }
+                  }
+                }
+                case JvmCateory.C2 -> {
+                  switch (rhs.type().kind().category) {
+                    case JvmCateory.C1 -> { mv.visitInsn(Opcodes.DUP_X2); }
+                    case JvmCateory.C2 -> { mv.visitInsn(Opcodes.DUP2_X2); }
+                  }
+                }
+              }
+              // Stack -> ..., b, a, b
+            } else {
+              visitCast(type, rhs); // Stack -> ..., a, b
+            }
+          }
+        }
+      }
+    }
+
+    mv.visitInsn(Opcodes.ICONST_1);
+    mv.visitJumpInsn(Opcodes.GOTO, done);
+    mv.visitLabel(done);
+    mv.visitInsn(Opcodes.ICONST_0);
+
+
+    // a < b < c < d
+    Expr a = expr.opds[0];
+    Expr b = expr.opds[1];
+    Type t = commonType(a.type(), b.type());
+
+    visitExpr(a);             // Stack -> ..., a
+    visitCastIfNeeded(t, a);  // Stack -> ..., a
+    visitExpr(b);             // Stack -> ..., a, b
+
+
+
+    if (!a.type().equals(t)) visitCast(a.type(), t);
+
+     b;
+    visit(a = expr.opds[0]); // Stack -> ..., a
+    for (int i = 1; i < expr.opds.length; i++) {
+      visit(expr.opds[i]); // Stack -> ..., a, b
+      visitCmp(expr.opr);  // Stack -> ..., a <=> b
+      if (i < expr.opds.length - 1) {
+        mv.visitInsn(Opcodes.DUP); // Stack -> ..., a <=> b, a <=> b
+      }
+    }
+    // Stack -> ..., a, b
+    // Stack -> ..., b, a, b
+    // Stack -> ..., b, a <=> b
+
     // a < b < c < d
     // Stack -> ..., a, b, b, c, c, d
-    // stack -> ..., a, b, b, c, c 
+    // stack -> ..., a, b, b, c, c
     visit(expr.a); // Stack -> ..., a
     visit(expr.b);
     visit()
