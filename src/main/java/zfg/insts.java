@@ -7,7 +7,7 @@ import java.util.Set;
 public final class insts {
   private insts() {}
 
-  public static interface Inst {
+  public static sealed interface Inst {
     public Type type();
     @Override public int hashCode();
     @Override public boolean equals(final Object obj);

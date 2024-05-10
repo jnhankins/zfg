@@ -159,7 +159,7 @@ public final class nodes {
   }
 
   public static final class BinaryExpr extends BaseNode implements Expr  {
-    public static enum Opr { ADD, SUB, MUL, DIV, REM, MOD, AND, IOR, XOR, SHL, SHR, TWC; }
+    public static enum Opr { ADD, SUB, MUL, DIV, REM, MOD, SHL, SHR, TWC; }
     public final Type type;
     public final Opr  opr;
     public final Expr lhs;

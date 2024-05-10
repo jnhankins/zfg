@@ -13,7 +13,7 @@ import zfg.old.lang3.val.U64;
 public final class Shr {
   private Shr() {}
 
-  // note: shifting uses the lower log2(width(a)) bytes of b
+  // note: shifting uses the lower log2(width(a)) bits of b
   public static final int    u08(final int    a, final int    b) { return a >>> (b & 0x7); } // zero extend
   public static final int    u16(final int    a, final int    b) { return a >>> (b & 0xF); } // zero extend
   public static final int    u32(final int    a, final int    b) { return a >>> b; }         // zero extend

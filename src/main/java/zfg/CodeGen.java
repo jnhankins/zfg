@@ -5,11 +5,23 @@ import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 
+import zfg.nodes.AssignExpr;
+import zfg.nodes.BinaryExpr;
 import zfg.nodes.BinaryExprNode;
+import zfg.nodes.CastExpr;
+import zfg.nodes.CompareExpr;
+import zfg.nodes.ConstantExpr;
 import zfg.nodes.ConstantExprNode;
+import zfg.nodes.Expr;
+import zfg.nodes.FunCallExpr;
+import zfg.nodes.FunRef;
 import zfg.nodes.FunctionDeclNode;
+import zfg.nodes.NaryExpr;
 import zfg.nodes.Node;
 import zfg.nodes.ReturnStmtNode;
+import zfg.nodes.UnaryExpr;
+import zfg.nodes.VarLoadExpr;
+import zfg.nodes.VarRef;
 import zfg.nodes.VariableExprNode;
 import zfg.types.Kind;
 import zfg.types.NomType;
@@ -35,8 +47,27 @@ public final class CodeGen {
     }
   }
 
-  private void visitConstantExpr(final ConstantExprNode node) {
-    switch (node.value) {
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+  // Expressions
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+
+  private void visitExpr(final Expr expr) {
+    switch (expr) {
+      case ConstantExpr n -> visitConstantExpr(n);
+      case VarLoadExpr  n -> visitVarLoadExpr(n);
+      case FunCallExpr  n -> visitFunCallExpr(n);
+      case CastExpr     n -> visitCastExpr(n);
+      case UnaryExpr    n -> visitUnaryExpr(n);
+      case BinaryExpr   n -> visitBinaryExpr(n);
+      case NaryExpr     n -> visitNaryExpr(n);
+      case CompareExpr  n -> visitCompareExpr(n);
+      case AssignExpr   n -> visitAssignExpr(n);
+    }
+  }
+
+  private void visitConstantExpr(final ConstantExpr expr) {
+    switch (expr.val) {
       case insts.BitInst inst -> visitI(inst.value);
       case insts.U08Inst inst -> visitI(inst.value);
       case insts.U16Inst inst -> visitI(inst.value);
@@ -49,9 +80,328 @@ public final class CodeGen {
       case insts.F32Inst inst -> visitF(inst.value);
       case insts.F64Inst inst -> visitD(inst.value);
       // TODO arr, tup, rec, fun, etc.
-      default -> throw new AssertionError();
     };
   }
+
+  private void visitVarLoadExpr(final VarLoadExpr expr) {
+    // Loads a varaible onto the stack using one of:
+    // - a static class-variable
+    //   - getstatic <indexbyte1> <indexbyte2>
+    // - a member class-variable
+    //   - getfield <indexbyte1> <indexbyte2>
+    // - a function local variable
+    //   - iload <indexbyte> | wide iload <indexbyte1> <indexbyte2>
+    //   - lload <indexbyte> | wide lload <indexbyte1> <indexbyte2>
+    //   - fload <indexbyte> | wide fload <indexbyte1> <indexbyte2>
+    //   - dload <indexbyte> | wide dload <indexbyte1> <indexbyte2>
+    //   - aload <indexbyte> | wide aload <indexbyte1> <indexbyte2>
+    final VarRef var = expr.var;
+    switch (var.site) {
+      case VarRef.Site.Static -> {
+        mv.visitFieldInsn(Opcodes.GETSTATIC, var.owner, var.name, var.type.descriptor());
+      }
+      case VarRef.Site.Member -> {
+        mv.visitFieldInsn(Opcodes.GETFIELD, var.owner, var.name, var.type.descriptor());
+      }
+      case VarRef.Site.Local -> {
+        Type type = var.type;
+        while (type instanceof NomType nom) type = nom.aliasedType;
+        switch (type.kind()) {
+          case BIT, U08, U16, U32, I08, I16, I32 -> mv.visitVarInsn(Opcodes.ILOAD, var.index);
+          case U64, I64 ->                          mv.visitVarInsn(Opcodes.LLOAD, var.index);
+          case F32 ->                               mv.visitVarInsn(Opcodes.FLOAD, var.index);
+          case F64 ->                               mv.visitVarInsn(Opcodes.DLOAD, var.index);
+          case ARR, TUP, REC, FUN ->                mv.visitVarInsn(Opcodes.ALOAD, var.index);
+          case NOM -> throw new AssertionError();
+          case UNK, ERR -> throw new UnsupportedOperationException();
+        }
+      }
+    }
+  }
+
+  private void visitFunCallExpr(final FunCallExpr expr) {
+    // Invoke a function using one of:
+    // - invokestatic <indexbyte1> <indexbyte2>
+    // - invokevirtual <indexbyte1> <indexbyte2>
+    // - invokespecial <indexbyte1> <indexbyte2>
+    // - invokeinterface <indexbyte1> <indexbyte2>
+    // - invokedynamic <indexbyte1> <indexbyte2>
+    for (int i = 0; i < expr.args.length; i++) visitExpr(expr.args[i]);
+    final FunRef fun = expr.fun;
+    mv.visitMethodInsn(Opcodes.INVOKESTATIC, fun.owner, fun.name, fun.type.descriptor(), false);
+  }
+
+  private void visitCastExpr(final CastExpr expr) {
+    visitExpr(expr.opd);
+    final Type from = expr.opd.type();
+    final Type into = expr.type;
+    throw new UnsupportedOperationException("TODO"); // TODO
+  }
+
+  private void visitUnaryExpr(final UnaryExpr expr) {
+    switch (expr.opr) {
+      case UnaryExpr.Opr.INC -> {
+        visitExpr(expr.opd);
+        switch (expr.opd.type().kind()) {
+          case U08 -> { visitI(1); mv.visitInsn(Opcodes.IADD); visit_i2u08(); }
+          case U16 -> { visitI(1); mv.visitInsn(Opcodes.IADD); visit_i2u16(); }
+          case U32 -> { visitI(1); mv.visitInsn(Opcodes.IADD); }
+          case U64 -> { visitI(1); mv.visitInsn(Opcodes.LADD); }
+          case I08 -> { visitI(1); mv.visitInsn(Opcodes.IADD); visit_i2i08(); }
+          case I16 -> { visitI(1); mv.visitInsn(Opcodes.IADD); visit_i2i16(); }
+          case I32 -> { visitI(1); mv.visitInsn(Opcodes.IADD); }
+          case I64 -> { visitL(1); mv.visitInsn(Opcodes.LADD); }
+          case F32 -> { visitF(1); mv.visitInsn(Opcodes.FADD); }
+          case F64 -> { visitD(1); mv.visitInsn(Opcodes.DADD); }
+          default -> throw new AssertionError();
+        }
+      }
+      case UnaryExpr.Opr.DEC -> {
+        visitExpr(expr.opd);
+        switch (expr.opd.type().kind()) {
+          case U08 -> { visitI(1); mv.visitInsn(Opcodes.ISUB); visit_i2u08(); }
+          case U16 -> { visitI(1); mv.visitInsn(Opcodes.ISUB); visit_i2u16(); }
+          case U32 -> { visitI(1); mv.visitInsn(Opcodes.ISUB); }
+          case U64 -> { visitL(1); mv.visitInsn(Opcodes.LSUB); }
+          case I08 -> { visitI(1); mv.visitInsn(Opcodes.ISUB); visit_i2i08(); }
+          case I16 -> { visitI(1); mv.visitInsn(Opcodes.ISUB); visit_i2i16(); }
+          case I32 -> { visitI(1); mv.visitInsn(Opcodes.ISUB); }
+          case I64 -> { visitL(1); mv.visitInsn(Opcodes.LSUB); }
+          case F32 -> { visitF(1); mv.visitInsn(Opcodes.FSUB); }
+          case F64 -> { visitD(1); mv.visitInsn(Opcodes.DSUB); }
+          default -> throw new AssertionError();
+        }
+      }
+      case UnaryExpr.Opr.NEG -> {
+        visitExpr(expr.opd);
+        switch (expr.opd.type().kind()) {
+          case U08 -> { mv.visitInsn(Opcodes.INEG); visit_i2u08(); }
+          case U16 -> { mv.visitInsn(Opcodes.INEG); visit_i2u16(); }
+          case U32 -> { mv.visitInsn(Opcodes.INEG); }
+          case U64 -> { mv.visitInsn(Opcodes.LNEG); }
+          case I08 -> { mv.visitInsn(Opcodes.INEG); visit_i2i08(); }
+          case I16 -> { mv.visitInsn(Opcodes.INEG); visit_i2i16(); }
+          case I32 -> { mv.visitInsn(Opcodes.INEG); }
+          case I64 -> { mv.visitInsn(Opcodes.LNEG); }
+          case F32 -> { mv.visitInsn(Opcodes.FNEG); }
+          default -> throw new AssertionError();
+        }
+      }
+      case UnaryExpr.Opr.NOT -> {
+        visitExpr(expr.opd);
+        switch (expr.opd.type().kind()) {
+          case U08 -> { visitI(0x000000FF); mv.visitInsn(Opcodes.IXOR); }
+          case U16 -> { visitI(0x0000FFFF); mv.visitInsn(Opcodes.IXOR); }
+          case U32 -> { visitI(0xFFFFFFFF); mv.visitInsn(Opcodes.IXOR); }
+          case U64 -> { visitL(0xFFFFFFFFFFFFFFFFL); mv.visitInsn(Opcodes.LXOR); }
+          case I08 -> { visitI(0x000000FF); mv.visitInsn(Opcodes.IXOR); }
+          case I16 -> { visitI(0x0000FFFF); mv.visitInsn(Opcodes.IXOR); }
+          case I32 -> { visitI(0xFFFFFFFF); mv.visitInsn(Opcodes.IXOR); }
+          case I64 -> { visitL(0xFFFFFFFFFFFFFFFFL); mv.visitInsn(Opcodes.LXOR); }
+          default -> throw new AssertionError();
+        }
+      }
+      case UnaryExpr.Opr.LNT -> {
+        visitExpr(expr.opd);
+        switch (expr.opd.type().kind()) {
+          case BIT -> { visitI(0x00000001); mv.visitInsn(Opcodes.IXOR); }
+          default -> throw new AssertionError();
+        }
+      }
+    }
+  }
+
+  private void visitBinaryExpr(final BinaryExpr expr) {
+    switch (expr.opr) {
+      case BinaryExpr.Opr.ADD -> {
+        visitExpr(expr.lhs);
+        visitExpr(expr.rhs);
+        switch (expr.lhs.type().kind()) {
+          case U08 -> { mv.visitInsn(Opcodes.IADD); visit_i2u08(); }
+          case U16 -> { mv.visitInsn(Opcodes.IADD); visit_i2u16(); }
+          case U32 -> { mv.visitInsn(Opcodes.IADD); }
+          case U64 -> { mv.visitInsn(Opcodes.LADD); }
+          case I08 -> { mv.visitInsn(Opcodes.IADD); visit_i2i08(); }
+          case I16 -> { mv.visitInsn(Opcodes.IADD); visit_i2i16(); }
+          case I32 -> { mv.visitInsn(Opcodes.IADD); }
+          case I64 -> { mv.visitInsn(Opcodes.LADD); }
+          case F32 -> { mv.visitInsn(Opcodes.FADD); }
+          case F64 -> { mv.visitInsn(Opcodes.DADD); }
+          default -> throw new AssertionError();
+        }
+      }
+      case BinaryExpr.Opr.SUB -> {
+        visitExpr(expr.lhs);
+        visitExpr(expr.rhs);
+        switch (expr.lhs.type().kind()) {
+          case U08 -> { mv.visitInsn(Opcodes.ISUB); visit_i2u08(); }
+          case U16 -> { mv.visitInsn(Opcodes.ISUB); visit_i2u16(); }
+          case U32 -> { mv.visitInsn(Opcodes.ISUB); }
+          case U64 -> { mv.visitInsn(Opcodes.LSUB); }
+          case I08 -> { mv.visitInsn(Opcodes.ISUB); visit_i2i08(); }
+          case I16 -> { mv.visitInsn(Opcodes.ISUB); visit_i2i16(); }
+          case I32 -> { mv.visitInsn(Opcodes.ISUB); }
+          case I64 -> { mv.visitInsn(Opcodes.LSUB); }
+          case F32 -> { mv.visitInsn(Opcodes.FSUB); }
+          case F64 -> { mv.visitInsn(Opcodes.DSUB); }
+          default -> throw new AssertionError();
+        }
+      }
+      case BinaryExpr.Opr.MUL -> {
+        visitExpr(expr.lhs);
+        visitExpr(expr.rhs);
+        switch (expr.lhs.type().kind()) {
+          case U08 -> { mv.visitInsn(Opcodes.IMUL); visit_i2u08(); }
+          case U16 -> { mv.visitInsn(Opcodes.IMUL); visit_i2u16(); }
+          case U32 -> { mv.visitInsn(Opcodes.IMUL); }
+          case U64 -> { mv.visitInsn(Opcodes.LMUL); }
+          case I08 -> { mv.visitInsn(Opcodes.IMUL); visit_i2i08(); }
+          case I16 -> { mv.visitInsn(Opcodes.IMUL); visit_i2i16(); }
+          case I32 -> { mv.visitInsn(Opcodes.IMUL); }
+          case I64 -> { mv.visitInsn(Opcodes.LMUL); }
+          case F32 -> { mv.visitInsn(Opcodes.FMUL); }
+          case F64 -> { mv.visitInsn(Opcodes.DMUL); }
+          default -> throw new AssertionError();
+        }
+      }
+      case BinaryExpr.Opr.DIV -> {
+        visitExpr(expr.lhs);
+        visitExpr(expr.rhs);
+        switch (expr.lhs.type().kind()) {
+          case U08 -> mv.visitInsn(Opcodes.IDIV);
+          case U16 -> mv.visitInsn(Opcodes.IDIV);
+          case U32 -> visit_divideUnsigned_i();
+          case U64 -> visit_divideUnsigned_l();
+          case I08 -> mv.visitInsn(Opcodes.IDIV);
+          case I16 -> mv.visitInsn(Opcodes.IDIV);
+          case I32 -> mv.visitInsn(Opcodes.IDIV);
+          case I64 -> mv.visitInsn(Opcodes.LDIV);
+          case F32 -> mv.visitInsn(Opcodes.FDIV);
+          case F64 -> mv.visitInsn(Opcodes.DDIV);
+          default -> throw new AssertionError();
+        }
+      }
+      case BinaryExpr.Opr.REM -> {
+        visitExpr(expr.lhs);
+        visitExpr(expr.rhs);
+        switch (expr.lhs.type().kind()) {
+          case U08 -> mv.visitInsn(Opcodes.IREM);
+          case U16 -> mv.visitInsn(Opcodes.IREM);
+          case U32 -> visit_remainderUnsigned_i();
+          case U64 -> visit_remainderUnsigned_l();
+          case I08 -> mv.visitInsn(Opcodes.IREM);
+          case I16 -> mv.visitInsn(Opcodes.IREM);
+          case I32 -> mv.visitInsn(Opcodes.IREM);
+          case I64 -> mv.visitInsn(Opcodes.LREM);
+          case F32 -> mv.visitInsn(Opcodes.FREM);
+          case F64 -> mv.visitInsn(Opcodes.DREM);
+          default -> throw new AssertionError();
+        }
+      }
+      case BinaryExpr.Opr.MOD -> {
+        visitExpr(expr.lhs);
+        visitExpr(expr.rhs);
+        switch (expr.lhs.type().kind()) {
+          case U08 -> mv.visitInsn(Opcodes.IREM);
+          case U16 -> mv.visitInsn(Opcodes.IREM);
+          case U32 -> visit_remainderUnsigned_i();
+          case U64 -> visit_remainderUnsigned_l();
+          case I08 -> visit_floorMod_i();
+          case I16 -> visit_floorMod_i();
+          case I32 -> visit_floorMod_i();
+          case I64 -> visit_floorMod_l();
+          case F32 -> { // a mod b = a - b * floor(a / b)
+            // TODO revisit this
+            visit(expr.lhs);               // Stack -> ..., a
+            visit(expr.rhs);               // Stack -> ..., a, b
+            mv.visitInsn(Opcodes.DUP2_X2); // Stack -> ..., a, b, a, b
+            mv.visitInsn(Opcodes.FDIV);    // Stack -> ..., a, b, (a / b)
+            mv.visitInsn(Opcodes.F2D);     // Stack -> ..., a, b, (a / b)
+            mv.visitMethodInsn(Opcodes.INVOKESTATIC, "java/lang/Math", "floor", "(D)D", false);
+            mv.visitInsn(Opcodes.D2F);     // Stack -> ..., a, b, floor(a / b)
+            mv.visitInsn(Opcodes.I2F);     // Stack -> ..., a, b, floor(a / b)
+            mv.visitInsn(Opcodes.FMUL);    // Stack -> ..., a, (b * floor(a / b))
+            mv.visitInsn(Opcodes.FSUB);    // Stack -> ..., (a - b * floor(a / b))
+          }
+          case F64 -> { // a mod b = a - b * floor(a / b)
+            visit(expr.lhs);               // Stack -> ..., a
+            mv.visitInsn(Opcodes.DUP2);    // Stack -> ..., a, a
+            visit(expr.rhs);               // Stack -> ..., a, a, b
+            mv.visitInsn(Opcodes.DUP2_X2); // Stack -> ..., a, b, a, b
+            mv.visitInsn(Opcodes.FDIV);    // Stack -> ..., a, b, (a / b)
+            mv.visitMethodInsn(Opcodes.INVOKESTATIC, "java/lang/Math", "floor", "(D)D", false);
+            mv.visitInsn(Opcodes.DMUL);    // Stack -> ..., a, (b * floor(a / b))
+            mv.visitInsn(Opcodes.DSUB);    // Stack -> ..., (a - b * floor(a / b))
+          }
+          default -> throw new AssertionError();
+        }
+      }
+      case BinaryExpr.Opr.SHL -> {
+        visitExpr(expr.lhs);
+        visitExpr(expr.rhs);
+        switch (expr.lhs.type().kind()) {
+          case U08 -> { visitI(0b0111); mv.visitInsn(Opcodes.IAND); mv.visitInsn(Opcodes.ISHL); visit_i2u08(); }
+          case U16 -> { visitI(0b1111); mv.visitInsn(Opcodes.IAND); mv.visitInsn(Opcodes.ISHL); visit_i2u16(); }
+          case U32 -> { mv.visitInsn(Opcodes.ISHL); }
+          case U64 -> { mv.visitInsn(Opcodes.LSHL); }
+          case I08 -> { visitI(0b0111); mv.visitInsn(Opcodes.IAND); mv.visitInsn(Opcodes.ISHL); visit_i2i08(); }
+          case I16 -> { visitI(0b1111); mv.visitInsn(Opcodes.IAND); mv.visitInsn(Opcodes.ISHL); visit_i2i16(); }
+          case I32 -> { mv.visitInsn(Opcodes.ISHL); }
+          case I64 -> { mv.visitInsn(Opcodes.LSHL); }
+          default -> throw new AssertionError();
+        }
+      }
+      case BinaryExpr.Opr.SHR -> {
+        visitExpr(expr.lhs);
+        visitExpr(expr.rhs);
+        switch (expr.lhs.type().kind()) {
+          case U08 -> { visitI(0b0111); mv.visitInsn(Opcodes.IAND); mv.visitInsn(Opcodes.ISHR); }
+          case U16 -> { visitI(0b1111); mv.visitInsn(Opcodes.IAND); mv.visitInsn(Opcodes.ISHR); }
+          case U32 -> { mv.visitInsn(Opcodes.ISHR); }
+          case U64 -> { mv.visitInsn(Opcodes.LSHR); }
+          case I08 -> { visitI(0b0111); mv.visitInsn(Opcodes.IAND); mv.visitInsn(Opcodes.ISHR); }
+          case I16 -> { visitI(0b1111); mv.visitInsn(Opcodes.IAND); mv.visitInsn(Opcodes.ISHR); }
+          case I32 -> { mv.visitInsn(Opcodes.ISHR); }
+          case I64 -> { mv.visitInsn(Opcodes.LSHR); }
+          default -> throw new AssertionError();
+        }
+      }
+      case BinaryExpr.Opr.TWC -> {
+        visitExpr(expr.lhs);
+        visitExpr(expr.rhs);
+        switch (expr.lhs.type().kind()) {
+          case BIT -> mv.visitInsn(Opcodes.ISUB);
+          case U08 -> visit_compare_i();
+          case U16 -> visit_compare_i();
+          case U32 -> visit_compareUnsigned_i();
+          case U64 -> visit_compareUnsigned_l();
+          case I08 -> visit_compare_i();
+          case I16 -> visit_compare_i();
+          case I32 -> visit_compare_i();
+          case I64 -> mv.visitInsn(Opcodes.LCMP );
+          case F32 -> mv.visitInsn(Opcodes.FCMPL); // NaN <=> 3.1 => -1
+          case F64 -> mv.visitInsn(Opcodes.DCMPL); // NaN <=> NaN => -1
+          default -> throw new AssertionError();
+        }
+      }
+    }
+  }
+
+  private void visitNaryExpr(final NaryExpr expr) {
+    throw new UnsupportedOperationException("TODO"); // TODO
+  }
+
+  private void visitCompareExpr(final CompareExpr expr) {
+    throw new UnsupportedOperationException("TODO"); // TODO
+  }
+
+  private void visitAssignExpr(final AssignExpr expr) {
+    throw new UnsupportedOperationException("TODO"); // TODO
+  }
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+
+
 
   private void visitFunctionDecl(final FunctionDeclNode node) {
     assert mv == null;
@@ -102,6 +452,7 @@ public final class CodeGen {
         Type type = node.type;
         while (type instanceof NomType nom) type = nom.aliasedType;
         switch (node.type.kind()) {
+          case
           case BIT, U08, U16, U32, I08, I16, I32 -> mv.visitVarInsn(Opcodes.ILOAD, node.index);
           case U64, I64 ->                          mv.visitVarInsn(Opcodes.LLOAD, node.index);
           case F32 ->                               mv.visitVarInsn(Opcodes.FLOAD, node.index);
@@ -121,129 +472,6 @@ public final class CodeGen {
     final Node rhs = node.rhs;
     final BinaryExprNode.Op op = node.op;
     switch (op) {
-      case BinaryExprNode.Op.ADD -> {
-        visit(lhs);
-        visit(rhs);
-        switch (kind) {
-          case U08 -> { mv.visitInsn(Opcodes.IADD); visit_i2u08(); }
-          case U16 -> { mv.visitInsn(Opcodes.IADD); visit_i2u16(); }
-          case U32 -> { mv.visitInsn(Opcodes.IADD); }
-          case U64 -> { mv.visitInsn(Opcodes.LADD); }
-          case I08 -> { mv.visitInsn(Opcodes.IADD); visit_i2i08(); }
-          case I16 -> { mv.visitInsn(Opcodes.IADD); visit_i2i16(); }
-          case I32 -> { mv.visitInsn(Opcodes.IADD); }
-          case I64 -> { mv.visitInsn(Opcodes.LADD); }
-          case F32 -> { mv.visitInsn(Opcodes.FADD); }
-          case F64 -> { mv.visitInsn(Opcodes.DADD); }
-          default -> throw new AssertionError();
-        }
-      }
-      case BinaryExprNode.Op.SUB -> {
-        visit(lhs);
-        visit(rhs);
-        switch (kind) {
-          case U08 -> { mv.visitInsn(Opcodes.ISUB); visit_i2u08(); }
-          case U16 -> { mv.visitInsn(Opcodes.ISUB); visit_i2u16(); }
-          case U32 -> { mv.visitInsn(Opcodes.ISUB); }
-          case U64 -> { mv.visitInsn(Opcodes.LSUB); }
-          case I08 -> { mv.visitInsn(Opcodes.ISUB); visit_i2i08(); }
-          case I16 -> { mv.visitInsn(Opcodes.ISUB); visit_i2i16(); }
-          case I32 -> { mv.visitInsn(Opcodes.ISUB); }
-          case I64 -> { mv.visitInsn(Opcodes.LSUB); }
-          case F32 -> { mv.visitInsn(Opcodes.FSUB); }
-          case F64 -> { mv.visitInsn(Opcodes.DSUB); }
-          default -> throw new AssertionError();
-        }
-      }
-      case BinaryExprNode.Op.MUL -> {
-        visit(lhs);
-        visit(rhs);
-        switch (kind) {
-          case U08 -> { mv.visitInsn(Opcodes.IMUL); visit_i2u08(); }
-          case U16 -> { mv.visitInsn(Opcodes.IMUL); visit_i2u16(); }
-          case U32 -> { mv.visitInsn(Opcodes.IMUL); }
-          case U64 -> { mv.visitInsn(Opcodes.LMUL); }
-          case I08 -> { mv.visitInsn(Opcodes.IMUL); visit_i2i08(); }
-          case I16 -> { mv.visitInsn(Opcodes.IMUL); visit_i2i16(); }
-          case I32 -> { mv.visitInsn(Opcodes.IMUL); }
-          case I64 -> { mv.visitInsn(Opcodes.LMUL); }
-          case F32 -> { mv.visitInsn(Opcodes.FMUL); }
-          case F64 -> { mv.visitInsn(Opcodes.DMUL); }
-          default -> throw new AssertionError();
-        }
-      }
-      case BinaryExprNode.Op.DIV -> {
-        visit(lhs);
-        visit(rhs);
-        switch (kind) {
-          case U08 -> mv.visitInsn(Opcodes.IDIV);
-          case U16 -> mv.visitInsn(Opcodes.IDIV);
-          case U32 -> visit_divideUnsigned_i();
-          case U64 -> visit_divideUnsigned_l();
-          case I08 -> mv.visitInsn(Opcodes.IDIV);
-          case I16 -> mv.visitInsn(Opcodes.IDIV);
-          case I32 -> mv.visitInsn(Opcodes.IDIV);
-          case I64 -> mv.visitInsn(Opcodes.LDIV);
-          case F32 -> mv.visitInsn(Opcodes.FDIV);
-          case F64 -> mv.visitInsn(Opcodes.DDIV);
-          default -> throw new AssertionError();
-        }
-      }
-      case BinaryExprNode.Op.REM -> {
-        visit(lhs);
-        visit(rhs);
-        switch (kind) {
-          case U08 -> mv.visitInsn(Opcodes.IREM);
-          case U16 -> mv.visitInsn(Opcodes.IREM);
-          case U32 -> visit_remainderUnsigned_i();
-          case U64 -> visit_remainderUnsigned_l();
-          case I08 -> mv.visitInsn(Opcodes.IREM);
-          case I16 -> mv.visitInsn(Opcodes.IREM);
-          case I32 -> mv.visitInsn(Opcodes.IREM);
-          case I64 -> mv.visitInsn(Opcodes.LREM);
-          case F32 -> mv.visitInsn(Opcodes.FREM);
-          case F64 -> mv.visitInsn(Opcodes.DREM);
-          default -> throw new AssertionError();
-        }
-      }
-      case BinaryExprNode.Op.MOD -> {
-        // TODO revisit this
-        visit(lhs);
-        visit(rhs);
-        switch (kind) {
-          case U08 -> mv.visitInsn(Opcodes.IREM);
-          case U16 -> mv.visitInsn(Opcodes.IREM);
-          case U32 -> visit_remainderUnsigned_i();
-          case U64 -> visit_remainderUnsigned_l();
-          case I08 -> visit_floorMod_i();
-          case I16 -> visit_floorMod_i();
-          case I32 -> visit_floorMod_i();
-          case I64 -> visit_floorMod_l();
-          case F32 -> { // a mod b = a - b * floor(a / b)
-            visit(lhs);                    // Stack -> ..., a
-            visit(rhs);                    // Stack -> ..., a, b
-            mv.visitInsn(Opcodes.DUP2_X2); // Stack -> ..., a, b, a, b
-            mv.visitInsn(Opcodes.FDIV);    // Stack -> ..., a, b, (a / b)
-            mv.visitInsn(Opcodes.F2D);     // Stack -> ..., a, b, (a / b)
-            mv.visitMethodInsn(Opcodes.INVOKESTATIC, "java/lang/Math", "floor", "(D)D", false);
-            mv.visitInsn(Opcodes.D2F);     // Stack -> ..., a, b, floor(a / b)
-            mv.visitInsn(Opcodes.I2F);     // Stack -> ..., a, b, floor(a / b)
-            mv.visitInsn(Opcodes.FMUL);    // Stack -> ..., a, (b * floor(a / b))
-            mv.visitInsn(Opcodes.FSUB);    // Stack -> ..., (a - b * floor(a / b))
-          }
-          case F64 -> { // a mod b = a - b * floor(a / b)
-            visit(lhs);                    // Stack -> ..., a
-            mv.visitInsn(Opcodes.DUP2);    // Stack -> ..., a, a
-            visit(rhs);                    // Stack -> ..., a, a, b
-            mv.visitInsn(Opcodes.DUP2_X2); // Stack -> ..., a, b, a, b
-            mv.visitInsn(Opcodes.FDIV);    // Stack -> ..., a, b, (a / b)
-            mv.visitMethodInsn(Opcodes.INVOKESTATIC, "java/lang/Math", "floor", "(D)D", false);
-            mv.visitInsn(Opcodes.DMUL);    // Stack -> ..., a, (b * floor(a / b))
-            mv.visitInsn(Opcodes.DSUB);    // Stack -> ..., (a - b * floor(a / b))
-          }
-          default -> throw new AssertionError();
-        }
-      }
       case BinaryExprNode.Op.AND -> {
         visit(lhs);
         visit(rhs);
@@ -289,54 +517,6 @@ public final class CodeGen {
           case I16 -> mv.visitInsn(Opcodes.IXOR);
           case I32 -> mv.visitInsn(Opcodes.IXOR);
           case I64 -> mv.visitInsn(Opcodes.LXOR);
-          default -> throw new AssertionError();
-        }
-      }
-      case BinaryExprNode.Op.Shl -> {
-        visit(lhs);
-        visit(rhs);
-        switch (kind) {
-          case U08 -> { mv.visitInsn(Opcodes.ISHL); visit_i2u08(); }
-          case U16 -> { mv.visitInsn(Opcodes.ISHL); visit_i2u16(); }
-          case U32 -> { mv.visitInsn(Opcodes.ISHL); }
-          case U64 -> { mv.visitInsn(Opcodes.LSHL); }
-          case I08 -> { mv.visitInsn(Opcodes.ISHL); visit_i2i08(); }
-          case I16 -> { mv.visitInsn(Opcodes.ISHL); visit_i2i16(); }
-          case I32 -> { mv.visitInsn(Opcodes.ISHL); }
-          case I64 -> { mv.visitInsn(Opcodes.LSHL); }
-          default -> throw new AssertionError();
-        }
-      }
-      case BinaryExprNode.Op.Shr -> {
-        visit(lhs);
-        visit(rhs);
-        switch (kind) {
-          case U08 -> mv.visitInsn(Opcodes.ISHR);
-          case U16 -> mv.visitInsn(Opcodes.ISHR);
-          case U32 -> mv.visitInsn(Opcodes.ISHR);
-          case U64 -> mv.visitInsn(Opcodes.LSHR);
-          case I08 -> mv.visitInsn(Opcodes.ISHR);
-          case I16 -> mv.visitInsn(Opcodes.ISHR);
-          case I32 -> mv.visitInsn(Opcodes.ISHR);
-          case I64 -> mv.visitInsn(Opcodes.LSHR);
-          default -> throw new AssertionError();
-        }
-      }
-      case BinaryExprNode.Op.Cmp -> {
-        visit(lhs);
-        visit(rhs);
-        switch (kind) {
-          case BIT -> mv.visitInsn(Opcodes.ISUB);
-          case U08 -> visit_compare_i();
-          case U16 -> visit_compare_i();
-          case U32 -> visit_compareUnsigned_i();
-          case U64 -> visit_compareUnsigned_l();
-          case I08 -> visit_compare_i();
-          case I16 -> visit_compare_i();
-          case I32 -> visit_compare_i();
-          case I64 -> mv.visitInsn(Opcodes.LCMP );
-          case F32 -> mv.visitInsn(Opcodes.FCMPL); // NaN <=> 3.1 => -1
-          case F64 -> mv.visitInsn(Opcodes.DCMPL); // NaN <=> NaN => -1
           default -> throw new AssertionError();
         }
       }
@@ -522,10 +702,13 @@ public final class CodeGen {
   // JVM Type Conversions
   //////////////////////////////////////////////////////////////////////////////////////////////////
 
+  private void visit_i2bit() { mv.visitInsn(Opcodes.ICONST_1); mv.visitInsn(Opcodes.IAND); }
   private void visit_i2u08() { mv.visitIntInsn(Opcodes.SIPUSH, 0xFF); mv.visitInsn(Opcodes.IAND); }
   private void visit_i2u16() { mv.visitInsn(Opcodes.I2C); }
   private void visit_i2i08() { mv.visitInsn(Opcodes.I2B); }
   private void visit_i2i16() { mv.visitInsn(Opcodes.I2S); }
+
+  private void visit_l2i() { mv.visitInsn(Opcodes.L2I); }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////
   // JVM Stack Constants
