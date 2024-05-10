@@ -211,12 +211,14 @@ public final class nodes {
 
   public static final class AssignExpr extends BaseNode implements Expr {
     public static enum Mode { GET_SET, SET_GET };
+    public final Mode mode;
     public final VarRef lhs;
     public final Expr rhs;
     public AssignExpr(final Mode mode, final VarRef lhs, final Expr rhs) {
       assert mode != null;
       assert lhs != null;
       assert rhs != null && rhs.type().equals(lhs.type);
+      this.mode = mode;
       this.lhs = lhs;
       this.rhs = rhs;
     }

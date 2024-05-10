@@ -11,13 +11,74 @@ import java.util.Set;
 public final class types {
   private types() {}
 
+  // JVM stack size
+  public static enum JvmCateory {
+    C1(1), C2(2);
+    public final int bytes;
+    private JvmCateory(final int bytes) { this.bytes = bytes; }
+  }
+
+  // JVM stack type
+  public static enum JvmStackType {
+    I(JvmCateory.C1), // int:                32-bit signed integer
+    L(JvmCateory.C2), // long:               64-bit signed integer
+    F(JvmCateory.C1), // float:              32-bit floating point
+    D(JvmCateory.C2), // double:             64-bit floating point
+    A(JvmCateory.C1); // reference:          reference
+    public final JvmCateory category;
+    private JvmStackType(final JvmCateory category) { this.category = category; }
+  }
+
+  // JVM field type
+  public static enum JvmFieldType {
+    Z(JvmStackType.I), // boolean:             1-bit integer
+    C(JvmStackType.I), // char:               16-bit unsigned integer
+    B(JvmStackType.I), // byte:                8-bit signed integer
+    S(JvmStackType.I), // short:              16-bit signed integer
+    I(JvmStackType.I), // int:                32-bit signed integer
+    J(JvmStackType.L), // long:               64-bit signed integer
+    F(JvmStackType.F), // float:              32-bit floating point
+    D(JvmStackType.D), // double:             64-bit floating point
+    L(JvmStackType.A), // class or interface  reference
+    R(JvmStackType.A); // array:              reference
+    public final JvmStackType stackType;
+    public final JvmCateory   category;
+    private JvmFieldType(final JvmStackType stackType) {
+      this.stackType = stackType;
+      this.category  = stackType.category;
+    }
+  }
+
   public static enum Kind {
     // Virtual Types (not instantiable)
-    UNK, ERR,
+    UNK(null),
+    ERR(null),
     // Primitive Data Types (pass by value)
-    BIT, U08, U16, U32, U64, I08, I16, I32, I64, F32, F64,
+    BIT(JvmFieldType.Z),
+    U08(JvmFieldType.B), // no native unsigned byte type in JVM, use signed byte
+    U16(JvmFieldType.C),
+    U32(JvmFieldType.I), // no native unsigned int type in JVM, use signed int
+    U64(JvmFieldType.J), // no native unsigned long type in JVM, use signed long
+    I08(JvmFieldType.B),
+    I16(JvmFieldType.S),
+    I32(JvmFieldType.I),
+    I64(JvmFieldType.J),
+    F32(JvmFieldType.F),
+    F64(JvmFieldType.D),
     // Composite Data Types and Function Type (pass by reference)
-    ARR, TUP, REC, FUN, NOM;
+    ARR(JvmFieldType.R),
+    TUP(JvmFieldType.L),
+    REC(JvmFieldType.L),
+    FUN(JvmFieldType.L),
+    NOM(null); // Needs to be resolved to a concrete type
+    public final JvmFieldType fieldType;
+    public final JvmStackType stackType;
+    public final JvmCateory   category;
+    private Kind(final JvmFieldType fieldType) {
+      this.fieldType = fieldType;
+      this.stackType = fieldType.stackType;
+      this.category  = fieldType.category;
+    }
   }
 
   public static sealed interface Type {
@@ -549,17 +610,17 @@ public final class types {
   private static final String getDescriptor(Type type) {
     while (type instanceof NomType nom) type = nom.aliasedType;
     return switch (type.kind()) {
-      case BIT -> "Z";
-      case U08 -> "B"; // no native unsigned byte type in JVM, use signed byte
-      case U16 -> "C";
-      case U32 -> "I";
-      case U64 -> "J"; // no native unsigned long type in JVM, use signed long
-      case I08 -> "B";
-      case I16 -> "S";
-      case I32 -> "I";
-      case I64 -> "J";
-      case F32 -> "F";
-      case F64 -> "D";
+      case BIT -> Kind.BIT.fieldType.name();
+      case U08 -> Kind.U08.fieldType.name();
+      case U16 -> Kind.U16.fieldType.name();
+      case U32 -> Kind.U32.fieldType.name();
+      case U64 -> Kind.U64.fieldType.name();
+      case I08 -> Kind.I08.fieldType.name();
+      case I16 -> Kind.I16.fieldType.name();
+      case I32 -> Kind.I32.fieldType.name();
+      case I64 -> Kind.I64.fieldType.name();
+      case F32 -> Kind.F32.fieldType.name();
+      case F64 -> Kind.F64.fieldType.name();
       case ARR -> "[" + getArrayDescriptor(((ArrType) type).elementType);
       case FUN -> {
         final FunType fun = (FunType) type;
@@ -599,17 +660,17 @@ public final class types {
   private static final String getArrayDescriptor(Type type) {
     while (type instanceof NomType nom) type = nom.aliasedType;
     return switch (type.kind()) {
-      case BIT -> "Z";
-      case U08 -> "B"; // no native unsigned byte type in JVM, use signed byte
-      case U16 -> "C";
-      case U32 -> "I";
-      case U64 -> "J"; // no native unsigned long type in JVM, use signed long
-      case I08 -> "B";
-      case I16 -> "S";
-      case I32 -> "I";
-      case I64 -> "J";
-      case F32 -> "F";
-      case F64 -> "D";
+      case BIT -> Kind.BIT.fieldType.name();
+      case U08 -> Kind.U08.fieldType.name();
+      case U16 -> Kind.U16.fieldType.name();
+      case U32 -> Kind.U32.fieldType.name();
+      case U64 -> Kind.U64.fieldType.name();
+      case I08 -> Kind.I08.fieldType.name();
+      case I16 -> Kind.I16.fieldType.name();
+      case I32 -> Kind.I32.fieldType.name();
+      case I64 -> Kind.I64.fieldType.name();
+      case F32 -> Kind.F32.fieldType.name();
+      case F64 -> Kind.F64.fieldType.name();
       case ARR, TUP, REC, FUN -> "Ljava/lang/Object;";
       case NOM -> throw new AssertionError();
       case UNK, ERR -> throw new UnsupportedOperationException();
