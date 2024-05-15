@@ -18,8 +18,9 @@ CONTINUE: 'continue'; // Skip to the next step of the nearest enclosing loop
 RETURN:   'return'  ; // Return from function
 
 // Inferred Types
-FUN: 'fun'; // Inferred function type
-VAR: 'var'; // Inferred data type
+TYPE: 'type'; // Inferred type
+FUN: 'fun';   // Inferred function type
+VAR: 'var';   // Inferred data type
 
 // Primitive Types
 BIT: 'bit'; // Single bit, aka 'boolean'

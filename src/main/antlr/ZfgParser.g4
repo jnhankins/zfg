@@ -24,13 +24,15 @@ module
   ;
 
 scope
-  : statement ((SEMIC | {EOL()}?) statement)* SEMIC?
+  : stmts+=statement ((SEMIC | {EOL()}?) stmts+=statement)* SEMIC?
   ;
 
 statement
-  : modifier=(LET | MUT | PUB) name=LowerId type=anyType SETA rhs=definition   # DefinitionStatement
-  | child=assignment                                                           # AssignmentStatement
-  | child=invocation                                                           # InvocationStatement
+  : (mut=(LET|MUT) | pub=PUB mut=MUT?) name=UpperId type=TYPE SETA rhs=anyType            # TypeDeclaration
+  | (mut=(LET|MUT) | pub=PUB mut=MUT?) name=LowerId type=functionType SETA rhs=definition # FunctionDeclaration
+  | (mut=(LET|MUT) | pub=PUB mut=MUT?) name=LowerId type=variableType SETA rhs=definition # VariableDeclaration
+  | child=assignment                                                                      # AssignmentStatement
+  | child=invocation                                                                      # InvocationStatement
   ;
 
 definition
@@ -143,7 +145,11 @@ numericLiteral
 // TODO: named type
 anyType
   : type=functionType                                                          # FunType
-  | type=recordType                                                            # RecType
+  | type=variableType                                                          # VarType
+  ;
+
+variableType
+  : type=recordType                                                            # RecType
   | type=tupleType                                                             # TupType
   | type=arrayType                                                             # ArrType
   | type=primitiveType                                                         # PriType

@@ -43,7 +43,7 @@ public final class nodes {
     public VarRef(final Type type, final Site site, final String name, final int index) {
       assert type != null;
       assert site != null && site == Site.Local;
-      assert name != null && names.isLowerSnakeCase(name);
+      assert name != null && Names.isLowerSnakeCase(name);
       assert 0x00000000 <= index && index <= 0x0000FFFF;
       this.type = type;
       this.site = site;
@@ -55,7 +55,7 @@ public final class nodes {
     public VarRef(final Type type, final Site site, final String name, final String owner) {
       assert type != null;
       assert site != null && (site == Site.Static || site == Site.Member);
-      assert name != null && names.isLowerSnakeCase(name);
+      assert name != null && Names.isLowerSnakeCase(name);
       assert owner != null;
       // TODO: Validate: https://docs.oracle.com/javase/specs/jls/se16/html/jls-6.html
       assert owner.split("\\.").length >= 1;
@@ -83,7 +83,7 @@ public final class nodes {
       final String owner
     ) {
       assert type != null;
-      assert name != null && names.isLowerSnakeCase(name);
+      assert name != null && Names.isLowerSnakeCase(name);
       assert owner != null;
       // TODO: Validate: https://docs.oracle.com/javase/specs/jls/se16/html/jls-6.html
       assert owner.split("\\.").length >= 1;

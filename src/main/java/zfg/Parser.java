@@ -4,11 +4,16 @@ import static zfg.literals.parseBitLit;
 import static zfg.literals.parseFltLit;
 import static zfg.literals.parseIntLit;
 
+import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 
+import org.antlr.v4.runtime.CharStream;
+import org.antlr.v4.runtime.CharStreams;
+import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.Token;
 
@@ -33,6 +38,7 @@ import zfg.types.RecType;
 import zfg.types.Type;
 import zfg.types.TypeCache;
 import zfg.antlr.ZfgLexer;
+import zfg.antlr.ZfgParser;
 import zfg.antlr.ZfgParser.AlgebraAssignContext;
 import zfg.antlr.ZfgParser.AlgebraCompareOpdContext;
 import zfg.antlr.ZfgParser.AlgebraExprContext;
@@ -102,7 +108,47 @@ import zfg.antlr.ZfgParser.UnambigLogicalOpdContext;
 import zfg.antlr.ZfgParser.VarLoadExprContext;
 
 public final class Parser {
-  public Parser() {}
+
+  public static interface Result {
+    public static final record Val(Node value) implements Result {}
+    public static final record Err(List<Error> errors) implements Result {}
+  }
+
+  public static Result parse(final Path path) {
+    try { return parse(CharStreams.fromPath(path)); }
+    catch (final Exception e) { throw new RuntimeException(e); }
+  }
+
+  public static Result parse(final String source, final String sourceName) {
+    return parse(CharStreams.fromString(source, sourceName));
+  }
+
+  public static Result parse(final CharStream source) {
+    System.out.println("source: " + source.getSourceName());
+    System.out.println(">" + source.toString().replaceAll("\\r?\\n", "\n>"));
+
+    // Lexical Analysis
+    final ZfgLexer zfgLexer = new ZfgLexer(source);
+    final CommonTokenStream tokens = new CommonTokenStream(zfgLexer);
+    System.out.println("tokens: " + PrettyPrint.toPrettyTokensString(zfgLexer, tokens));
+
+    // Syntax Analysis
+    final ZfgParser zfgParser = new ZfgParser(tokens);
+    final ModuleContext parsed = zfgParser.module();
+    System.out.println("parsed: " + parsed.toStringTree(zfgParser));
+    System.out.println("tree:\n" + PrettyPrint.toPrettyTreeString(zfgParser, parsed));
+
+    // Semantic Analysis
+    final Parser parser = new Parser();
+    final Node root = parser.parseModule(parsed);
+    final List<Error> errors = parser.errors();
+    System.out.println("parsed: " + root);
+    System.out.println("tree: " + root);
+    System.out.println("errors: " + Arrays.toString(errors.toArray(Error[]::new)));
+    return errors.isEmpty() ? new Result.Val(root) : new Result.Err(errors);
+  }
+
+  private Parser() {}
 
 
   //////////////////////////////////////////////////////////////////////////////////////////////////

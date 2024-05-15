@@ -1,4 +1,4 @@
-package zfg;
+package zfg2;
 
 public final class Names {
   private Names() {}

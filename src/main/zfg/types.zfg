@@ -1,6 +1,25 @@
 
-let Kind = 
 
-let Type type = (
 
+// Case #1: Forward declaration
+let People type = Arr(let Person)
+let Person type = (
+  let uid u32,
+  let age u08,
+)
+
+// Case #2: Self-circular reference
+let Tree type = (
+  let value i32,
+  let children Arr(let Tree)
+)
+
+// Case #3: Mutually-circular references
+let A type = (
+  let value i32,
+  let array Arr(B)
+)
+let B type = (
+  let value i32,
+  let array Array(A)
 )

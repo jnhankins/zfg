@@ -1,0 +1,66 @@
+
+let LinkedDequeue<T> = (
+  mut _size u32
+  mut head LinkedDequeueNode<T> | ()
+  mut tail LinkedDequeueNode<T> | ()
+) | ()
+
+let LinkedDequeueNode<T> = (
+  value u32
+  mut prev T | ()
+  mut next T | ()
+)
+
+let size<T>(let self LinkedDequeue<T>) u32 = self._size
+let isEmpty<T>(let self LinkedDequeue<T>) bit = self._size == 0
+let isNotEmpty<T>(let self LinkedDequeue<T>) bit = self._size != 0
+
+let push_front<T>(mut self: LinkedDequeue<T>, let value: T) = {
+  if (self._size++ == 0) {
+    self.head = self.tail = (value: value, prev: (), next: ())
+  } else {
+    self.head = self.head.prev = (value: value, prev: (), next: self.head)
+  }
+}
+
+let push_back<T>(mut self: LinkedDequeue<T>, let value: T) = {
+  if (self._size++ == 0) {
+    self.tail = self.head = (value: value, prev: (), next: ())
+  } else {
+    self.tail = self.tail.next = (value: value, prev: self.tail, next: ())
+  }
+}
+
+let pop_front<T>(mut self: LinkedDequeue<T>) (T | ()) = {
+  if (self._size == 0) {
+    return ()
+  } else if (self.size == 1) {
+    let n LinkedDequeueNode<T> = self.head;
+    self.head = ()
+    self.tail = ()
+    self.size = 0
+    return n.value
+  } else {
+    let n LinkedDequeueNode<T> = self.head;
+    self.head = n.tail
+    self.head.head = ()
+    return n.value
+  }
+}
+
+let pop_back(mut self LinkedDequeue(T)) (T | ()) = {
+  if (self.size == 0) {
+    return ()
+  } else if (self.size == 1) {
+    let n LinkedDequeueNode<T> = self.tail
+    self.head = ()
+    self.tail = ()
+    self.size = 0
+    return n.value
+  } else {
+    let n LinkedDequeueNode<T> = self.tail
+    self.head = n.tail
+    self.head.head = ()
+    return n.value
+  }
+}

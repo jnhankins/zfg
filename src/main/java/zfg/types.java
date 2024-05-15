@@ -366,7 +366,7 @@ public final class types {
       assert muts.length >= 0;
       assert names != null;
       assert names.length == muts.length;
-      assert Arrays.stream(names).allMatch(zfg.names::isLowerSnakeCase);
+      assert Arrays.stream(names).allMatch(zfg.Names::isLowerSnakeCase);
       assert Arrays.stream(names).distinct().count() == names.length;
       assert types != null;
       assert types.length == muts.length;
@@ -453,13 +453,13 @@ public final class types {
     public final Type aliasedType;
     private NomType(final String fqn) {
       assert fqn != null;
-      assert names.isUpperCamelCase(fqn); // TODO fqn with path components
+      assert Names.isUpperCamelCase(fqn); // TODO fqn with path components
       this.fqn = fqn;
       this.aliasedType = Unk;
     }
     private NomType(final String fqn, final Type aliasedType) {
       assert fqn != null;
-      assert names.isUpperCamelCase(fqn); // TODO fqn with path components
+      assert Names.isUpperCamelCase(fqn); // TODO fqn with path components
       assert aliasedType != null && aliasedType != Err && aliasedType != Unk;
       this.fqn = fqn;
       this.aliasedType = aliasedType;
