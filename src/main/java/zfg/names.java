@@ -3,7 +3,7 @@ package zfg;
 public final class Names {
   private Names() {}
 
-  public static final boolean isLowerSnakeCase(final String name) {
+  public static final boolean isLowerSnakeCase(final CharSequence name) {
     // [a-z_][a-z0-9_]*
     if (name == null) return false;
     final int len = name.length();
@@ -20,7 +20,7 @@ public final class Names {
     return true;
   }
 
-  public static final boolean isUpperCamelCase(final String name) {
+  public static final boolean isUpperCamelCase(final CharSequence name) {
     // [A-Z][a-zA-Z0-9]*
     if (name == null) return false;
     final int len = name.length();
@@ -36,6 +36,42 @@ public final class Names {
       return false;
     }
     return true;
+  }
+
+  public static final boolean isModulePath(final String name) {
+    final int len = name.length();
+    int pos = 0;
+    while (pos < len) {
+      final int beg = pos;
+      final int end = name.indexOf("::", pos);
+      if (end == -1 || beg == end) return false;
+      if (!isUpperCamelCase(new Substring(name, beg, end))) return false;
+      pos = end + 2;
+    }
+    return true;
+  }
+
+  private static final class Substring implements CharSequence {
+    private final CharSequence s;
+    private final int beg;
+    private final int end;
+    Substring(final CharSequence s, final int beg, final int end) {
+      this.s = s;
+      this.beg = beg;
+      this.end = end;
+    }
+    @Override public int length() {
+      return end - beg;
+    }
+    @Override public char charAt(final int index) {
+      return s.charAt(beg + index);
+    }
+    @Override public CharSequence subSequence(final int start, final int stop) {
+      return new Substring(s, beg + start, beg + stop);
+    }
+    @Override public String toString() {
+      return s.subSequence(beg, end).toString();
+    }
   }
 
 }

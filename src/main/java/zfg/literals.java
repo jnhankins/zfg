@@ -1,15 +1,15 @@
 package zfg;
 
-public final class literals {
-  private literals() {}
+public final class Literals {
+  private Literals() {}
 
   private static enum IntKind { BIT, U08, U16, U32, U64, I08, I16, I32, I64 }
   private static enum FltKind { F32, F64 }
 
   // Must be "true" or "false"; case-sensitive. Returns null if it could not be parsed as a Bit.
-  public static final insts.BitInst parseBitLit(final String s) {
-    if (s.equals("false")) return insts.bit(0);
-    if (s.equals("true")) return insts.bit(1);
+  public static final Inst.Bit parseBitLit(final String s) {
+    if (s.equals("false")) return Insts.bit(0);
+    if (s.equals("true")) return Insts.bit(1);
     return null;
   }
 
@@ -27,7 +27,7 @@ public final class literals {
   // if a NumberFormatException should be thrown. For example, "x = a - 128i08" will be parsed as
   // ... subtract I08(-128), which should then throw an exception, while "x = -128i08" will be
   // parsed as ... negate I08(-128), which is allowed and should simplify to I(-128).
-  public static final insts.Inst parseIntLit(final String s, final boolean hasMinusPrefix) {
+  public static final Inst parseIntLit(final String s, final boolean hasMinusPrefix) {
     final boolean hmp = hasMinusPrefix;
     final int len = s.length();
 
@@ -58,19 +58,19 @@ public final class literals {
     catch (final NumberFormatException e) { return null; }
 
     return switch (kind) {
-      case IntKind.BIT -> v >= 0 && v <=          1L ? insts.bit((int) v) : null;
-      case IntKind.U08 -> v >= 0 && v <=       0xFFL ? insts.u08((int) v) : null;
-      case IntKind.U16 -> v >= 0 && v <=     0xFFFFL ? insts.u16((int) v) : null;
-      case IntKind.U32 -> v >= 0 && v <= 0xFFFFFFFFL ? insts.u32((int) v) : null;
-      case IntKind.U64 ->                              insts.u64(      v);
-      case IntKind.I08 -> v >= 0 && v <= (radix != 10 ?       0xFFL : hmp ?       0x80L :       0x7FL) ? insts.i08((int) v) : null;
-      case IntKind.I16 -> v >= 0 && v <= (radix != 10 ?     0xFFFFL : hmp ?     0x8000L :     0x7FFFL) ? insts.i16((int) v) : null;
-      case IntKind.I32 -> v >= 0 && v <= (radix != 10 ? 0xFFFFFFFFL : hmp ? 0x80000000L : 0x7FFFFFFFL) ? insts.i32((int) v) : null;
-      case IntKind.I64 -> v >= 0 || radix != 10 || (hmp && v == 0x8000000000000000L)                   ? insts.i64(      v) : null;
+      case IntKind.BIT -> v >= 0 && v <=          1L ? Insts.bit((int) v) : null;
+      case IntKind.U08 -> v >= 0 && v <=       0xFFL ? Insts.u08((int) v) : null;
+      case IntKind.U16 -> v >= 0 && v <=     0xFFFFL ? Insts.u16((int) v) : null;
+      case IntKind.U32 -> v >= 0 && v <= 0xFFFFFFFFL ? Insts.u32((int) v) : null;
+      case IntKind.U64 ->                              Insts.u64(      v);
+      case IntKind.I08 -> v >= 0 && v <= (radix != 10 ?       0xFFL : hmp ?       0x80L :       0x7FL) ? Insts.i08((int) v) : null;
+      case IntKind.I16 -> v >= 0 && v <= (radix != 10 ?     0xFFFFL : hmp ?     0x8000L :     0x7FFFL) ? Insts.i16((int) v) : null;
+      case IntKind.I32 -> v >= 0 && v <= (radix != 10 ? 0xFFFFFFFFL : hmp ? 0x80000000L : 0x7FFFFFFFL) ? Insts.i32((int) v) : null;
+      case IntKind.I64 -> v >= 0 || radix != 10 || (hmp && v == 0x8000000000000000L)                   ? Insts.i64(      v) : null;
     };
   }
 
-  public static final insts.Inst parseFltLit(final String s) {
+  public static final Inst parseFltLit(final String s) {
     final int len = s.length();
 
     @SuppressWarnings("unused")
@@ -92,13 +92,13 @@ public final class literals {
         final float v;
         try { v = Float.parseFloat(t); }
         catch (final NumberFormatException e) { yield null; }
-        yield insts.f32(v);
+        yield Insts.f32(v);
       }
       case FltKind.F64 -> {
         final double v;
         try { v = Double.parseDouble(t); }
         catch (final NumberFormatException e) { yield null; }
-        yield insts.f64(v);
+        yield Insts.f64(v);
       }
     };
   }

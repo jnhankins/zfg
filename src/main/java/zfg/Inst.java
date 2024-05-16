@@ -1,4 +1,4 @@
-package zfg2;
+package zfg;
 
 import java.util.Objects;
 import java.util.Set;

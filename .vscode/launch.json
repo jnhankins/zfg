@@ -21,13 +21,6 @@
       ]
     },
     {
-      "type": "java",
-      "name": "golf",
-      "request": "launch",
-      "mainClass": "zfg.golf",
-      "projectName": "zfg"
-    },
-    {
       "name": "Current Java File",
       "type": "java",
       "request": "launch",
@@ -39,7 +32,7 @@
       "request": "launch",
       "mainClass": "zfg.Main",
       "args": [
-        "src/test/resources/test.zfg"
+        "src/main/zfg/types.zfg"
       ],
       "console": "externalTerminal"
     },
@@ -49,7 +42,7 @@
       "request": "launch",
       "grammar": "src/main/antlr/ZfgParser.g4",
       "startRule": "start",
-      "input": "src/test/resources/test.zfg",
+      "input": "src/main/zfg/types.zfg",
       "printParseTree": true,
       "visualParseTree": true
     }

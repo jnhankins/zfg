@@ -1,4 +1,4 @@
-package zfg2;
+package zfg;
 
 import java.util.Arrays;
 import java.util.HashSet;
@@ -127,7 +127,7 @@ public sealed interface Type {
 
     Arr(final boolean imut, final Type type) {
       assert type != null;
-      assert type != Types.ERR;
+      assert !type.isVirtual();
       this.imut = imut;
       this.type = type;
       this.length = UNKNOWN_LENGTH;
@@ -135,7 +135,7 @@ public sealed interface Type {
 
     Arr(final boolean imut, final Type type, final int length) {
       assert type != null;
-      assert type != Types.ERR;
+      assert !type.isVirtual();
       assert length >= 0;
       this.imut = imut;
       this.type = type;
@@ -192,7 +192,7 @@ public sealed interface Type {
       assert types != null;
       assert types.length == imuts.length;
       assert Arrays.stream(types).noneMatch(Objects::isNull);
-      assert Arrays.stream(types).noneMatch(Types.ERR::equals);
+      assert Arrays.stream(types).noneMatch(t -> t.isVirtual());
       this.imuts = imuts;
       this.types = types;
     }
@@ -254,7 +254,7 @@ public sealed interface Type {
       assert types != null;
       assert types.length == imuts.length;
       assert Arrays.stream(types).noneMatch(Objects::isNull);
-      assert Arrays.stream(types).noneMatch(Types.ERR::equals);
+      assert Arrays.stream(types).noneMatch(t -> t.isVirtual());
       this.imuts = imuts;
       this.names = names;
       this.types = types;
@@ -300,13 +300,19 @@ public sealed interface Type {
   }
 
   public static final class Fun extends Composite {
-    public final Rec  paramsType;
+    public final Type paramsType;
     public final Type returnType;
 
-    Fun(final Rec paramsType, final Type returnType) {
+    Fun() {
+      paramsType = Types.UNK;
+      returnType = Types.UNK;
+    }
+
+    Fun(final Type paramsType, final Type returnType) {
       assert paramsType != null;
+      assert paramsType instanceof Rec || paramsType instanceof Tup;
       assert returnType != null;
-      assert returnType != Types.ERR;
+      assert !returnType.isVirtual();
       this.paramsType = paramsType;
       this.returnType = returnType;
     }
@@ -340,6 +346,78 @@ public sealed interface Type {
     @Override
     public final boolean isUnit() {
       return false;
+    }
+  }
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+  // Nominal (Alias) Type
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+
+  public static final class Nom implements Type {
+    public final String name;
+    public       Type   type;
+
+    Nom(final String name) {
+      assert name != null;
+      assert Names.isUpperCamelCase(name);
+      this.name = name;
+      this.type = Types.UNK;
+    }
+
+    Nom(final String name, final Type type) {
+      assert name != null;
+      assert Names.isUpperCamelCase(name);
+      assert type != null;
+      assert !type.isVirtual();
+      this.name = name;
+      this.type = type;
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(
+        Nom.class,
+        name
+      );
+    }
+
+    public void bind(final Type type) {
+      assert type != null;
+      assert !type.isVirtual();
+      this.type = type;
+    }
+
+    @Override
+    public boolean equals(final Object obj) {
+      return this == obj || (
+        obj instanceof Nom that &&
+        this.name.equals(that.name)
+      );
+    }
+
+    @Override
+    public final String toString() {
+      return toString(new StringBuilder()).toString();
+    }
+
+    @Override
+    public final StringBuilder toString(final StringBuilder sb) {
+      return toString(sb, new HashSet<>());
+    }
+
+    @Override
+    public StringBuilder toString(final StringBuilder sb, final Set<Object> seen) {
+      sb.append(name);
+      if (seen.add(this)) {
+        sb.append("=");
+        type.toString(sb, seen);
+      }
+      return sb;
+    }
+
+    @Override
+    public final boolean isUnit() {
+      return type.isUnit();
     }
   }
 }

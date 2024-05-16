@@ -153,30 +153,31 @@ variableType
   | type=tupleType                                                             # TupType
   | type=arrayType                                                             # ArrType
   | type=primitiveType                                                         # PriType
+  | type=path                                                                  # NomType
   ;
 
 functionType:
   LPAREN (
   parameterModifiers+=(LET | MUT) parameterNames+=LowerId parameterTypes+=anyType  (COMMA
-  parameterModifiers+=(LET | MUT) parameterNames+=LowerId parameterTypes+=anyType)* COMMA?)?
+  parameterModifiers+=(LET | MUT)? parameterNames+=LowerId parameterTypes+=anyType)* COMMA?)?
   RPAREN
   returnType=anyType;
 
 recordType:
   LPAREN (
-  fieldModifiers+=(LET | MUT) fieldNames+=LowerId fieldTypes+=anyType  (COMMA
-  fieldModifiers+=(LET | MUT) fieldNames+=LowerId fieldTypes+=anyType)* COMMA?)?
+  fieldModifiers+=(LET | MUT)? fieldNames+=LowerId fieldTypes+=anyType  (COMMA
+  fieldModifiers+=(LET | MUT)? fieldNames+=LowerId fieldTypes+=anyType)* COMMA?)?
   RPAREN;
 
 tupleType:
   LPAREN (
-  fieldModifiers+=(LET | MUT) fieldTypes+=anyType  (COMMA
-  fieldModifiers+=(LET | MUT) fieldTypes+=anyType)* COMMA?)?
+  fieldModifiers+=(LET | MUT)? fieldTypes+=anyType  (COMMA
+  fieldModifiers+=(LET | MUT)? fieldTypes+=anyType)* COMMA?)?
   RPAREN;
 
 arrayType:
   LBRACK
-  elementsModifier=(LET | MUT) elementsType=anyType
+  elementsModifier=(LET | MUT)? elementsType=anyType
   (SEMIC elementCount=IntLit)?
   RBRACK;
 
@@ -191,13 +192,12 @@ inferredType:
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 path
-  : (modulePath=UpperId DOUBC)* root=LowerId (fieldPath=accessor)*
+  : (modulePath+=UpperId DOUBC)* symbol=(LowerId|UpperId) (fieldPath+=pathSegment)*
   ;
 
-accessor
-  : POINT name=LowerId                                                         # NamedAccessor
-  | POINT index=IntLit                                                         # IndexAccessor
-  | LBRACK index=expression RBRACK                                             # ArrayAccessor
+pathSegment
+  : POINT name=(LowerId|UpperId)   # NamedPathSegment
+  | LBRACK index=expression RBRACK # IndexPathSegment
   ;
 
 

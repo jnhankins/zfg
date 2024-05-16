@@ -8,9 +8,6 @@ import java.util.Arrays;
 
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
-import org.objectweb.asm.ClassWriter;
-import org.objectweb.asm.MethodVisitor;
-import org.objectweb.asm.Opcodes;
 
 public class Main {
   public static void main(final String[] args) {
@@ -33,40 +30,8 @@ public class Main {
   public static void compile(final Path sourcePath, final Path targetPath) {
     System.out.println("compile: " + sourcePath + " -> " + targetPath);
 
-    final Parser.Result result = Parser.parse(targetPath);
-
-    // TODO Generate JVM bytecode from ZFG AST
-    final byte[] bytecode = generateBytecode();
-    writeFile(targetPath, bytecode);
-  }
-
-  final static byte[] generateBytecode() {
-    final ClassWriter cw = new ClassWriter(0);
-
-    // public class Main {
-    cw.visit(Opcodes.V21, Opcodes.ACC_PUBLIC, "Main", null, "java/lang/Object", null);
-
-    // public static void main(String[] args) {
-    final MethodVisitor mv = cw.visitMethod(
-        Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC, "main", "([Ljava/lang/String;)V", null, null);
-
-    // System.out.println("Hello, world!");
-    mv.visitFieldInsn(Opcodes.GETSTATIC, "java/lang/System", "out", "Ljava/io/PrintStream;");
-    mv.visitLdcInsn("Hello, world!");
-    mv.visitMethodInsn(
-        Opcodes.INVOKEVIRTUAL, "java/io/PrintStream", "println", "(Ljava/lang/String;)V", false);
-
-    // return;
-    mv.visitInsn(Opcodes.RETURN);
-
-    // }
-    mv.visitMaxs(0, 0);
-    mv.visitEnd();
-
-    // }
-    cw.visitEnd();
-
-    return cw.toByteArray();
+    Parser.parse(sourcePath);
+    // TODO
   }
 
   final static CharStream readFile(final Path path) {
