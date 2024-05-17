@@ -42,11 +42,11 @@ public final class Types {
   public static final Type.Arr Arr(final boolean imut, final Type type, final int length) {
     return intern(new Type.Arr(imut, type, length));
   }
-  public static final Type.Tup Tup(final boolean[] imuts, final Type[] types) {
-    return intern(withoutUnitFields(new Type.Tup(imuts, types)));
+  public static final Type.Tup Tup(final boolean[] muts, final Type[] types) {
+    return intern(withoutUnitFields(new Type.Tup(muts, types)));
   }
-  public static final Type.Rec Rec(final boolean[] imuts, final String[] names, final Type[] types) {
-    return intern(withoutUnitFields(new Type.Rec(imuts, names, types)));
+  public static final Type.Rec Rec(final boolean[] muts, final String[] names, final Type[] types) {
+    return intern(withoutUnitFields(new Type.Rec(muts, names, types)));
   }
   public static final Type.Fun Fun(final Type paramsType, final Type resultType) {
     return intern(new Type.Fun(paramsType, resultType));
@@ -82,9 +82,9 @@ public final class Types {
 
   private static final Type.Tup unitTup = new Type.Tup();
   private static final Type.Tup withoutUnitFields(final Type.Tup tup) {
-    final boolean[] imuts  = tup.imuts;
-    final Type[]    types = tup.types;
-    final int len = imuts.length;
+    final boolean[] muts = tup.muts;
+    final Type[] types = tup.types;
+    final int len = types.length;
     if (len == 0) return null;
     // Scan through the tup for unit fields
     for (int i = 0; i < len; i++) {
@@ -93,7 +93,7 @@ public final class Types {
         // Shift all non-unit fields to the front of the array
         for (int j = i + 1; j < len; j++) {
           if (!types[j].isUnit()) {
-            imuts[i] = imuts[j];
+            muts[i] = muts[j];
             types[i] = types[j];
             i++;
           }
@@ -102,7 +102,7 @@ public final class Types {
         if (i == 0) return unitTup;
         // Otherwise, return a new tuple without the unit fields
         return new Type.Tup(
-          Arrays.copyOf(imuts, i),
+          Arrays.copyOf(muts, i),
           Arrays.copyOf(types, i)
         );
       }
@@ -112,10 +112,10 @@ public final class Types {
 
   private static final Type.Rec unitRec = new Type.Rec();
   private static final Type.Rec withoutUnitFields(final Type.Rec rec) {
-    final boolean[] imuts = rec.imuts;
-    final String[]  names = rec.names;
-    final Type[]    types = rec.types;
-    final int len = imuts.length;
+    final boolean[] muts = rec.muts;
+    final String[] names = rec.names;
+    final Type[] types = rec.types;
+    final int len = types.length;
     if (len == 0) return null;
     // Scan through the tup for unit fields
     for (int i = 0; i < len; i++) {
@@ -124,7 +124,7 @@ public final class Types {
         // Shift all non-unit fields to the front of the array
         for (int j = i + 1; j < len; j++) {
           if (!types[j].isUnit()) {
-            imuts[i] = imuts[j];
+            muts[i] = muts[j];
             names[i] = names[j];
             types[i] = types[j];
             i++;
@@ -134,7 +134,7 @@ public final class Types {
         if (i == 0) return unitRec;
         // Otherwise, return a new record without the unit fields
         return new Type.Rec(
-          Arrays.copyOf(imuts, i),
+          Arrays.copyOf(muts, i),
           Arrays.copyOf(names, i),
           Arrays.copyOf(types, i)
         );

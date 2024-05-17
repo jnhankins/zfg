@@ -2,6 +2,7 @@ package zfg.antlr;
 
 import java.io.Serializable;
 
+import org.abego.treelayout.internal.util.java.lang.string.StringUtil;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.Recognizer;
 import org.antlr.v4.runtime.Token;
@@ -119,44 +120,16 @@ public final class ZfgToken implements WritableToken, Serializable {
     return toString(recognizer == null ? ZfgLexer.VOCABULARY : recognizer.getVocabulary());
   }
 	public String toString(final Vocabulary vocabulary) {
-    final StringBuilder sb = new StringBuilder()
+    return new StringBuilder()
       .append("[@")
       .append(tokenIndex)
       .append(',')
       .append(startIndex)
       .append(':')
       .append(stopIndex)
-      .append("=");
-    final String txt = getText();
-    if (text == null) {
-      sb.append("<no text>");
-    } else {
-      sb.append('\"');
-      final int len = txt.length();
-      for (int i = 0; i < len; i++) {
-        final char c = txt.charAt(i);
-        switch (c) {
-          case '\b' -> sb.append("\\b");
-          case '\f' -> sb.append("\\f");
-          case '\n' -> sb.append("\\n");
-          case '\r' -> sb.append("\\r");
-          case '\t' -> sb.append("\\t");
-          case '\\' -> sb.append("\\\\");
-          default -> {
-            if (' ' <= c && c < '\u0080') {
-              sb.append(c);
-            } else {
-              final String n = Integer.toHexString(c);
-              sb.append("\\u")
-                .append("0000".substring(n.length()))
-                .append(n);
-            }
-          }
-        }
-      }
-      sb.append('\"');
-    }
-    return sb.append(",<")
+      .append("=")
+      .append(getText() instanceof String txt ? StringUtil.quote(txt) : "<no text>")
+      .append(",<")
       .append(vocabulary == null ? type : vocabulary.getDisplayName(type))
       .append('>')
       .append(channel > 0 ? ",channel=" + channel : "")

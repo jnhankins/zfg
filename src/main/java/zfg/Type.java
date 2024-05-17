@@ -122,8 +122,8 @@ public sealed interface Type {
   public static final class Arr extends Composite {
     public static final int UNKNOWN_LENGTH = -1;
     public final boolean imut;
-    public final Type    type;
-    public final int     length;
+    public final Type type;
+    public final int length;
 
     Arr(final boolean imut, final Type type) {
       assert type != null;
@@ -178,22 +178,22 @@ public sealed interface Type {
   }
 
   public static final class Tup extends Composite {
-    public final boolean[] imuts;
-    public final Type[]    types;
+    public final boolean[] muts;
+    public final Type[] types;
 
     Tup() {
-      imuts = new boolean[0];
+      muts = new boolean[0];
       types = new Type[0];
     }
 
-    Tup(final boolean[] imuts, final Type[] types) {
-      assert imuts != null;
-      assert imuts.length >= 1;
+    Tup(final boolean[] muts, final Type[] types) {
+      assert muts != null;
+      assert muts.length >= 1;
       assert types != null;
-      assert types.length == imuts.length;
+      assert types.length == muts.length;
       assert Arrays.stream(types).noneMatch(Objects::isNull);
       assert Arrays.stream(types).noneMatch(t -> t.isVirtual());
-      this.imuts = imuts;
+      this.muts = muts;
       this.types = types;
     }
 
@@ -201,7 +201,7 @@ public sealed interface Type {
     public int hashCode() {
       return Objects.hash(
         Tup.class,
-        Arrays.hashCode(imuts),
+        Arrays.hashCode(muts),
         Arrays.hashCode(types)
       );
     }
@@ -210,7 +210,7 @@ public sealed interface Type {
     public boolean equals(final Object obj) {
       return this == obj || (
         obj instanceof Tup that &&
-        Arrays.equals(imuts, that.imuts) &&
+        Arrays.equals(muts, that.muts) &&
         Arrays.equals(types, that.types)
       );
     }
@@ -220,7 +220,7 @@ public sealed interface Type {
       sb.append('(');
       for (int i = 0; i < types.length; i++) {
         if (i > 0) sb.append(", ");
-        sb.append(imuts[i] ? "let " : "mut ");
+        sb.append(muts[i] ? "let " : "mut ");
         types[i].toString(sb, seen);
       }
       sb.append(')');
@@ -229,33 +229,33 @@ public sealed interface Type {
 
     @Override
     public final boolean isUnit() {
-      return imuts.length == 0;
+      return muts.length == 0;
     }
   }
 
   public static final class Rec extends Composite {
-    public final boolean[] imuts;
-    public final String[]  names;
-    public final Type[]    types;
+    public final boolean[] muts;
+    public final String[] names;
+    public final Type[] types;
 
     Rec() {
-      imuts = new boolean[0];
+      muts = new boolean[0];
       names = new String[0];
       types = new Type[0];
     }
 
-    Rec(final boolean[] imuts, final String[] names, final Type[] types) {
-      assert imuts != null;
-      assert imuts.length >= 1;
+    Rec(final boolean[] muts, final String[] names, final Type[] types) {
+      assert muts != null;
+      assert muts.length >= 1;
       assert names != null;
-      assert names.length == imuts.length;
+      assert names.length == muts.length;
       assert Arrays.stream(names).allMatch(Names::isLowerSnakeCase);
       assert Arrays.stream(names).distinct().count() == names.length;
       assert types != null;
-      assert types.length == imuts.length;
+      assert types.length == muts.length;
       assert Arrays.stream(types).noneMatch(Objects::isNull);
       assert Arrays.stream(types).noneMatch(t -> t.isVirtual());
-      this.imuts = imuts;
+      this.muts = muts;
       this.names = names;
       this.types = types;
     }
@@ -264,7 +264,7 @@ public sealed interface Type {
     public int hashCode() {
       return Objects.hash(
         Rec.class,
-        Arrays.hashCode(imuts),
+        Arrays.hashCode(muts),
         Arrays.hashCode(names),
         Arrays.hashCode(types)
       );
@@ -274,7 +274,7 @@ public sealed interface Type {
     public boolean equals(final Object obj) {
       return this == obj || (
         obj instanceof Rec that &&
-        Arrays.equals(imuts, that.imuts) &&
+        Arrays.equals(muts, that.muts) &&
         Arrays.equals(names, that.names) &&
         Arrays.equals(types, that.types)
       );
@@ -285,7 +285,7 @@ public sealed interface Type {
       sb.append('(');
       for (int i = 0; i < types.length; i++) {
         if (i > 0) sb.append(", ");
-        sb.append(imuts[i] ? "let " : "mut ");
+        sb.append(muts[i] ? "let " : "mut ");
         sb.append(names[i]).append(" ");
         types[i].toString(sb, seen);
       }
@@ -295,7 +295,7 @@ public sealed interface Type {
 
     @Override
     public final boolean isUnit() {
-      return imuts.length == 0;
+      return muts.length == 0;
     }
   }
 
@@ -355,7 +355,7 @@ public sealed interface Type {
 
   public static final class Nom implements Type {
     public final String name;
-    public       Type   type;
+    public Type type;
 
     Nom(final String name) {
       assert name != null;

@@ -47,10 +47,10 @@ public final class PrettyPrint {
   }
 
   private static void syntaxTree(
-      final List<String>  rn,
+      final List<String> rn,
       final StringBuilder sb,
-      final Tree    node,
-      final String  indent,
+      final Tree node,
+      final String indent,
       final boolean isLast
   ) {
     if (!indent.isEmpty()) sb.append(indent).append(isLast ? "\u2514" : "\u251C");
@@ -77,8 +77,8 @@ public final class PrettyPrint {
 
   private static void semanticTree(
       final StringBuilder sb,
-      final Ast     node,
-      final String  indent,
+      final Ast node,
+      final String indent,
       final boolean isLast
   ) {
     // TODO

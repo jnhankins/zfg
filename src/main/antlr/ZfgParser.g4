@@ -67,45 +67,57 @@ variableDeclaration[int depth]
 // Expressions
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-expression
+expression returns [zfg.Ast.Expr parsed]
   : unambiguousExpression
   | algebraExpression
   | bitwiseExpression
   | compareExpression
   | logicalExpression
   ;
-unambiguousExpression
-  : postfixAssignment
-  | prefixAssignment
-  | functionCall
-  | variable
-  | literal
-  | prefixExpression
-  | LPAREN bivariateAssignment RPAREN
-  | LPAREN expression RPAREN
+unambiguousExpression returns [zfg.Ast.Expr parsed]
+  : asn=postfixAssignment                                  # PostfixAssignmentExpression
+  | asn=prefixAssignment                                   # PrefixAssignmentExpression
+  | fun=functionCall                                       # FunctionCallExpression
+  | var=variable                                           # VariableExpression
+  | lit=literal                                            # LiteralExpression
+  | opr=(ADD | SUB | NOT | LNT) rhs=unambiguousExpression  # UnaryExpression
+  | LPAREN asn=bivariateAssignment RPAREN                  # BivariateAssignmentExpression
+  | LPAREN exp=expression RPAREN                           # ParentheticalExpression
   ;
-prefixExpression
-  : opr=(ADD | SUB | NOT | LNT) unambiguousExpression
+algebraExpression returns [zfg.Ast.Expr parsed]
+  : opa=algebraExpression     opr=(MUL | DIV | REM | MOD) rhs=algebraOperand
+  | opu=unambiguousExpression opr=(MUL | DIV | REM | MOD) rhs=algebraOperand
+  | opa=algebraExpression     opr=(ADD | SUB) rhs=algebraOperand
+  | opu=unambiguousExpression opr=(ADD | SUB) rhs=algebraOperand
   ;
-algebraExpression
-  : algebraExpression     opr=(MUL | DIV | REM | MOD) (algebraExpression | unambiguousExpression)
-  | unambiguousExpression opr=(MUL | DIV | REM | MOD) (algebraExpression | unambiguousExpression)
-  | algebraExpression     opr=(ADD | SUB) (algebraExpression | unambiguousExpression)
-  | unambiguousExpression opr=(ADD | SUB) (algebraExpression | unambiguousExpression)
+algebraOperand returns [zfg.Ast.Expr parsed]
+  : algebraExpression
+  | unambiguousExpression
   ;
-bitwiseExpression
-  : unambiguousExpression (opr=AND unambiguousExpression)+
-  | unambiguousExpression (opr=IOR unambiguousExpression)+
-  | unambiguousExpression (opr=XOR unambiguousExpression)+
-  | unambiguousExpression opr=(SHL | SHR) unambiguousExpression
+bitwiseExpression returns [zfg.Ast.Expr parsed]
+  : opds+=unambiguousExpression (opr=AND opds+=unambiguousExpression)+  # BitwiseChainExpression
+  | opds+=unambiguousExpression (opr=IOR opds+=unambiguousExpression)+  # BitwiseChainExpression
+  | opds+=unambiguousExpression (opr=XOR opds+=unambiguousExpression)+  # BitwiseChainExpression
+  | lhs=unambiguousExpression opr=(SHL | SHR) rhs=unambiguousExpression # BitwiseShiftExpression
   ;
-compareExpression
-  : (bitwiseExpression | algebraExpression | unambiguousExpression) (opr=(EQL | NEQ | LTN | GTN | LEQ | GEQ) (bitwiseExpression | algebraExpression | unambiguousExpression))+
-  | (bitwiseExpression | algebraExpression | unambiguousExpression) opr=TWC (bitwiseExpression | algebraExpression | unambiguousExpression)
+compareExpression returns [zfg.Ast.Expr parsed]
+  : opds+=compareOperand (opr=(EQL | NEQ | LTN | GTN | LEQ | GEQ) opds+=compareOperand)+ # CompareChainExpression
+  | lhs=compareOperand opr=TWC rhs=compareOperand                                        # CompareThreeWayExpression
   ;
-logicalExpression
-  : (compareExpression | bitwiseExpression | algebraExpression | unambiguousExpression) (opr=LCJ (compareExpression | bitwiseExpression | algebraExpression | unambiguousExpression))+
-  | (compareExpression | bitwiseExpression | algebraExpression | unambiguousExpression) (opr=LDJ (compareExpression | bitwiseExpression | algebraExpression | unambiguousExpression))+
+compareOperand returns [zfg.Ast.Expr parsed]
+  : bitwiseExpression
+  | algebraExpression
+  | unambiguousExpression
+  ;
+logicalExpression returns [zfg.Ast.Expr parsed]
+  : opds+=logicalOperand (opr=LCJ opds+=logicalOperand)+
+  | opds+=logicalOperand (opr=LDJ opds+=logicalOperand)+
+  ;
+logicalOperand returns [zfg.Ast.Expr parsed]
+  : compareExpression
+  | bitwiseExpression
+  | algebraExpression
+  | unambiguousExpression
   ;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -131,27 +143,39 @@ prefixAssignment
 // Literals
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-literal
+literal returns [zfg.Inst parsed]
   : numericLiteral
+  | recordLiteral
+  | tupleLiteral
+  | arrayLiteral
   ;
-numericLiteral
+numericLiteral returns [zfg.Inst parsed]
   : token=(BitLit | IntLit | FltLit)
   ;
-recordLiteral
-  : LPAREN (LowerId SEMIC expression (COMMA SEMIC expression)* COMMA?)? RPAREN
+recordLiteral returns [zfg.Inst parsed]
+  : LPAREN (
+    names+=LowerId COLON exprs+=expression (  COMMA
+    names+=LowerId COLON exprs+=expression )* COMMA?)?
+    RPAREN
   ;
-tupleLiteral
-  : LPAREN (expression (COMMA expression)* COMMA?)? RPAREN
+tupleLiteral returns [zfg.Inst parsed]
+  : LPAREN (
+    exprs+=expression (  COMMA
+    exprs+=expression )* COMMA?)?
+    RPAREN
   ;
-arrayLiteral
-  : LBRACK (expression (COMMA expression)* COMMA?)? RBRACK
+arrayLiteral returns [zfg.Inst parsed]
+  : LBRACK (
+    exprs+=expression (  COMMA
+    exprs+=expression )* COMMA?)?
+    RBRACK
   ;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Types
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-type
+type returns [zfg.Type parsed]
   : primitiveType
   | functionType
   | recordType
@@ -159,26 +183,29 @@ type
   | arrayType
   | namedType
   ;
-primitiveType
+primitiveType returns [zfg.Type parsed]
   : token=(BIT | U08 | U16 | U32 | U64 | I08 | I16 | I32 | I64 | F32 | F64)
   ;
-functionType
+functionType returns [zfg.Type parsed]
   : paramsType=recordType COLON returnType=type
   ;
-recordType
+recordType returns [zfg.Type parsed] locals [int length = 0]
   : LPAREN (
-    (muts+=MUT | {$muts.add(null);}) keys+=LowerId COLON types+=type (  COMMA
-    (muts+=MUT | {$muts.add(null);}) keys+=LowerId COLON types+=type )* COMMA?)?
+    (muts+=MUT | {$muts.add(null);}) names+=LowerId COLON types+=type {$length += 1} (  COMMA
+    (muts+=MUT | {$muts.add(null);}) names+=LowerId COLON types+=type {$length += 1} )* COMMA?)?
     RPAREN
   ;
-tupleType
+tupleType returns [zfg.Type parsed] locals [int length = 0]
   : LPAREN (
-    (muts+=MUT | {$muts.add(null);}) COLON types+=type (  COMMA
-    (muts+=MUT | {$muts.add(null);}) COLON types+=type )* COMMA?)?
+    (muts+=MUT | {$muts.add(null);}) COLON types+=type {$length += 1} (  COMMA
+    (muts+=MUT | {$muts.add(null);}) COLON types+=type {$length += 1} )* COMMA?)?
     RPAREN
   ;
-arrayType
-  : LBRACK mut=MUT? typ=type (SEMIC len=IntLit)? RBRACK
+arrayType returns [zfg.Type parsed]
+  : LBRACK
+    mut=MUT? elem=type
+    (SEMIC length=IntLit)?
+    RBRACK
   ;
 namedType
   : (UpperId DOUBC)* UpperId
