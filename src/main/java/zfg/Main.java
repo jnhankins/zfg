@@ -30,7 +30,7 @@ public class Main {
   public static void compile(final Path sourcePath, final Path targetPath) {
     System.out.println("compile: " + sourcePath + " -> " + targetPath);
 
-    Parser.parse(sourcePath);
+    Parser2.parse(sourcePath);
     // TODO
   }
 

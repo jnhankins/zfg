@@ -106,7 +106,7 @@ public final class Parser {
 
     @Override public String toString() {
       final int line = ctx.start.getLine();
-      final int column = ctx.start.getCharPositionInLine();
+      final int column = ctx.start.getPosInLine();
       return String.format("%d:%d: %s", line, column, msg);
     }
   }
