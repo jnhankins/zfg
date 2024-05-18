@@ -28,97 +28,108 @@ options {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 module
-  : statements[0] EOF
+  : body=scope[0] EOF
   ;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Statements
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-statements[int depth]
-  : statement[depth] ((SEMIC | {EOL()}?) statement[depth])* SEMIC?
+scope[int depth]
+  : ({$depth == 0}? | {$depth > 0}? LBRACE)
+    stmts+=statement[depth] ( (SEMIC | {EOL()}?)
+    stmts+=statement[depth] )* SEMIC?
+    ({$depth == 0}? | {$depth > 0}? RBRACE)
   ;
+
 statement[int depth]
-  : declaration[depth]
-  | assignment
-  | functionCall
+  : ({$depth == 0}? mod=PUB | mod=LET | mod=MUT) name=UpperId COLON typ=TYPE SETA rhs=type # TypeDeclaration
+  | ({$depth == 0}? mod=PUB | mod=LET | mod=MUT) name=LowerId COLON typ=functionType SETA rhs=definition[$depth] # FunctionDeclaration
+  | ({$depth == 0}? mod=PUB | mod=LET | mod=MUT) name=LowerId COLON typ=type SETA rhs=expression # VariableDeclaration
+  | assignment # AssignmentStatement
+  | functionCall # FunctionCallStatement
   ;
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// Declarations
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-declaration[int depth]
-  : typeDeclaration[depth]
-  | functionDeclaration[depth]
-  | variableDeclaration[depth]
-  ;
-typeDeclaration[int depth]
-  : ({$depth == 0}? PUB | LET | MUT) UpperId COLON TYPE SETA type
-  ;
-functionDeclaration[int depth]
-  : ({$depth == 0}? PUB | LET | MUT) LowerId COLON functionType SETA (expression | LBRACE statements[$depth+1]? RBRACE)
-  ;
-variableDeclaration[int depth]
-  : ({$depth == 0}? PUB | LET | MUT) LowerId COLON type SETA (expression | LBRACE statements[$depth+1]? RBRACE)
+// TODO: Allow VariableDeclaration's to have scoped definitions
+definition[int depth]
+  : expression
+  | scope[$depth+1]
   ;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Expressions
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-expression returns [zfg.Ast.Expr parsed]
+expression
   : unambiguousExpression
   | algebraExpression
   | bitwiseExpression
   | compareExpression
   | logicalExpression
   ;
-unambiguousExpression returns [zfg.Ast.Expr parsed]
-  : asn=postfixAssignment                                  # PostfixAssignmentExpression
-  | asn=prefixAssignment                                   # PrefixAssignmentExpression
-  | fun=functionCall                                       # FunctionCallExpression
-  | var=variable                                           # VariableExpression
-  | lit=literal                                            # LiteralExpression
+unambiguousExpression
+  : asn=postfixAssignment # PostfixAssignmentExpression
+  | asn=prefixAssignment # PrefixAssignmentExpression
+  | fun=functionCall # FunctionCallExpression
+  | var=variable # VariableExpression
+  | lit=literal # LiteralExpression
   | opr=(ADD | SUB | NOT | LNT) rhs=unambiguousExpression  # UnaryExpression
-  | LPAREN asn=bivariateAssignment RPAREN                  # BivariateAssignmentExpression
-  | LPAREN exp=expression RPAREN                           # ParentheticalExpression
+  | LPAREN asn=bivariateAssignment RPAREN # BivariateAssignmentExpression
+  | LPAREN exp=expression RPAREN # ParentheticalExpression
   ;
-algebraExpression returns [zfg.Ast.Expr parsed]
-  : opa=algebraExpression     opr=(MUL | DIV | REM | MOD) rhs=algebraOperand
-  | opu=unambiguousExpression opr=(MUL | DIV | REM | MOD) rhs=algebraOperand
-  | opa=algebraExpression     opr=(ADD | SUB) rhs=algebraOperand
-  | opu=unambiguousExpression opr=(ADD | SUB) rhs=algebraOperand
+algebraExpression
+  : lhsA=algebraExpression     opr=(MUL | DIV | REM | MOD) rhsA=algebraExpression
+  | lhsA=algebraExpression     opr=(MUL | DIV | REM | MOD) rhsU=unambiguousExpression
+  | lhsU=unambiguousExpression opr=(MUL | DIV | REM | MOD) rhsA=algebraExpression
+  | lhsU=unambiguousExpression opr=(MUL | DIV | REM | MOD) rhsU=unambiguousExpression
+  | lhsA=algebraExpression     opr=(ADD | SUB) rhsA=algebraExpression
+  | lhsA=algebraExpression     opr=(ADD | SUB) rhsU=unambiguousExpression
+  | lhsU=unambiguousExpression opr=(ADD | SUB) rhsA=algebraExpression
+  | lhsU=unambiguousExpression opr=(ADD | SUB) rhsU=unambiguousExpression
   ;
-algebraOperand returns [zfg.Ast.Expr parsed]
-  : algebraExpression
-  | unambiguousExpression
+bitwiseExpression
+  : opds+=unambiguousExpression (opr=AND opds+=unambiguousExpression)+ # BitwiseNaryExpression
+  | opds+=unambiguousExpression (opr=IOR opds+=unambiguousExpression)+ # BitwiseNaryExpression
+  | opds+=unambiguousExpression (opr=XOR opds+=unambiguousExpression)+ # BitwiseNaryExpression
+  | lhs=unambiguousExpression opr=(SHL | SHR) rhs=unambiguousExpression # BitwiseBinaryExpression
   ;
-bitwiseExpression returns [zfg.Ast.Expr parsed]
-  : opds+=unambiguousExpression (opr=AND opds+=unambiguousExpression)+  # BitwiseChainExpression
-  | opds+=unambiguousExpression (opr=IOR opds+=unambiguousExpression)+  # BitwiseChainExpression
-  | opds+=unambiguousExpression (opr=XOR opds+=unambiguousExpression)+  # BitwiseChainExpression
-  | lhs=unambiguousExpression opr=(SHL | SHR) rhs=unambiguousExpression # BitwiseShiftExpression
+compareExpression
+  : opds+=compareOperand (oprs+=(EQL | NEQ | LTN | GTN | LEQ | GEQ) opds+=compareOperand)+ # CompareChainExpression
+  | lhs=compareOperand opr=TWC rhs=compareOperand # CompareBinaryExpression
   ;
-compareExpression returns [zfg.Ast.Expr parsed]
-  : opds+=compareOperand (opr=(EQL | NEQ | LTN | GTN | LEQ | GEQ) opds+=compareOperand)+ # CompareChainExpression
-  | lhs=compareOperand opr=TWC rhs=compareOperand                                        # CompareThreeWayExpression
-  ;
-compareOperand returns [zfg.Ast.Expr parsed]
+compareOperand
   : bitwiseExpression
   | algebraExpression
   | unambiguousExpression
   ;
-logicalExpression returns [zfg.Ast.Expr parsed]
+logicalExpression
   : opds+=logicalOperand (opr=LCJ opds+=logicalOperand)+
   | opds+=logicalOperand (opr=LDJ opds+=logicalOperand)+
   ;
-logicalOperand returns [zfg.Ast.Expr parsed]
+logicalOperand
   : compareExpression
   | bitwiseExpression
   | algebraExpression
   | unambiguousExpression
   ;
+// recordExpression
+//   : LPAREN (
+//     names+=LowerId COLON exprs+=expression (  COMMA
+//     names+=LowerId COLON exprs+=expression )* COMMA?)?
+//     RPAREN
+//   ;
+// tupleExpression
+//   : LPAREN (
+//     exprs+=expression (  COMMA
+//     exprs+=expression )* COMMA?)?
+//     RPAREN
+//   ;
+// arrayExpression
+//   : LBRACK (
+//     exprs+=expression (  COMMA
+//     exprs+=expression )* COMMA?)?
+//     RBRACK
+//   ;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Assignments
@@ -143,39 +154,19 @@ prefixAssignment
 // Literals
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-literal returns [zfg.Inst parsed]
+literal
   : numericLiteral
-  | recordLiteral
-  | tupleLiteral
-  | arrayLiteral
   ;
-numericLiteral returns [zfg.Inst parsed]
+numericLiteral
   : token=(BitLit | IntLit | FltLit)
   ;
-recordLiteral returns [zfg.Inst parsed]
-  : LPAREN (
-    names+=LowerId COLON exprs+=expression (  COMMA
-    names+=LowerId COLON exprs+=expression )* COMMA?)?
-    RPAREN
-  ;
-tupleLiteral returns [zfg.Inst parsed]
-  : LPAREN (
-    exprs+=expression (  COMMA
-    exprs+=expression )* COMMA?)?
-    RPAREN
-  ;
-arrayLiteral returns [zfg.Inst parsed]
-  : LBRACK (
-    exprs+=expression (  COMMA
-    exprs+=expression )* COMMA?)?
-    RBRACK
-  ;
+// TODO: StringLit, CharLit
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Types
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-type returns [zfg.Type parsed]
+type
   : primitiveType
   | functionType
   | recordType
@@ -183,25 +174,25 @@ type returns [zfg.Type parsed]
   | arrayType
   | namedType
   ;
-primitiveType returns [zfg.Type parsed]
+primitiveType
   : token=(BIT | U08 | U16 | U32 | U64 | I08 | I16 | I32 | I64 | F32 | F64)
   ;
-functionType returns [zfg.Type parsed]
+functionType
   : paramsType=recordType COLON returnType=type
   ;
-recordType returns [zfg.Type parsed] locals [int length = 0]
+recordType
   : LPAREN (
-    (muts+=MUT | {$muts.add(null);}) names+=LowerId COLON types+=type {$length += 1} (  COMMA
-    (muts+=MUT | {$muts.add(null);}) names+=LowerId COLON types+=type {$length += 1} )* COMMA?)?
+    (muts+=MUT | {$muts.add(null);}) names+=LowerId COLON types+=type (  COMMA
+    (muts+=MUT | {$muts.add(null);}) names+=LowerId COLON types+=type )* COMMA?)?
     RPAREN
   ;
-tupleType returns [zfg.Type parsed] locals [int length = 0]
+tupleType
   : LPAREN (
-    (muts+=MUT | {$muts.add(null);}) COLON types+=type {$length += 1} (  COMMA
-    (muts+=MUT | {$muts.add(null);}) COLON types+=type {$length += 1} )* COMMA?)?
+    (muts+=MUT | {$muts.add(null);}) COLON types+=type (  COMMA
+    (muts+=MUT | {$muts.add(null);}) COLON types+=type )* COMMA?)?
     RPAREN
   ;
-arrayType returns [zfg.Type parsed]
+arrayType
   : LBRACK
     mut=MUT? elem=type
     (SEMIC length=IntLit)?
@@ -216,7 +207,16 @@ namedType
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 functionCall
-  : variable (recordLiteral | tupleLiteral)
+  : variable
+    LPAREN (
+    names+=LowerId COLON exprs+=expression (  COMMA
+    names+=LowerId COLON exprs+=expression )* COMMA?)?
+    RPAREN
+  | variable
+    LPAREN (
+    exprs+=expression (  COMMA
+    exprs+=expression )* COMMA?)?
+    RPAREN
   ;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

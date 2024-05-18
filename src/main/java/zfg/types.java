@@ -51,21 +51,24 @@ public final class Types {
   public static final Type.Fun Fun(final Type paramsType, final Type resultType) {
     return intern(new Type.Fun(paramsType, resultType));
   }
-  public static final Type.Fun UnkFun = new Type.Fun();
+  public static final Type.Nom Nom(final String name) {
+    return intern(new Type.Nom(name));
+  }
 
   private static final WeakHashMap<Type, WeakReference<Type>> CACHE = new WeakHashMap<>();
   private static final ReentrantLock CACHE_LOCK = new ReentrantLock();
 
   @SuppressWarnings("unchecked")
   private static <T extends Type> T intern(final T type) {
-    // TODO: Use a caffine or something
+    // TODO: Use a caffine or something other concurrent cash with weak keys and values
+
+    // Try to get the the type from the cache without locking
     final WeakReference<Type> cacheEntry0 = CACHE.get(type);
     if (cacheEntry0 != null) {
       final Type cachedType = cacheEntry0.get();
-      if (cachedType != null) {
-        return (T) cachedType;
-      }
+      if (cachedType != null) return (T) cachedType;
     }
+    // If the type is not in the cache, wait for the lock, then try again
     CACHE_LOCK.lock();
     final WeakReference<Type> cacheEntry1 = CACHE.get(type);
     if (cacheEntry1 != null) {
@@ -75,6 +78,7 @@ public final class Types {
         return (T) cachedType;
       }
     }
+    // If the type is still not in the cache, add it
     CACHE.put(type, new WeakReference<>(type));
     CACHE_LOCK.unlock();
     return type;

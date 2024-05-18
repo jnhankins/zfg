@@ -6,27 +6,22 @@ import java.util.Objects;
 import java.util.Set;
 
 public sealed interface Type {
-  @Override int hashCode();
-  @Override boolean equals(final Object obj);
-  @Override String toString();
-  StringBuilder toString(final StringBuilder sb);
-  StringBuilder toString(final StringBuilder sb, final Set<Object> seen);
-  boolean isUnit();
-  default boolean isVirtual() { return this instanceof Virtual; }
-  default boolean isPrimitive() { return this instanceof Primitive; }
-  default boolean isComposite() { return this instanceof Composite; }
+  @Override public int hashCode();
+  @Override public boolean equals(final Object obj);
+  @Override public String toString();
+  public default String toString(final boolean pretty) { return toString(); }
+  public default void appendTo(final StringBuilder sb, final boolean pretty) { sb.append(this); }
+  public default boolean isUnit() { return false; }
+  public default boolean isVirtual() { return this instanceof Virtual; }
+  public default boolean isPrimitive() { return this instanceof Primitive; }
+  public default boolean isComposite() { return this instanceof Composite; }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////
   // Virtual Types
   //////////////////////////////////////////////////////////////////////////////////////////////////
 
   public static sealed abstract class Virtual implements Type {
-    @Override public final int hashCode() { return System.identityHashCode(this); }
-    @Override public final boolean equals(final Object obj) { return obj == this; }
     @Override public abstract String toString();
-    @Override public final StringBuilder toString(final StringBuilder sb) { return sb.append(this); }
-    @Override public final StringBuilder toString(final StringBuilder sb, final Set<Object> seen) { return sb.append(this); }
-    @Override public final boolean isUnit() { return false; }
   }
 
   public static final class Err extends Virtual {
@@ -44,12 +39,7 @@ public sealed interface Type {
   //////////////////////////////////////////////////////////////////////////////////////////////////
 
   public static sealed abstract class Primitive implements Type {
-    @Override public final int hashCode() { return System.identityHashCode(this); }
-    @Override public final boolean equals(final Object obj) { return obj == this; }
     @Override public abstract String toString();
-    @Override public final StringBuilder toString(final StringBuilder sb) { return sb.append(this); }
-    @Override public final StringBuilder toString(final StringBuilder sb, final Set<Object> seen) { return sb.append(this); }
-    @Override public final boolean isUnit() { return false; }
   }
 
   public static final class Bit extends Primitive {
@@ -114,21 +104,27 @@ public sealed interface Type {
   public static sealed abstract class Composite implements Type {
     @Override public abstract int hashCode();
     @Override public abstract boolean equals(final Object obj);
-    @Override public final String toString() { return toString(new StringBuilder()).toString(); }
-    @Override public final StringBuilder toString(final StringBuilder sb) { return toString(sb, new HashSet<>()); }
-    @Override public abstract StringBuilder toString(final StringBuilder sb, final Set<Object> seen);
+    @Override public final String toString() { return toString(false); }
+    @Override public final String toString(final boolean pretty) {
+      final StringBuilder sb = new StringBuilder();
+      appendTo(sb, pretty);
+      return sb.toString();
+    }
+    @Override public final void appendTo(final StringBuilder sb, final boolean pretty) {
+      Type.appendTo(this, sb, pretty);
+    }
   }
 
   public static final class Arr extends Composite {
     public static final int UNKNOWN_LENGTH = -1;
-    public final boolean imut;
+    public final boolean mut;
     public final Type type;
     public final int length;
 
     Arr(final boolean imut, final Type type) {
       assert type != null;
       assert !type.isVirtual();
-      this.imut = imut;
+      this.mut = imut;
       this.type = type;
       this.length = UNKNOWN_LENGTH;
     }
@@ -137,7 +133,7 @@ public sealed interface Type {
       assert type != null;
       assert !type.isVirtual();
       assert length >= 0;
-      this.imut = imut;
+      this.mut = imut;
       this.type = type;
       this.length = length;
     }
@@ -146,7 +142,7 @@ public sealed interface Type {
     public int hashCode() {
       return Objects.hash(
         Arr.class,
-        imut,
+        mut,
         type,
         length
       );
@@ -156,19 +152,10 @@ public sealed interface Type {
     public boolean equals(final Object obj) {
       return this == obj || (
         obj instanceof Arr that &&
-        this.imut == that.imut &&
+        this.mut == that.mut &&
         this.type.equals(that.type) &&
         this.length == that.length
       );
-    }
-
-    @Override
-    public StringBuilder toString(final StringBuilder sb, final Set<Object> seen) {
-      sb.append("Arr(");
-      sb.append(imut ? "let " : "mut ");
-      type.toString(sb, seen);
-      if (length != UNKNOWN_LENGTH) sb.append(", ").append(length);
-      return sb.append(')');
     }
 
     @Override
@@ -213,18 +200,6 @@ public sealed interface Type {
         Arrays.equals(muts, that.muts) &&
         Arrays.equals(types, that.types)
       );
-    }
-
-    @Override
-    public StringBuilder toString(final StringBuilder sb, final Set<Object> seen) {
-      sb.append('(');
-      for (int i = 0; i < types.length; i++) {
-        if (i > 0) sb.append(", ");
-        sb.append(muts[i] ? "let " : "mut ");
-        types[i].toString(sb, seen);
-      }
-      sb.append(')');
-      return sb;
     }
 
     @Override
@@ -281,19 +256,6 @@ public sealed interface Type {
     }
 
     @Override
-    public StringBuilder toString(final StringBuilder sb, final Set<Object> seen) {
-      sb.append('(');
-      for (int i = 0; i < types.length; i++) {
-        if (i > 0) sb.append(", ");
-        sb.append(muts[i] ? "let " : "mut ");
-        sb.append(names[i]).append(" ");
-        types[i].toString(sb, seen);
-      }
-      sb.append(')');
-      return sb;
-    }
-
-    @Override
     public final boolean isUnit() {
       return muts.length == 0;
     }
@@ -333,14 +295,6 @@ public sealed interface Type {
         this.paramsType.equals(that.paramsType) &&
         this.returnType.equals(that.returnType)
       );
-    }
-
-    @Override
-    public StringBuilder toString(final StringBuilder sb, final Set<Object> seen) {
-      paramsType.toString(sb, seen);
-      sb.append(" ");
-      returnType.toString(sb, seen);
-      return sb;
     }
 
     @Override
@@ -397,27 +351,131 @@ public sealed interface Type {
 
     @Override
     public final String toString() {
-      return toString(new StringBuilder()).toString();
+      return toString(false);
     }
 
     @Override
-    public final StringBuilder toString(final StringBuilder sb) {
-      return toString(sb, new HashSet<>());
+    public final String toString(final boolean pretty) {
+      final StringBuilder sb = new StringBuilder();
+      appendTo(sb, pretty);
+      return sb.toString();
     }
 
     @Override
-    public StringBuilder toString(final StringBuilder sb, final Set<Object> seen) {
-      sb.append(name);
-      if (seen.add(this)) {
-        sb.append("=");
-        type.toString(sb, seen);
-      }
-      return sb;
+    public final void appendTo(final StringBuilder sb, final boolean pretty) {
+      Type.appendTo(this, sb, pretty);
     }
 
     @Override
     public final boolean isUnit() {
       return type.isUnit();
     }
+  }
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+  // Helpers
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+
+  private static void appendTo(
+    final Type type,
+    final StringBuilder sb,
+    final boolean pretty
+  ) {
+    appendTo(type, sb, new HashSet<>(), pretty ? 0 : -1);
+  }
+
+  private static void appendTo(
+    final Type type,
+    final StringBuilder sb,
+    final Set<Object> seen,
+    final int indent
+  ) {
+    switch (type) {
+      case Virtual   t -> sb.append(t);
+      case Primitive t -> sb.append(t);
+      case Arr t -> {
+        // [let <type> ; <length>]
+        sb.append('[');
+        sb.append(t.mut ? "mut " : "let ");
+        appendTo(t.type, sb, seen, indent <= 0 ? -1 : indent+1);
+        if (t.length != Arr.UNKNOWN_LENGTH) {
+          sb.append("; ");
+          sb.append(t.length);
+        }
+        sb.append(']');
+      }
+      case Tup t -> {
+        if (indent < 0) {
+          // (let <type>, mut <type>, ...)
+          sb.append('(');
+          for (int i = 0; i < t.types.length; i++) {
+            if (i > 0) sb.append(',');
+            sb.append(t.muts[i] ? "mut " : "let ");
+            appendTo(t.types[i], sb, seen, -1);
+          }
+          sb.append(')');
+        } else {
+          // (\n
+          // <indent+1> let <type>,\n
+          // <indent+1> mut <type>,\n
+          // <indent>)\n
+          sb.append('(');
+          for (int i = 0; i < t.types.length; i++) {
+            appendIndent(sb, indent+1);
+            sb.append(t.muts[i] ? "mut " : "let ");
+            appendTo(t.types[i], sb, seen, indent+1);
+            sb.append(',');
+          }
+          appendIndent(sb, indent);
+        }
+      }
+      case Rec t -> {
+        if (indent < 0) {
+          // (let <name>: <type>, mut <name>: <type>, ...)
+          sb.append('(');
+          for (int i = 0; i < t.types.length; i++) {
+            if (i > 0) sb.append(',');
+            sb.append(t.muts[i] ? "mut " : "let ");
+            sb.append(t.names[i]).append(": ");
+            appendTo(t.types[i], sb, seen, -1);
+          }
+          sb.append(')');
+        } else {
+          // (\n
+          // <indent+1> let <name> <type>,\n
+          // <indent+1> mut <name> <type>,\n
+          // <indent>)\n
+          sb.append('(');
+          for (int i = 0; i < t.types.length; i++) {
+            appendIndent(sb, indent+1);
+            sb.append(t.muts[i] ? "mut " : "let ");
+            sb.append(t.names[i]).append(": ");
+            appendTo(t.types[i], sb, seen, indent+1);
+            sb.append(',');
+          }
+          appendIndent(sb, indent);
+        }
+      }
+      case Fun t -> {
+        // <paramsType>: <returnType>
+        appendTo(t.paramsType, sb, seen, indent <= 0 ? -1 : indent+1);
+        sb.append(": ");
+        appendTo(t.returnType, sb, seen, indent <= 0 ? -1 : indent+1);
+      }
+      case Nom n -> {
+        // <name>=<type>
+        sb.append(n.name);
+        if (seen.add(n)) {
+          sb.append('=');
+          appendTo(n.type, sb, seen, indent <= 0 ? -1 : indent+1);
+        }
+      }
+    }
+  }
+
+  private static void appendIndent(final StringBuilder sb, final int indent) {
+    sb.ensureCapacity(sb.length() + indent + 1);
+    sb.append('\n');
+    for (int i = 0; i < indent; i++) sb.append(' ');
   }
 }

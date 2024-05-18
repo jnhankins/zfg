@@ -1,73 +1,71 @@
 package zfg;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HashMap;
+import java.util.List;
 
-import org.antlr.v4.runtime.ParserRuleContext;
+import zfg.antlr.ZfgContext;
+import zfg.Ast.Modifier;
 
-public sealed abstract class Symbol {
-  public final ParserRuleContext ctx;
-  public final String name;
-  public final Type type;
+public sealed interface Symbol {
+  public ZfgContext ctx();
+  public Modifier mod();
+  public String name();
+  public Type type();
 
-  public Symbol(final ParserRuleContext ctx, final String name, final Type type) {
-    assert ctx != null;
-    assert name != null;
-    assert type != null || this instanceof Moudle;
-    assert type != Types.ERR;
-    this.ctx = ctx;
-    this.name = name;
-    this.type = type;
+  public sealed interface Decl extends Symbol {}
+
+  public static final class TypeDecl implements Decl {
+    public final Ast.TypeDecl decl;
+    public TypeDecl(final Ast.TypeDecl decl) { this.decl = decl; }
+    @Override public ZfgContext ctx() { return decl.ctx; }
+    @Override public Modifier mod() { return decl.mod; }
+    @Override public String name() { return decl.type.name; }
+    @Override public Type type() { return decl.type; }
   }
-  public static final class Moudle extends Symbol {
-    public Moudle(final ParserRuleContext ctx, final String name) {
-      super(ctx, name, null);
-    }
+
+  public static final class VarDecl implements Decl {
+    public final Ast.VarDecl decl;
+    public VarDecl(final Ast.VarDecl decl) { this.decl = decl; }
+    @Override public ZfgContext ctx() { return decl.ctx; }
+    @Override public Modifier mod() { return decl.mod; }
+    @Override public String name() { return decl.name; }
+    @Override public Type type() { return decl.type; }
   }
-  public static final class TypeDefn extends Symbol {
-    public final Type.Nom type;
-    public TypeDefn(final ParserRuleContext ctx, final String name, final Type.Nom type) {
-      super(ctx, name, type);
-      this.type = type;
-    }
-  }
-  // public static final class Constant extends Symbol {
-  //   public final Ast.ConstExpr val;
-  //   public Constant(final ParserRuleContext ctx, final String name, final Ast.ConstExpr val) {
-  //     super(ctx, name, val.type());
-  //     assert val != null;
-  //     this.val = val;
-  //   }
-  // }
-  public static final class Variable extends Symbol {
-    public final Ast.VarRef var;
-    public Variable(final ParserRuleContext ctx, final String name, final Ast.VarRef var) {
-      super(ctx, name, var.type);
-      assert var != null;
-      this.var = var;
-    }
-  }
-  public static final class Function extends Symbol {
-    public final Ast.FunRef fun;
-    public Function(final ParserRuleContext ctx, final String name, final Ast.FunRef fun) {
-      super(ctx, name, fun.type);
-      assert fun != null;
-      this.fun = fun;
-    }
+
+  public static final class FunDecl implements Decl {
+    public final Ast.FunDecl decl;
+    public FunDecl(final Ast.FunDecl decl) { this.decl = decl; }
+    @Override public ZfgContext ctx() { return decl.ctx; }
+    @Override public Modifier mod() { return decl.mod; }
+    @Override public String name() { return decl.name; }
+    @Override public Type type() { return decl.type; }
   }
 
 
-  public static sealed abstract class Scope extends ArrayDeque<Symbol> {
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+  // Scopes
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+
+  public static sealed abstract class Scope {
+    public final List<Symbol> symbols = new ArrayList<>();
+
     public static final class Global extends Scope {}
     public static final class Module extends Scope {}
     public static final class Method extends Scope {}
     public static final class Nested extends Scope {}
   }
 
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+  // Table
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+
   public static final class Table {
-    private final HashMap<String, Deque<Symbol>> table = new HashMap<>();
-    private final Deque<Scope> scopes = new ArrayDeque<>();
+    final ArrayDeque<Scope> scopes = new ArrayDeque<>();
+    final HashMap<String, Deque<Symbol>> symbolTable = new HashMap<>();
+    final HashMap<ZfgContext, Symbol> ctxSymbolMap = new HashMap<>();
 
     public void pushGlobalScope() {
       assert scopes.isEmpty();
@@ -86,24 +84,32 @@ public sealed abstract class Symbol {
       scopes.push(new Scope.Nested());
     }
 
-
     private Scope popScope() {
-      // Pop the scope off the stack
+      // Pop the scope
       final Scope scope = scopes.pop();
-      // Remove all the scope's symbols from the table
-      for (final Symbol symbol : scope) {
-        final String name = symbol.name;
-        final Deque<Symbol> deque = table.get(name);
-        assert deque != null && deque.peek() == symbol;
-        if (deque.size() > 1) {
-          deque.pop();
+      // For each symbol in the scope...
+      final List<Symbol> scopeSymbols = scope.symbols;
+      final int scopeSymbolCount = scopeSymbols.size();
+      for (int i = 0; i < scopeSymbolCount; i++) {
+        final Symbol symbol = scopeSymbols.get(i);
+        // Get the symbol's table row
+        final String symbolName = symbol.name();
+        final Deque<Symbol> symbolTableRow = symbolTable.get(symbolName);
+        assert symbolTableRow.peek() == symbol;
+        // Pop the symbol off the table row
+        if (symbolTableRow.size() > 1) {
+          symbolTableRow.pop();
         } else {
-          table.remove(name);
+          symbolTable.remove(symbolName);
         }
+        // Remove the symbol from the context-symbol map
+        assert ctxSymbolMap.get(symbol.ctx()) == symbol;
+        ctxSymbolMap.remove(symbol.ctx());
       }
       // Return the popped scope
       return scope;
     }
+
     public Scope.Global popGlobalScope() {
       assert scopes.peek() instanceof Scope.Global;
       return (Scope.Global) popScope();
@@ -121,44 +127,40 @@ public sealed abstract class Symbol {
       return (Scope.Nested) popScope();
     }
 
+    public void declare(final Decl symbol, final Parser.Err err) {
+      assert symbol != null;
+      assert err != null;
+      assert !ctxSymbolMap.containsKey(symbol.ctx());
+      // Get the symbol's name
+      final String name = symbol.name();
+      // Get the symbol's scope
+      final Scope scope = scopes.peek();
+      // Validate that PUB symbols are only declared the global scope or a module scope
+      if (
+        symbol.mod() == Modifier.PUB &&
+        !(scope instanceof Scope.Global) &&
+        !(scope instanceof Scope.Module)
+      ) {
+        err.err(symbol.ctx(), "Public symbols must be declared in a module scope.");
+      }
+      // Get the symbol's table row
+      final Deque<Symbol> row = symbolTable.computeIfAbsent(name, k -> new ArrayDeque<>());
+      // Get the symbol, if any, that will be shadowed by the new symbol
+      final Symbol hidden = row.peek();
+      // Validate that PUB symbols are never shadowed
+      if (hidden != null && hidden.mod() == Modifier.PUB) {
+        err.err(symbol.ctx(), "Cannot shadow a public symbol.");
+      }
+      // Add the symbol to it's row (shadowing the other symbols in the row)
+      row.push(symbol);
+      // Add the symbol to the scope
+      scope.symbols.add(symbol);
+      // Add the symbol to the context-symbol map
+      ctxSymbolMap.put(symbol.ctx(), symbol);
+    }
 
-    private void pushSymbol(final Symbol symbol) {
-      scopes.peek().push(symbol);
-      table.computeIfAbsent(symbol.name, k -> new ArrayDeque<>()).push(symbol);
-    }
-    public TypeDefn pushTypeDefn(
-      final ParserRuleContext ctx,
-      final String name,
-      final Type.Nom type
-    ) {
-      final TypeDefn symbol = new TypeDefn(ctx, name, type);
-      pushSymbol(symbol);
-      return symbol;
-    }
-    public Function pushFunction(
-      final ParserRuleContext ctx,
-      final String name,
-      final Ast.FunRef funRef
-    ) {
-      final Function symbol = new Function(ctx, name, funRef);
-      pushSymbol(symbol);
-      return symbol;
-    }
-    public Variable pushVariable(
-      final ParserRuleContext ctx,
-      final String name,
-      final Ast.VarRef varRef
-    ) {
-      final Variable symbol = new Variable(ctx, name, varRef);
-      pushSymbol(symbol);
-      return symbol;
-    }
-
-    public Symbol getSymbol(final String name) {
-      final Deque<Symbol> deque = table.get(name);
-      return deque == null ? null : deque.peek();
+    public Symbol getSymbol(final ZfgContext ctx) {
+      return ctxSymbolMap.get(ctx);
     }
   }
 }
-
-

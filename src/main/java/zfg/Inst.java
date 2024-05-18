@@ -1,15 +1,14 @@
 package zfg;
 
 import java.util.Objects;
-import java.util.Set;
 
 public sealed interface Inst {
-  @Override int hashCode();
-  @Override boolean equals(final Object obj);
-  @Override String toString();
-  StringBuilder toString(final StringBuilder sb);
-  StringBuilder toString(final StringBuilder sb, final Set<Object> seen);
-  Type type();
+  @Override public int hashCode();
+  @Override public boolean equals(final Object obj);
+  @Override public String toString();
+  public default String toString(final boolean pretty) { return toString(); }
+  public default void appendTo(final StringBuilder sb, final boolean pretty) { sb.append(this); }
+  public Type type();
 
   //////////////////////////////////////////////////////////////////////////////////////////////////
   // Virtual Types
@@ -21,17 +20,21 @@ public sealed interface Inst {
   // Primitive Types
   //////////////////////////////////////////////////////////////////////////////////////////////////
 
-  public static final class Bit implements Inst {
+  public static sealed abstract class Primitive implements Inst {
+    @Override public abstract int hashCode();
+    @Override public abstract boolean equals(final Object obj);
+    @Override public abstract String toString();
+  }
+
+  public static final class Bit extends Primitive {
     public final int value;
     Bit(final int value) {
       assert 0 <= value && value <= 1;
       this.value = value;
     }
     @Override public int hashCode() { return Objects.hash(Bit.class, value); }
-    @Override public boolean equals(final Object obj) { return this == obj || ( obj instanceof Bit that && this.value == that.value ); }
+    @Override public boolean equals(final Object obj) { return this == obj || (obj instanceof Bit that && that.value == value); }
     @Override public String toString() { return value + "bit"; }
-    @Override public StringBuilder toString(final StringBuilder sb) { return sb.append(value).append("bit"); }
-    @Override public StringBuilder toString(final StringBuilder sb, final Set<Object> seen) { return toString(sb); }
     @Override public Type type() { return Types.BIT; }
   }
 
@@ -42,10 +45,8 @@ public sealed interface Inst {
       this.value = value;
     }
     @Override public int hashCode() { return Objects.hash(U08.class, value); }
-    @Override public boolean equals(final Object obj) { return this == obj || ( obj instanceof U08 that && this.value == that.value ); }
+    @Override public boolean equals(final Object obj) { return this == obj || (obj instanceof U08 that && that.value == value); }
     @Override public String toString() { return value + "u08"; }
-    @Override public StringBuilder toString(final StringBuilder sb) { return sb.append(value).append("u08"); }
-    @Override public StringBuilder toString(final StringBuilder sb, final Set<Object> seen) { return toString(sb); }
     @Override public Type type() { return Types.U08; }
   }
 
@@ -56,10 +57,8 @@ public sealed interface Inst {
       this.value = value;
     }
     @Override public int hashCode() { return Objects.hash(U16.class, value); }
-    @Override public boolean equals(final Object obj) { return this == obj || ( obj instanceof U16 that && this.value == that.value ); }
+    @Override public boolean equals(final Object obj) { return this == obj || (obj instanceof U16 that && that.value == value); }
     @Override public String toString() { return value + "u16"; }
-    @Override public StringBuilder toString(final StringBuilder sb) { return sb.append(value).append("u16"); }
-    @Override public StringBuilder toString(final StringBuilder sb, final Set<Object> seen) { return toString(sb); }
     @Override public Type type() { return Types.U16; }
   }
 
@@ -69,10 +68,8 @@ public sealed interface Inst {
       this.value = value;
     }
     @Override public int hashCode() { return Objects.hash(U32.class, value); }
-    @Override public boolean equals(final Object obj) { return this == obj || ( obj instanceof U32 that && this.value == that.value ); }
+    @Override public boolean equals(final Object obj) { return this == obj || (obj instanceof U32 that && that.value == value); }
     @Override public String toString() { return value + "u32"; }
-    @Override public StringBuilder toString(final StringBuilder sb) { return sb.append(value).append("u32"); }
-    @Override public StringBuilder toString(final StringBuilder sb, final Set<Object> seen) { return toString(sb); }
     @Override public Type type() { return Types.U32; }
   }
 
@@ -82,10 +79,8 @@ public sealed interface Inst {
       this.value = value;
     }
     @Override public int hashCode() { return Objects.hash(U64.class, value); }
-    @Override public boolean equals(final Object obj) { return this == obj || ( obj instanceof U64 that && this.value == that.value ); }
+    @Override public boolean equals(final Object obj) { return this == obj || (obj instanceof U64 that && that.value == value); }
     @Override public String toString() { return value + "u64"; }
-    @Override public StringBuilder toString(final StringBuilder sb) { return sb.append(value).append("u64"); }
-    @Override public StringBuilder toString(final StringBuilder sb, final Set<Object> seen) { return toString(sb); }
     @Override public Type type() { return Types.U64; }
   }
 
@@ -96,10 +91,8 @@ public sealed interface Inst {
       this.value = value;
     }
     @Override public int hashCode() { return Objects.hash(I08.class, value); }
-    @Override public boolean equals(final Object obj) { return this == obj || ( obj instanceof I08 that && this.value == that.value ); }
+    @Override public boolean equals(final Object obj) { return this == obj || (obj instanceof I08 that && that.value == value); }
     @Override public String toString() { return value + "i08"; }
-    @Override public StringBuilder toString(final StringBuilder sb) { return sb.append(value).append("i08"); }
-    @Override public StringBuilder toString(final StringBuilder sb, final Set<Object> seen) { return toString(sb); }
     @Override public Type type() { return Types.I08; }
   }
 
@@ -110,10 +103,8 @@ public sealed interface Inst {
       this.value = value;
     }
     @Override public int hashCode() { return Objects.hash(I16.class, value); }
-    @Override public boolean equals(final Object obj) { return this == obj || ( obj instanceof I16 that && this.value == that.value ); }
+    @Override public boolean equals(final Object obj) { return this == obj || (obj instanceof I16 that && that.value == value); }
     @Override public String toString() { return value + "i16"; }
-    @Override public StringBuilder toString(final StringBuilder sb) { return sb.append(value).append("i16"); }
-    @Override public StringBuilder toString(final StringBuilder sb, final Set<Object> seen) { return toString(sb); }
     @Override public Type type() { return Types.I16; }
   }
 
@@ -123,10 +114,8 @@ public sealed interface Inst {
       this.value = value;
     }
     @Override public int hashCode() { return Objects.hash(I32.class, value); }
-    @Override public boolean equals(final Object obj) { return this == obj || ( obj instanceof I32 that && this.value == that.value ); }
+    @Override public boolean equals(final Object obj) { return this == obj || (obj instanceof I32 that && that.value == value); }
     @Override public String toString() { return value + "i32"; }
-    @Override public StringBuilder toString(final StringBuilder sb) { return sb.append(value).append("i32"); }
-    @Override public StringBuilder toString(final StringBuilder sb, final Set<Object> seen) { return toString(sb); }
     @Override public Type type() { return Types.I32; }
   }
 
@@ -136,10 +125,8 @@ public sealed interface Inst {
       this.value = value;
     }
     @Override public int hashCode() { return Objects.hash(I64.class, value); }
-    @Override public boolean equals(final Object obj) { return this == obj || ( obj instanceof I64 that && this.value == that.value ); }
+    @Override public boolean equals(final Object obj) { return this == obj || (obj instanceof I64 that && that.value == value); }
     @Override public String toString() { return value + "i64"; }
-    @Override public StringBuilder toString(final StringBuilder sb) { return sb.append(value).append("i64"); }
-    @Override public StringBuilder toString(final StringBuilder sb, final Set<Object> seen) { return toString(sb); }
     @Override public Type type() { return Types.I64; }
   }
 
@@ -149,10 +136,8 @@ public sealed interface Inst {
       this.value = value;
     }
     @Override public int hashCode() { return Objects.hash(F32.class, value); }
-    @Override public boolean equals(final Object obj) { return this == obj || ( obj instanceof F32 that && this.value == that.value ); }
+    @Override public boolean equals(final Object obj) { return this == obj || (obj instanceof F32 that && that.value == value); }
     @Override public String toString() { return value + "f32"; }
-    @Override public StringBuilder toString(final StringBuilder sb) { return sb.append(value).append("f32"); }
-    @Override public StringBuilder toString(final StringBuilder sb, final Set<Object> seen) { return toString(sb); }
     @Override public Type type() { return Types.F32; }
   }
 
@@ -162,14 +147,14 @@ public sealed interface Inst {
       this.value = value;
     }
     @Override public int hashCode() { return Objects.hash(F64.class, value); }
-    @Override public boolean equals(final Object obj) { return this == obj || ( obj instanceof F64 that && this.value == that.value ); }
+    @Override public boolean equals(final Object obj) { return this == obj || (obj instanceof F64 that && that.value == value); }
     @Override public String toString() { return value + "f64"; }
-    @Override public StringBuilder toString(final StringBuilder sb) { return sb.append(value).append("f64"); }
-    @Override public StringBuilder toString(final StringBuilder sb, final Set<Object> seen) { return toString(sb); }
     @Override public Type type() { return Types.F64; }
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////
   // Compound Types
   //////////////////////////////////////////////////////////////////////////////////////////////////
+
+  // TODO
 }
