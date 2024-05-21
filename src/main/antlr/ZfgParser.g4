@@ -5,21 +5,21 @@ options {
 }
 
 @parser::members {
-  final CommonTokenStream _cts = (CommonTokenStream) _input;
-  int _eolCache = 0;
-  boolean EOL() {
-    final int i = _cts.index();
-    if (i == 0) return false;
-    if (_eolCache == +i) return true;
-    if (_eolCache == -i) return false;
-    for (int j = i - 1; j >= 0; j -= 1) {
-      final Token t = _cts.get(j);
-      if (t.getType() == ZfgLexer.WsEol) { _eolCache = +i; return true; }
-      if (t.getChannel() == Token.DEFAULT_CHANNEL) break;
-    }
-    _eolCache = -i;
-    return false;
+final CommonTokenStream _cts = (CommonTokenStream) _input;
+int _eolCache = 0;
+boolean EOL() {
+  final int i = _cts.index();
+  if (i == 0) return false;
+  if (_eolCache == +i) return true;
+  if (_eolCache == -i) return false;
+  for (int j = i - 1; j >= 0; j -= 1) {
+    final Token t = _cts.get(j);
+    if (t.getType() == ZfgLexer.WsEol) { _eolCache = +i; return true; }
+    if (t.getChannel() == Token.DEFAULT_CHANNEL) break;
   }
+  _eolCache = -i;
+  return false;
+}
 }
 
 
@@ -43,17 +43,22 @@ scope[int depth]
   ;
 
 statement[int depth]
-  : ({$depth == 0}? mod=PUB | mod=LET | mod=MUT) name=UpperId COLON typ=TYPE SETA rhs=type # TypeDeclaration
-  | ({$depth == 0}? mod=PUB | mod=LET | mod=MUT) name=LowerId COLON typ=functionType SETA rhs=definition[$depth] # FunctionDeclaration
-  | ({$depth == 0}? mod=PUB | mod=LET | mod=MUT) name=LowerId COLON typ=type SETA rhs=expression # VariableDeclaration
-  | assignment # AssignmentStatement
-  | functionCall # FunctionCallStatement
+  : typeDeclaration[$depth]
+  | functionDeclaration[$depth]
+  | variableDeclaration[$depth]
+  | expression
   ;
 
-// TODO: Allow VariableDeclaration's to have scoped definitions
-definition[int depth]
-  : expression
-  | scope[$depth+1]
+typeDeclaration[int depth]
+  : ({$depth == 0}? mod=PUB | mod=LET | mod=MUT) name=UpperId COLON typ=TYPE SETA rhs=type
+  ;
+
+functionDeclaration[int depth]
+  : ({$depth == 0}? mod=PUB | mod=LET | mod=MUT) name=LowerId COLON typ=functionType SETA (rhs=expression | block=scope[$depth+1])
+  ;
+
+variableDeclaration[int depth]
+  : ({$depth == 0}? mod=PUB | mod=LET | mod=MUT) name=LowerId COLON typ=type SETA (rhs=expression | block=scope[$depth+1])
   ;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -62,105 +67,112 @@ definition[int depth]
 
 expression
   : unambiguousExpression
-  | algebraExpression
+  | algebraicExpression
   | bitwiseExpression
-  | compareExpression
+  | comparisonExpression
   | logicalExpression
+  | binaryAssignment
   ;
+
 unambiguousExpression
-  : asn=postfixAssignment # PostfixAssignmentExpression
-  | asn=prefixAssignment # PrefixAssignmentExpression
-  | fun=functionCall # FunctionCallExpression
-  | var=variable # VariableExpression
-  | lit=literal # LiteralExpression
-  | opr=(ADD | SUB | NOT | LNT) rhs=unambiguousExpression  # UnaryExpression
-  | LPAREN asn=bivariateAssignment RPAREN # BivariateAssignmentExpression
-  | LPAREN exp=expression RPAREN # ParentheticalExpression
+  : unaryAssignment
+  | literalExpression
+  | pathExpression
+  | functionCallExpression
+  | recordConstructor
+  | tupleConstructor
+  | arrayConstructor
+  | unaryExpression
+  | parentheticalExpression
   ;
-algebraExpression
-  : lhsA=algebraExpression     opr=(MUL | DIV | REM | MOD) rhsA=algebraExpression
-  | lhsA=algebraExpression     opr=(MUL | DIV | REM | MOD) rhsU=unambiguousExpression
-  | lhsU=unambiguousExpression opr=(MUL | DIV | REM | MOD) rhsA=algebraExpression
-  | lhsU=unambiguousExpression opr=(MUL | DIV | REM | MOD) rhsU=unambiguousExpression
-  | lhsA=algebraExpression     opr=(ADD | SUB) rhsA=algebraExpression
-  | lhsA=algebraExpression     opr=(ADD | SUB) rhsU=unambiguousExpression
-  | lhsU=unambiguousExpression opr=(ADD | SUB) rhsA=algebraExpression
-  | lhsU=unambiguousExpression opr=(ADD | SUB) rhsU=unambiguousExpression
+
+literalExpression
+  : lit=(BitLit | IntLit | FltLit)
   ;
+
+pathExpression
+  : symbol=LowerId
+  | path=pathExpression POINT  field=(LowerId | UpperId)
+  | path=pathExpression LBRACK index=expression RBRACK
+  ;
+
+functionCallExpression
+  : path=pathExpression (tup=tupleConstructor | rec=recordConstructor)
+  ;
+
+unaryExpression
+  : opr=(ADD | SUB | NOT | LNT) rhs=unambiguousExpression
+  ;
+
+parentheticalExpression
+  : LBRACE expr=expression RBRACE
+  ;
+
+algebraicExpression
+  : unambiguousExpression opr=(MUL | DIV | REM | MOD) (unambiguousExpression | algebraicExpression)
+  | algebraicExpression   opr=(MUL | DIV | REM | MOD) (unambiguousExpression | algebraicExpression)
+  | unambiguousExpression opr=(ADD | SUB) (unambiguousExpression | algebraicExpression)
+  | algebraicExpression   opr=(ADD | SUB) (unambiguousExpression | algebraicExpression)
+  ;
+
 bitwiseExpression
-  : opds+=unambiguousExpression (opr=AND opds+=unambiguousExpression)+ # BitwiseNaryExpression
-  | opds+=unambiguousExpression (opr=IOR opds+=unambiguousExpression)+ # BitwiseNaryExpression
-  | opds+=unambiguousExpression (opr=XOR opds+=unambiguousExpression)+ # BitwiseNaryExpression
-  | lhs=unambiguousExpression opr=(SHL | SHR) rhs=unambiguousExpression # BitwiseBinaryExpression
+  : opds+=unambiguousExpression (opr=AND opds+=unambiguousExpression)+
+  | opds+=unambiguousExpression (opr=IOR opds+=unambiguousExpression)+
+  | opds+=unambiguousExpression (opr=XOR opds+=unambiguousExpression)+
+  | lhs=unambiguousExpression opr=(SHL | SHR) rhs=unambiguousExpression
   ;
-compareExpression
-  : opds+=compareOperand (oprs+=(EQL | NEQ | LTN | GTN | LEQ | GEQ) opds+=compareOperand)+ # CompareChainExpression
-  | lhs=compareOperand opr=TWC rhs=compareOperand # CompareBinaryExpression
+
+comparisonExpression
+  : opds+=compareisonOperand (oprs+=(EQL | NEQ | LTN | GTN | LEQ | GEQ) opds+=compareisonOperand)+
+  | lhs=compareisonOperand opr=TWC rhs=compareisonOperand
   ;
-compareOperand
+compareisonOperand
   : bitwiseExpression
-  | algebraExpression
+  | algebraicExpression
   | unambiguousExpression
   ;
+
 logicalExpression
   : opds+=logicalOperand (opr=LCJ opds+=logicalOperand)+
   | opds+=logicalOperand (opr=LDJ opds+=logicalOperand)+
   ;
 logicalOperand
-  : compareExpression
+  : comparisonExpression
   | bitwiseExpression
-  | algebraExpression
+  | algebraicExpression
   | unambiguousExpression
   ;
-// recordExpression
-//   : LPAREN (
-//     names+=LowerId COLON exprs+=expression (  COMMA
-//     names+=LowerId COLON exprs+=expression )* COMMA?)?
-//     RPAREN
-//   ;
-// tupleExpression
-//   : LPAREN (
-//     exprs+=expression (  COMMA
-//     exprs+=expression )* COMMA?)?
-//     RPAREN
-//   ;
-// arrayExpression
-//   : LBRACK (
-//     exprs+=expression (  COMMA
-//     exprs+=expression )* COMMA?)?
-//     RBRACK
-//   ;
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// Assignments
-////////////////////////////////////////////////////////////////////////////////////////////////////
 
-assignment
-  : bivariateAssignment
-  | postfixAssignment
-  | prefixAssignment
-  ;
-bivariateAssignment
-  : variable opr=(SETA | ADDA | SUBA | MULA | DIVA | REMA | MODA | ANDA | IORA | XORA | SHLA | SHRA) expression
-  ;
-postfixAssignment
-  : variable opr=(INC | DEC)
-  ;
-prefixAssignment
-  : opr=(INC | DEC) variable
+unaryAssignment
+  : lhs=pathExpression opr=(INC | DEC)
+  | opr=(INC | DEC) rhs=pathExpression
   ;
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// Literals
-////////////////////////////////////////////////////////////////////////////////////////////////////
+binaryAssignment
+  : lhs=pathExpression opr=(SETA | ADDA | SUBA | MULA | DIVA | REMA | MODA | ANDA | IORA | XORA | SHLA | SHRA) rhs=expression
+  ;
 
-literal
-  : numericLiteral
+recordConstructor
+  : LPAREN (
+    names+=LowerId COLON exprs+=expression (  COMMA
+    names+=LowerId COLON exprs+=expression )* COMMA?)?
+    RPAREN
   ;
-numericLiteral
-  : token=(BitLit | IntLit | FltLit)
+
+tupleConstructor
+  : LPAREN (
+    exprs+=expression (  COMMA
+    exprs+=expression )* COMMA?)?
+    RPAREN
   ;
-// TODO: StringLit, CharLit
+
+arrayConstructor
+  : LBRACK (
+    exprs+=expression (  COMMA
+    exprs+=expression )* COMMA?)?
+    RBRACK
+  ;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Types
@@ -174,55 +186,36 @@ type
   | arrayType
   | namedType
   ;
+
 primitiveType
   : token=(BIT | U08 | U16 | U32 | U64 | I08 | I16 | I32 | I64 | F32 | F64)
   ;
+
 functionType
   : paramsType=recordType COLON returnType=type
   ;
+
 recordType
   : LPAREN (
     (muts+=MUT | {$muts.add(null);}) names+=LowerId COLON types+=type (  COMMA
     (muts+=MUT | {$muts.add(null);}) names+=LowerId COLON types+=type )* COMMA?)?
     RPAREN
   ;
+
 tupleType
   : LPAREN (
     (muts+=MUT | {$muts.add(null);}) COLON types+=type (  COMMA
     (muts+=MUT | {$muts.add(null);}) COLON types+=type )* COMMA?)?
     RPAREN
   ;
+
 arrayType
   : LBRACK
     mut=MUT? elem=type
     (SEMIC length=IntLit)?
     RBRACK
   ;
+
 namedType
-  : (UpperId DOUBC)* UpperId
-  ;
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// Function Call
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-functionCall
-  : variable
-    LPAREN (
-    names+=LowerId COLON exprs+=expression (  COMMA
-    names+=LowerId COLON exprs+=expression )* COMMA?)?
-    RPAREN
-  | variable
-    LPAREN (
-    exprs+=expression (  COMMA
-    exprs+=expression )* COMMA?)?
-    RPAREN
-  ;
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// Variable
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-variable
-  : (UpperId DOUBC)* (LowerId|UpperId) (POINT (LowerId|UpperId) | LBRACK expression RBRACK)*
+  : name=UpperId
   ;
