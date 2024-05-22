@@ -123,10 +123,10 @@ bitwiseExpression
   ;
 
 comparisonExpression
-  : opds+=compareisonOperand (oprs+=(EQL | NEQ | LTN | GTN | LEQ | GEQ) opds+=compareisonOperand)+
-  | lhs=compareisonOperand opr=TWC rhs=compareisonOperand
+  : opds+=comparisonOperand (oprs+=(EQL | NEQ | LTN | GTN | LEQ | GEQ) opds+=comparisonOperand)+
+  | lhs=comparisonOperand opr=TWC rhs=comparisonOperand
   ;
-compareisonOperand
+comparisonOperand
   : bitwiseExpression
   | algebraicExpression
   | unambiguousExpression
@@ -142,7 +142,6 @@ logicalOperand
   | algebraicExpression
   | unambiguousExpression
   ;
-
 
 unaryAssignment
   : lhs=pathExpression opr=(INC | DEC)
@@ -197,22 +196,22 @@ functionType
 
 recordType
   : LPAREN (
-    (muts+=MUT | {$muts.add(null);}) names+=LowerId COLON types+=type (  COMMA
-    (muts+=MUT | {$muts.add(null);}) names+=LowerId COLON types+=type )* COMMA?)?
+    (mutas+=MUT | {$mutas.add(null);}) names+=LowerId COLON types+=type (  COMMA
+    (mutas+=MUT | {$mutas.add(null);}) names+=LowerId COLON types+=type )* COMMA?)?
     RPAREN
   ;
 
 tupleType
   : LPAREN (
-    (muts+=MUT | {$muts.add(null);}) COLON types+=type (  COMMA
-    (muts+=MUT | {$muts.add(null);}) COLON types+=type )* COMMA?)?
+    (mutas+=MUT | {$mutas.add(null);}) COLON types+=type (  COMMA
+    (mutas+=MUT | {$mutas.add(null);}) COLON types+=type )* COMMA?)?
     RPAREN
   ;
 
 arrayType
   : LBRACK
-    mut=MUT? elem=type
-    (SEMIC length=IntLit)?
+    muta=MUT? elem=type
+    (SEMIC size=IntLit)?
     RBRACK
   ;
 

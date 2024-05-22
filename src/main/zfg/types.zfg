@@ -23,3 +23,13 @@ let B: type = (
   value: i32,
   array: [A]
 )
+
+
+
+let A: type = (
+  value: i32,
+  array: [(
+    value: i32,
+    array: [A]
+  )]
+)

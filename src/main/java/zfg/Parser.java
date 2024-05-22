@@ -2,6 +2,7 @@ package zfg;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 
 import org.antlr.v4.runtime.CharStream;
@@ -9,53 +10,36 @@ import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.Token;
+import org.antlr.v4.runtime.tree.ParseTree;
 
-import zfg.Ast.Expr;
 import zfg.antlr.ZfgLexer;
 import zfg.antlr.ZfgParser;
-import zfg.antlr.ZfgParser.AlgebraExpressionContext;
+import zfg.antlr.ZfgParser.AlgebraicExpressionContext;
+import zfg.antlr.ZfgParser.ArrayConstructorContext;
 import zfg.antlr.ZfgParser.ArrayTypeContext;
-import zfg.antlr.ZfgParser.AssignmentContext;
-import zfg.antlr.ZfgParser.AssignmentStatementContext;
-import zfg.antlr.ZfgParser.BitwiseBinaryExpressionContext;
+import zfg.antlr.ZfgParser.BinaryAssignmentContext;
 import zfg.antlr.ZfgParser.BitwiseExpressionContext;
-import zfg.antlr.ZfgParser.BitwiseNaryExpressionContext;
-import zfg.antlr.ZfgParser.BivariateAssignmentContext;
-import zfg.antlr.ZfgParser.BivariateAssignmentExpressionContext;
-import zfg.antlr.ZfgParser.CompareBinaryExpressionContext;
-import zfg.antlr.ZfgParser.CompareChainExpressionContext;
-import zfg.antlr.ZfgParser.CompareExpressionContext;
-import zfg.antlr.ZfgParser.CompareOperandContext;
+import zfg.antlr.ZfgParser.ComparisonExpressionContext;
+import zfg.antlr.ZfgParser.ComparisonOperandContext;
 import zfg.antlr.ZfgParser.ExpressionContext;
-import zfg.antlr.ZfgParser.FunctionCallContext;
 import zfg.antlr.ZfgParser.FunctionCallExpressionContext;
-import zfg.antlr.ZfgParser.FunctionCallStatementContext;
-import zfg.antlr.ZfgParser.FunctionDeclarationContext;
 import zfg.antlr.ZfgParser.FunctionTypeContext;
-import zfg.antlr.ZfgParser.LiteralContext;
 import zfg.antlr.ZfgParser.LiteralExpressionContext;
 import zfg.antlr.ZfgParser.LogicalExpressionContext;
 import zfg.antlr.ZfgParser.LogicalOperandContext;
 import zfg.antlr.ZfgParser.ModuleContext;
 import zfg.antlr.ZfgParser.NamedTypeContext;
-import zfg.antlr.ZfgParser.NumericLiteralContext;
 import zfg.antlr.ZfgParser.ParentheticalExpressionContext;
-import zfg.antlr.ZfgParser.PostfixAssignmentContext;
-import zfg.antlr.ZfgParser.PostfixAssignmentExpressionContext;
-import zfg.antlr.ZfgParser.PrefixAssignmentContext;
-import zfg.antlr.ZfgParser.PrefixAssignmentExpressionContext;
+import zfg.antlr.ZfgParser.PathExpressionContext;
 import zfg.antlr.ZfgParser.PrimitiveTypeContext;
+import zfg.antlr.ZfgParser.RecordConstructorContext;
 import zfg.antlr.ZfgParser.RecordTypeContext;
-import zfg.antlr.ZfgParser.ScopeContext;
-import zfg.antlr.ZfgParser.StatementContext;
+import zfg.antlr.ZfgParser.TupleConstructorContext;
 import zfg.antlr.ZfgParser.TupleTypeContext;
 import zfg.antlr.ZfgParser.TypeContext;
-import zfg.antlr.ZfgParser.TypeDeclarationContext;
 import zfg.antlr.ZfgParser.UnambiguousExpressionContext;
+import zfg.antlr.ZfgParser.UnaryAssignmentContext;
 import zfg.antlr.ZfgParser.UnaryExpressionContext;
-import zfg.antlr.ZfgParser.VariableContext;
-import zfg.antlr.ZfgParser.VariableDeclarationContext;
-import zfg.antlr.ZfgParser.VariableExpressionContext;
 import zfg.antlr.ZfgToken;
 import zfg.antlr.ZfgTokenFactory;
 
@@ -133,452 +117,239 @@ public class Parser {
   /** Report an error */
   private void err(final Error err) { errors.add(err); }
   private void err(final ParserRuleContext ctx, final String msg) { err(new Error(ctx, msg)); }
-  @FunctionalInterface public static interface Err {
-    void err(final ParserRuleContext ctx, final String msg);
-  }
-
-  //////////////////////////////////////////////////////////////////////////////////////////////////
-  // Symbol Table
-  //////////////////////////////////////////////////////////////////////////////////////////////////
-
-  private final Symbol.Table symbolTable = new Symbol.Table();
-
-  //////////////////////////////////////////////////////////////////////////////////////////////////
-  // Module
-  //////////////////////////////////////////////////////////////////////////////////////////////////
-
-  public Ast.Module parseModule(final ModuleContext ctx, final String fqn) {
-    // Create the module scope
-    symbolTable.pushModuleScope();
-    // Parse the module scope
-    final Ast.Stmt[] stmts = parseScope(ctx.body);
-    // Pop the module scope
-    symbolTable.popModuleScope();
-    // Error handling
-    if (stmts == null) return null;
-    // Construct and return the module
-    return new Ast.Module(ctx, fqn, stmts);
-  }
-
-
-  //////////////////////////////////////////////////////////////////////////////////////////////////
-  // Scope & Statements
-  //////////////////////////////////////////////////////////////////////////////////////////////////
-
-  public Ast.Stmt[] parseScope(final ScopeContext ctx) {
-    final List<StatementContext> ctxStmts = ctx.stmts;
-    final int statementCount = ctxStmts.size();
-    // Create forward declarations
-    createForwardDeclarations(ctx);
-    // Post-order traversal
-    final Ast.Stmt[] stmts = new Ast.Stmt[statementCount];
-    for (int i = 0; i < statementCount; i++) stmts[i] = parseStatement(ctxStmts.get(i));
-    // Error propogation
-    for (int i = 0; i < statementCount; i++) if (stmts[i] == null) return null;
-    // Construct the node
-    return stmts;
-  }
-
-  private void createForwardDeclarations(final ScopeContext ctx) {
-    // Note: Continue parsing even if there are errors so that we can report multiple errors at once
-    final List<StatementContext> ctxStmts = ctx.stmts;
-    final int statementCount = ctxStmts.size();
-    for (int i = 0; i < statementCount; i++) {
-      switch (ctxStmts.get(i)) {
-        case TypeDeclarationContext alt -> {
-          final Ast.Modifier mod = parseSymbolModifier(alt.mod);
-          final String name = alt.name.getText();
-          final Type.Nom type = Types.Nom(name);
-          final Ast.TypeDecl decl = new Ast.TypeDecl(alt, mod, type);
-          symbolTable.declare(new Symbol.TypeDecl(decl), this::err);
-        }
-        case FunctionDeclarationContext alt -> {
-          final Ast.Modifier mod = parseSymbolModifier(alt.mod);
-          final String name = alt.name.getText();
-          final Ast.FunDecl decl = new Ast.FunDecl(alt, mod, name, Types.UNK);
-          symbolTable.declare(new Symbol.FunDecl(decl), this::err);
-        }
-        case VariableDeclarationContext alt -> {
-          final Ast.Modifier mod = parseSymbolModifier(alt.mod);
-          final String name = alt.name.getText();
-          final Ast.VarDecl decl = new Ast.VarDecl(alt, mod, name, Types.UNK);
-          symbolTable.declare(new Symbol.VarDecl(decl), this::err);
-        }
-        default -> { /* do nothing */ }
-      }
-    }
-  }
-
-  public Ast.Stmt parseStatement(final StatementContext ctx) {
-    return switch (ctx) {
-      case TypeDeclarationContext decl -> parseTypeDeclaration(decl);
-      case FunctionDeclarationContext decl -> parseFunctionDeclaration(decl);
-      case VariableDeclarationContext decl -> parseVariableDeclaration(decl);
-      case AssignmentStatementContext stmt -> parseAssignmentStatement(stmt);
-      case FunctionCallStatementContext stmt -> parseFunctionCallStatement(stmt);
-      default -> throw new AssertionError();
-    };
-  }
-
-  public Ast.Stmt parseTypeDeclaration(final TypeDeclarationContext ctx) {
-    // Fetch the AST node from the symbol table
-    final Ast.TypeDecl decl = ((Symbol.TypeDecl) symbolTable.getSymbol(ctx)).decl;
-
-    // Parse and bind the type
-    final Type type = parseType(ctx.rhs);
-    if (type != Types.ERR) decl.bindType(type);
-
-    // Error propogation
-    if (type == Types.ERR) return null;
-
-    // Return the AST node
-    return decl;
-  }
-
-  public Ast.Stmt parseFunctionDeclaration(final FunctionDeclarationContext ctx) {
-    // Fetch the AST node from the symbol table
-    final Ast.FunDecl decl = ((Symbol.FunDecl) symbolTable.getSymbol(ctx)).decl;
-
-    // Parse and bind the type
-    final Type type = parseFunctionType(ctx.typ);
-    if (type != Types.ERR) decl.bindType(type);
-
-    // Create a new scope for the function and declare the function parameters
-    symbolTable.pushMethodScope();
-    if (type instanceof Type.Fun funType && funType.paramsType instanceof Type.Rec params) {
-      final int length = params.types.length;
-      for (int i = 0; i < length; i++) {
-        final Ast.Modifier paramMod = params.muts[i] ? Ast.Modifier.MUT : Ast.Modifier.LET;
-        final String paramName = params.names[i];
-        final Type paramType = params.types[i];
-        final Ast.VarDecl paramDecl = new Ast.VarDecl(ctx, paramMod, paramName, paramType);
-        symbolTable.declare(new Symbol.VarDecl(paramDecl), this::err);
-      }
-    }
-
-    // Parse and bind the body
-    final Ast.Stmt[] body = switch (ctx.rhs.children.get(0)) {
-      case ExpressionContext bod -> {
-        final Ast.Expr expr = parseExpression(bod);
-        if (expr == null) yield null;
-        final Ast.ReturnStmt stmt = new Ast.ReturnStmt(bod, decl, expr);
-        decl.addReturnStmt(stmt);
-        yield new Ast.Stmt[] { stmt };
-      }
-      case ScopeContext bod -> parseScope(bod);
-      default -> throw new AssertionError();
-    };
-    if (body != null) decl.bindStmts(body);
-
-    // Pop the scope
-    symbolTable.popMethodScope();
-
-    // TODO: Type checking
-
-    // Error propogation
-    if (type == Types.ERR) return null;
-    if (body == null) return null;
-
-    // Return the AST node
-    return decl;
-  }
-
-  public Ast.Stmt parseVariableDeclaration(final VariableDeclarationContext ctx) {
-    // Fetch the AST node from the symbol table
-    final Ast.VarDecl decl = ((Symbol.VarDecl) symbolTable.getSymbol(ctx)).decl;
-
-    // Parse and bind the type
-    final Type type = parseType(ctx.typ);
-    if (type != Types.ERR) decl.bindType(type);
-
-    // Parse and bind the expression
-    // TODO: Allow VariableDeclaration's to have scoped definitions
-    // TODO: Allow VariableDeclaration's to be forward declared without an immediate assignment?
-    //       Maybe not. Need a reason to do this. Maybe like:
-    //       let x: i32; let y: i32; if something { x = 1; y = 2; } else { x = 3; y = 4; }
-    final Expr expr = parseExpression(ctx.rhs);
-    if (expr != null) decl.bindExpr(expr);
-
-    // Error propogation
-    if (type == Types.ERR) return null;
-    if (expr == null) return null;
-
-    // Return the AST node
-    return decl;
-  }
-
-  private Ast.Modifier parseSymbolModifier(final Token token) {
-    return switch (((ZfgToken) token).type) {
-      case ZfgLexer.PUB -> Ast.Modifier.PUB;
-      case ZfgLexer.LET -> Ast.Modifier.LET;
-      case ZfgLexer.MUT -> Ast.Modifier.MUT;
-      default -> throw new AssertionError();
-    };
-  }
-
-  public Ast.Stmt parseAssignmentStatement(final AssignmentStatementContext ctx) {
-    throw new UnsupportedOperationException("Unimplemented method 'parseAssignmentStatement'");
-  }
-
-  public Ast.Stmt parseFunctionCallStatement(final FunctionCallStatementContext ctx) {
-    throw new UnsupportedOperationException("Unimplemented method 'parseFunctionCallStatement'");
+  @FunctionalInterface public static interface EmitErr {
+    void emit(final ParserRuleContext ctx, final String msg);
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////
   // Expressions
   //////////////////////////////////////////////////////////////////////////////////////////////////
 
+
   public Ast.Expr parseExpression(final ExpressionContext ctx) {
-    return switch (ctx.children.get(0)) {
+    return switch (ctx.children[0]) {
       case UnambiguousExpressionContext alt -> parseUnambiguousExpression(alt);
-      case AlgebraExpressionContext alt -> parseAlgebraExpression(alt);
-      case BitwiseExpressionContext alt -> parseBitwiseExpression(alt);
-      case CompareExpressionContext alt -> parseCompareExpression(alt);
-      case LogicalExpressionContext alt -> parseLogicalExpression(alt);
+      case AlgebraicExpressionContext   alt -> parseAlgebraicExpression(alt);
+      case BitwiseExpressionContext     alt -> parseBitwiseExpression(alt);
+      case ComparisonExpressionContext  alt -> parseComparisonExpression(alt);
+      case LogicalExpressionContext     alt -> parseLogicalExpression(alt);
+      case BinaryAssignmentContext      alt -> parseBinaryAssignment(alt);
       default -> throw new AssertionError();
     };
   }
 
   public Ast.Expr parseUnambiguousExpression(final UnambiguousExpressionContext ctx) {
-    return switch (ctx) {
-      case PostfixAssignmentExpressionContext alt -> parsePostfixAssignmentExpression(alt);
-      case PrefixAssignmentExpressionContext alt -> parsePrefixAssignmentExpression(alt);
-      case FunctionCallExpressionContext alt -> parseFunctionCallExpression(alt);
-      case VariableExpressionContext alt -> parseVariableExpression(alt);
-      case LiteralExpressionContext alt -> parseLiteralExpression(alt);
-      case UnaryExpressionContext alt -> parseUnaryExpression(alt);
-      case BivariateAssignmentExpressionContext alt -> parseBivariateAssignmentExpression(alt);
-      case ParentheticalExpressionContext alt -> parseExpression(alt.exp);
+    return switch (ctx.children[0]) {
+      case UnaryAssignmentContext         alt -> parseUnaryAssignment(alt);
+      case LiteralExpressionContext       alt -> parseLiteralExpression(alt);
+      case PathExpressionContext          alt -> parsePathExpression(alt);
+      case FunctionCallExpressionContext  alt -> parseFunctionCallExpression(alt);
+      case RecordConstructorContext       alt -> parseRecordConstructor(alt);
+      case TupleConstructorContext        alt -> parseTupleConstructor(alt);
+      case ArrayConstructorContext        alt -> parseArrayConstructor(alt);
+      case UnaryExpressionContext         alt -> parseUnaryExpression(alt);
+      case ParentheticalExpressionContext alt -> parseParentheticalExpression(alt);
       default -> throw new AssertionError();
     };
-  }
-
-  public Ast.Expr parsePostfixAssignmentExpression(final PostfixAssignmentExpressionContext ctx) {
-    throw new UnsupportedOperationException("Unimplemented method 'parsePostfixAssignmentExpression'");
-  }
-
-  public Ast.Expr parsePrefixAssignmentExpression(final PrefixAssignmentExpressionContext ctx) {
-    throw new UnsupportedOperationException("Unimplemented method 'parsePrefixAssignmentExpression'");
-  }
-
-  public Ast.Expr parseFunctionCallExpression(final FunctionCallExpressionContext ctx) {
-    throw new UnsupportedOperationException("Unimplemented method 'parseFunctionCallExpression'");
-  }
-
-  public Ast.Expr parseVariableExpression(final VariableExpressionContext ctx) {
-    throw new UnsupportedOperationException("Unimplemented method 'parseVariableExpression'");
   }
 
   public Ast.Expr parseLiteralExpression(final LiteralExpressionContext ctx) {
-    // Parse the literal
-    final Inst inst = parseLiteral(ctx.lit);
-    // Handle errors
-    if (inst == null) return new Ast.ErrorExpr(ctx);
-    // Construct and return the expression
-    return new Ast.ConstExpr(ctx, inst);
+    final ZfgToken lit = (ZfgToken) ctx.lit;
+    final Literals.Result<? extends Inst> parsed = switch (lit.type) {
+      case ZfgLexer.BitLit -> Literals.parseBitLit(lit.text);
+      case ZfgLexer.FltLit -> Literals.parseFltLit(lit.text);
+      case ZfgLexer.IntLit -> {
+        final boolean hasMinusPrefix =
+          ctx.parent instanceof UnaryExpressionContext parent &&
+          ((ZfgToken) parent.opr).type == ZfgLexer.SUB &&
+          ((ZfgToken) parent.opr).stopIndex + 1 == lit.startIndex;
+        yield Literals.parseIntLit(lit.text, hasMinusPrefix);
+      }
+      default -> throw new AssertionError();
+    };
+    return switch (parsed) {
+      case Literals.Val<? extends Inst> val -> new Ast.Literal(ctx, val.value);
+      case Literals.Err<? extends Inst> err -> {
+        err(ctx, err.error);
+        yield new Ast.Error(ctx);
+      }
+    };
+  }
+
+  public Ast.Expr parsePathExpression(final PathExpressionContext ctx) {
+    if (ctx.symbol != null) {
+      // Path Root
+      final String symbolName = ((ZfgToken) ctx.symbol).text;
+      final Symbol symbol = symbolTable.getSymbol(symbolName);
+      throw new UnsupportedOperationException(); // TODO
+    } else if (ctx.field != null) {
+      // Field Access
+      final Ast.Expr path  = parsePathExpression(ctx.path);
+      final String   field = ((ZfgToken) ctx.field).text;
+      throw new UnsupportedOperationException(); // TODO
+    } else if (ctx.index != null) {
+      // Index Access
+      final Ast.Expr path  = parsePathExpression(ctx.path);
+      final Ast.Expr index = parseExpression(ctx.index);
+      throw new UnsupportedOperationException(); // TODO
+    } else {
+      throw new AssertionError();
+    }
+  }
+
+  public Ast.Expr parseFunctionCallExpression(final FunctionCallExpressionContext ctx) {
+    throw new UnsupportedOperationException(); // TODO
   }
 
   public Ast.Expr parseUnaryExpression(final UnaryExpressionContext ctx) {
-    // Parse the operand
-    final Ast.Expr opd = parseUnambiguousExpression(ctx.rhs);
-    // Parse the operator
-    final Ast.UnaryExpr.Opr opr = switch (((ZfgToken) ctx.opr).type) {
-      case ZfgLexer.ADD -> Ast.UnaryExpr.Opr.POS;
-      case ZfgLexer.SUB -> Ast.UnaryExpr.Opr.NEG;
-      case ZfgLexer.NOT -> Ast.UnaryExpr.Opr.NOT;
-      case ZfgLexer.LNT -> Ast.UnaryExpr.Opr.LNT;
-      default -> throw new AssertionError();
-    };
-    throw new UnsupportedOperationException("TODO"); // TODO
+    throw new UnsupportedOperationException(); // TODO
   }
 
-  public Ast.Expr parseBivariateAssignmentExpression(final BivariateAssignmentExpressionContext ctx) {
-    throw new UnsupportedOperationException("Unimplemented method 'parseBivariateAssignmentExpression'");
+  public Ast.Expr parseParentheticalExpression(final ParentheticalExpressionContext ctx) {
+    return parseExpression(ctx.expr);
   }
 
-  public Ast.Expr parseAlgebraExpression(final AlgebraExpressionContext ctx) {
-    // Parse the operands
-    final Ast.Expr lhs = ctx.lhsA != null
-      ? parseAlgebraExpression(ctx.lhsA)
-      : parseUnambiguousExpression(ctx.lhsU);
-    final Ast.Expr rhs = ctx.rhsA != null
-      ? parseAlgebraExpression(ctx.rhsA)
-      : parseUnambiguousExpression(ctx.rhsU);
-    // Parse the operator
-    final Ast.BinaryExpr.Opr opr = switch (((ZfgToken) ctx.opr).type) {
-      case ZfgLexer.ADD -> Ast.BinaryExpr.Opr.ADD;
-      case ZfgLexer.SUB -> Ast.BinaryExpr.Opr.SUB;
-      case ZfgLexer.MUL -> Ast.BinaryExpr.Opr.MUL;
-      case ZfgLexer.DIV -> Ast.BinaryExpr.Opr.DIV;
-      case ZfgLexer.REM -> Ast.BinaryExpr.Opr.REM;
-      case ZfgLexer.MOD -> Ast.BinaryExpr.Opr.MOD;
+  public Ast.Expr parseAlgebraicExpression(final AlgebraicExpressionContext ctx) {
+    final Ast.AlgebraicExpr.Opr opr = switch (((ZfgToken) ctx.opr).type) {
+      case ZfgLexer.MUL -> Ast.AlgebraicExpr.Opr.MUL;
+      case ZfgLexer.DIV -> Ast.AlgebraicExpr.Opr.DIV;
+      case ZfgLexer.REM -> Ast.AlgebraicExpr.Opr.REM;
+      case ZfgLexer.MOD -> Ast.AlgebraicExpr.Opr.MOD;
+      case ZfgLexer.ADD -> Ast.AlgebraicExpr.Opr.ADD;
+      case ZfgLexer.SUB -> Ast.AlgebraicExpr.Opr.SUB;
       default -> throw new AssertionError();
     };
-    throw new UnsupportedOperationException("TODO"); // TODO
+    final Ast.Expr lhs = parseAlgebraicOperand(ctx.children[0]);
+    final Ast.Expr rhs = parseAlgebraicOperand(ctx.children[2]);
+    final Ast.Expr expr = new Ast.AlgebraicExpr(ctx, opr, lhs, rhs);
+    expr.evaluateType(this::err);
+    return expr;
+  }
+
+  public Ast.Expr parseAlgebraicOperand(final ParseTree ctx) {
+    return switch (ctx) {
+      case UnambiguousExpressionContext alt -> parseUnambiguousExpression(alt);
+      case AlgebraicExpressionContext   alt -> parseAlgebraicExpression(alt);
+      default -> throw new AssertionError();
+    };
   }
 
   public Ast.Expr parseBitwiseExpression(final BitwiseExpressionContext ctx) {
-    return switch (ctx) {
-      case BitwiseNaryExpressionContext alt -> parseBitwiseNaryExpression(alt);
-      case BitwiseBinaryExpressionContext alt -> parseBitwiseBinaryExpression(alt);
-      default -> throw new AssertionError();
-    };
+    if (ctx.lhs != null) {
+      // Shift
+      final Ast.Expr lhs = parseUnambiguousExpression(ctx.lhs);
+      final Ast.Expr rhs = parseUnambiguousExpression(ctx.rhs);
+      final Ast.ShiftExpr.Opr opr = switch (((ZfgToken) ctx.opr).type) {
+        case ZfgLexer.SHL -> Ast.ShiftExpr.Opr.SHL;
+        case ZfgLexer.SHR -> Ast.ShiftExpr.Opr.SHR;
+        default -> throw new AssertionError();
+      };
+      final Ast.Expr expr = new Ast.ShiftExpr(ctx, opr, lhs, rhs);
+      expr.evaluateType(this::err);
+      return expr;
+    } else {
+      // Bitwise
+      final int length = ctx.opds.size();
+      final Ast.Expr[] opds = new Ast.Expr[length];
+      for (int i = 0; i < length; i++) opds[i] = parseUnambiguousExpression(ctx.opds.get(i));
+      final Ast.BitwiseExpr.Opr opr = switch (((ZfgToken) ctx.opr).type) {
+        case ZfgLexer.AND -> Ast.BitwiseExpr.Opr.AND;
+        case ZfgLexer.IOR -> Ast.BitwiseExpr.Opr.IOR;
+        case ZfgLexer.XOR -> Ast.BitwiseExpr.Opr.XOR;
+        default -> throw new AssertionError();
+      };
+      final Ast.Expr expr = new Ast.BitwiseExpr(ctx, opr, opds);
+      expr.evaluateType(this::err);
+      return expr;
+    }
   }
 
-  public Ast.Expr parseBitwiseNaryExpression(final BitwiseNaryExpressionContext ctx) {
-    // Parse the operands
-    final int length = ctx.opds.size();
-    final Ast.Expr[] opds = new Ast.Expr[length];
-    for (int i = 0; i < length; i++) opds[i] = parseUnambiguousExpression(ctx.opds.get(i));
-    // Parse the operator
-    final Ast.NaryExpr.Opr opr = switch (((ZfgToken) ctx.opr).type) {
-      case ZfgLexer.AND -> Ast.NaryExpr.Opr.AND;
-      case ZfgLexer.IOR -> Ast.NaryExpr.Opr.IOR;
-      case ZfgLexer.XOR -> Ast.NaryExpr.Opr.XOR;
-      default -> throw new AssertionError();
-    };
-    throw new UnsupportedOperationException("TODO"); // TODO
+  public Ast.Expr parseComparisonExpression(final ComparisonExpressionContext ctx) {
+    if (ctx.lhs != null) {
+      // Comparison Binary
+      final Ast.Expr lhs = parseComparisonOperand(ctx.lhs);
+      final Ast.Expr rhs = parseComparisonOperand(ctx.rhs);
+      final Ast.ThreeWayCmpExpr.Opr opr = switch (((ZfgToken) ctx.opr).type) {
+        case ZfgLexer.TWC -> Ast.ThreeWayCmpExpr.Opr.TWC;
+        default -> throw new AssertionError();
+      };
+      final Ast.Expr expr = new Ast.ThreeWayCmpExpr(ctx, opr, lhs, rhs);
+      expr.evaluateType(this::err);
+      return expr;
+    } else {
+      // Comparison Chain
+      final int length = ctx.opds.size();
+      final Ast.Expr[] opds = new Ast.Expr[length];
+      final Ast.ComparisonExpr.Opr[] oprs = new Ast.ComparisonExpr.Opr[length];
+      for (int i = 0; i < length; i++) {
+        opds[i] = parseComparisonOperand(ctx.opds.get(i));
+        oprs[i] = switch (((ZfgToken) ctx.oprs.get(i)).type) {
+          case ZfgLexer.EQL -> Ast.ComparisonExpr.Opr.EQL;
+          case ZfgLexer.NEQ -> Ast.ComparisonExpr.Opr.NEQ;
+          case ZfgLexer.LTN -> Ast.ComparisonExpr.Opr.LTN;
+          case ZfgLexer.LEQ -> Ast.ComparisonExpr.Opr.LEQ;
+          case ZfgLexer.GTN -> Ast.ComparisonExpr.Opr.GTN;
+          case ZfgLexer.GEQ -> Ast.ComparisonExpr.Opr.GEQ;
+          default -> throw new AssertionError();
+        };
+      }
+      final Ast.Expr expr = new Ast.ComparisonExpr(ctx, oprs, opds);
+      expr.evaluateType(this::err);
+      return expr;
+    }
   }
 
-  public Ast.Expr parseBitwiseBinaryExpression(final BitwiseBinaryExpressionContext ctx) {
-    // Parse the operands
-    final Ast.Expr lhs = parseUnambiguousExpression(ctx.lhs);
-    final Ast.Expr rhs = parseUnambiguousExpression(ctx.rhs);
-    // Parse the operator
-    final Ast.BinaryExpr.Opr opr = switch (((ZfgToken) ctx.opr).type) {
-      case ZfgLexer.SHL -> Ast.BinaryExpr.Opr.SHL;
-      case ZfgLexer.SHR -> Ast.BinaryExpr.Opr.SHR;
-      case ZfgLexer.MOD -> Ast.BinaryExpr.Opr.MOD;
-      case ZfgLexer.REM -> Ast.BinaryExpr.Opr.REM;
-      default -> throw new AssertionError();
-    };
-    throw new UnsupportedOperationException("TODO"); // TODO
-  }
-
-  public Ast.Expr parseCompareExpression(final CompareExpressionContext ctx) {
-    return switch (ctx) {
-      case CompareChainExpressionContext alt -> parseCompareChainExpression(alt);
-      case CompareBinaryExpressionContext alt -> parseCompareBinaryExpression(alt);
-      default -> throw new AssertionError();
-    };
-  }
-
-  public Ast.Expr parseCompareChainExpression(final CompareChainExpressionContext ctx) {
-    // Parse the operands
-    final int length = ctx.opds.size();
-    final Ast.Expr[] opds = new Ast.Expr[length];
-    for (int i = 0; i < length; i++) opds[i] = parseCompareOperand(ctx.opds.get(i));
-    // Parse the operators
-    final Ast.CompareExpr.Opr[] oprs = new Ast.CompareExpr.Opr[length - 1];
-    for (int i = 0; i < length - 1; i++) oprs[i] = switch (((ZfgToken) ctx.oprs.get(i)).type) {
-      case ZfgLexer.EQL -> Ast.CompareExpr.Opr.EQL;
-      case ZfgLexer.NEQ -> Ast.CompareExpr.Opr.NEQ;
-      case ZfgLexer.LTN -> Ast.CompareExpr.Opr.LTN;
-      case ZfgLexer.LEQ -> Ast.CompareExpr.Opr.LEQ;
-      case ZfgLexer.GTN -> Ast.CompareExpr.Opr.GTN;
-      case ZfgLexer.GEQ -> Ast.CompareExpr.Opr.GEQ;
-      default -> throw new AssertionError();
-    };
-    throw new UnsupportedOperationException("TODO"); // TODO
-  }
-
-  public Ast.Expr parseCompareBinaryExpression(final CompareBinaryExpressionContext ctx) {
-    // Parse the operands
-    final Ast.Expr lhs = parseCompareOperand(ctx.lhs);
-    final Ast.Expr rhs = parseCompareOperand(ctx.rhs);
-    // Parse the operator
-    final Ast.BinaryExpr.Opr opr = switch (((ZfgToken) ctx.opr).type) {
-      case ZfgLexer.TWC -> Ast.BinaryExpr.Opr.TWC;
-      default -> throw new AssertionError();
-    };
-    throw new UnsupportedOperationException("TODO"); // TODO
-  }
-
-  public Ast.Expr parseCompareOperand(final CompareOperandContext ctx) {
-    return switch (ctx.children.get(0)) {
-      case BitwiseExpressionContext alt -> parseBitwiseExpression(alt);
-      case AlgebraExpressionContext alt -> parseAlgebraExpression(alt);
+  public Ast.Expr parseComparisonOperand(final ComparisonOperandContext ctx) {
+    return switch (ctx.children[0]) {
+      case BitwiseExpressionContext     alt -> parseBitwiseExpression(alt);
+      case AlgebraicExpressionContext   alt -> parseAlgebraicExpression(alt);
       case UnambiguousExpressionContext alt -> parseUnambiguousExpression(alt);
       default -> throw new AssertionError();
     };
   }
 
   public Ast.Expr parseLogicalExpression(final LogicalExpressionContext ctx) {
-    // Parse the operands
     final int length = ctx.opds.size();
     final Ast.Expr[] opds = new Ast.Expr[length];
     for (int i = 0; i < length; i++) opds[i] = parseLogicalOperand(ctx.opds.get(i));
-    // Parse the operator
-    final Ast.NaryExpr.Opr opr = switch (((ZfgToken) ctx.opr).type) {
-      case ZfgLexer.LCJ -> Ast.NaryExpr.Opr.LCJ;
-      case ZfgLexer.LDJ -> Ast.NaryExpr.Opr.LDJ;
+    final Ast.LogicalExpr.Opr opr = switch (((ZfgToken) ctx.opr).type) {
+      case ZfgLexer.LCJ -> Ast.LogicalExpr.Opr.LCJ;
+      case ZfgLexer.LDJ -> Ast.LogicalExpr.Opr.LDJ;
       default -> throw new AssertionError();
     };
-    throw new UnsupportedOperationException("TODO"); // TODO
+    final Ast.Expr expr = new Ast.LogicalExpr(ctx, opr, opds);
+    expr.evaluateType(this::err);
+    return expr;
   }
 
   public Ast.Expr parseLogicalOperand(final LogicalOperandContext ctx) {
-    return switch (ctx.children.get(0)) {
-      case CompareExpressionContext alt -> parseCompareExpression(alt);
-      case BitwiseExpressionContext alt -> parseBitwiseExpression(alt);
-      case AlgebraExpressionContext alt -> parseAlgebraExpression(alt);
+    return switch (ctx.children[0]) {
+      case ComparisonExpressionContext  alt -> parseComparisonExpression(alt);
+      case BitwiseExpressionContext     alt -> parseBitwiseExpression(alt);
+      case AlgebraicExpressionContext   alt -> parseAlgebraicExpression(alt);
       case UnambiguousExpressionContext alt -> parseUnambiguousExpression(alt);
       default -> throw new AssertionError();
     };
   }
 
-  //////////////////////////////////////////////////////////////////////////////////////////////////
-  // Assignments
-  //////////////////////////////////////////////////////////////////////////////////////////////////
-
-  public void parseAssignment(final AssignmentContext ctx) {
-    throw new UnsupportedOperationException("Unimplemented method 'parseAssignment'");
+  public Ast.Expr parseUnaryAssignment(final UnaryAssignmentContext ctx) {
+    throw new UnsupportedOperationException(); // TODO
   }
 
-  public void parseBivariateAssignment(final BivariateAssignmentContext ctx) {
-    throw new UnsupportedOperationException("Unimplemented method 'parseBivariateAssignment'");
+  public Ast.Expr parseBinaryAssignment(final BinaryAssignmentContext ctx) {
+    throw new UnsupportedOperationException(); // TODO
   }
 
-  public void parsePostfixAssignment(final PostfixAssignmentContext ctx) {
-    throw new UnsupportedOperationException("Unimplemented method 'parsePostfixAssignment'");
+  public Ast.Expr parseRecordConstructor(final RecordConstructorContext ctx) {
+    throw new UnsupportedOperationException(); // TODO
   }
 
-  public void parsePrefixAssignment(final PrefixAssignmentContext ctx) {
-    throw new UnsupportedOperationException("Unimplemented method 'parsePrefixAssignment'");
+  public Ast.Expr parseTupleConstructor(final TupleConstructorContext ctx) {
+    throw new UnsupportedOperationException(); // TODO
   }
 
-  //////////////////////////////////////////////////////////////////////////////////////////////////
-  // Literals
-  //////////////////////////////////////////////////////////////////////////////////////////////////
-
-  public Inst parseLiteral(final LiteralContext ctx) {
-    return switch (ctx.children.get(0)) {
-      case NumericLiteralContext alt -> parseNumericLiteral(alt);
-      default -> throw new AssertionError();
-    };
-  }
-
-  public Inst parseNumericLiteral(final NumericLiteralContext ctx) {
-    final String text = ctx.token.getText();
-    switch (((ZfgToken) ctx.token).type) {
-      case ZfgLexer.BitLit:
-        final Inst bitLit = Literals.parseBitLit(text);
-        if (bitLit == null) err(ctx, "Invalid bit literal: \"" + text + "\"");
-        return bitLit;
-      case ZfgLexer.IntLit:
-        final boolean hasMinusPrefix =
-            ctx.parent instanceof UnaryExpressionContext parent &&
-            ((ZfgToken) parent.opr).type == ZfgLexer.SUB &&
-            ((ZfgToken) parent.opr).stopIndex + 1 == ((ZfgToken) ctx.start).startIndex;
-        final Inst intLit = Literals.parseIntLit(text, hasMinusPrefix);
-        if (intLit == null) err(ctx, "Invalid int literal: \"" + text + "\"");
-        return intLit;
-      case ZfgLexer.FltLit:
-        final Inst fltLit = Literals.parseFltLit(text);
-        if (fltLit == null) err(ctx, "Invalid flt literal: \"" + text + "\"");
-        return fltLit;
-      default: throw new AssertionError();
-    }
+  public Ast.Expr parseArrayConstructor(final ArrayConstructorContext ctx) {
+    throw new UnsupportedOperationException(); // TODO
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////
@@ -586,13 +357,13 @@ public class Parser {
   //////////////////////////////////////////////////////////////////////////////////////////////////
 
   public Type parseType(final TypeContext ctx) {
-    return switch (ctx.children.get(0)) {
+    return switch (ctx.children[0]) {
       case PrimitiveTypeContext alt -> parsePrimitiveType(alt);
-      case FunctionTypeContext alt -> parseFunctionType(alt);
-      case RecordTypeContext alt -> parseRecordType(alt);
-      case TupleTypeContext alt -> parseTupleType(alt);
-      case ArrayTypeContext alt -> parseArrayType(alt);
-      case NamedTypeContext alt -> parseNamedType(alt);
+      case FunctionTypeContext  alt -> parseFunctionType(alt);
+      case RecordTypeContext    alt -> parseRecordType(alt);
+      case TupleTypeContext     alt -> parseTupleType(alt);
+      case ArrayTypeContext     alt -> parseArrayType(alt);
+      case NamedTypeContext     alt -> parseNamedType(alt);
       default -> throw new AssertionError();
     };
   }
@@ -600,14 +371,14 @@ public class Parser {
   public Type parsePrimitiveType(final PrimitiveTypeContext ctx) {
     return switch (((ZfgToken) ctx.token).type) {
       case ZfgLexer.BIT -> Types.BIT;
-      case ZfgLexer.I08 -> Types.I08;
-      case ZfgLexer.I16 -> Types.I16;
-      case ZfgLexer.I32 -> Types.I32;
-      case ZfgLexer.I64 -> Types.I64;
       case ZfgLexer.U08 -> Types.U08;
       case ZfgLexer.U16 -> Types.U16;
       case ZfgLexer.U32 -> Types.U32;
       case ZfgLexer.U64 -> Types.U64;
+      case ZfgLexer.I08 -> Types.I08;
+      case ZfgLexer.I16 -> Types.I16;
+      case ZfgLexer.I32 -> Types.I32;
+      case ZfgLexer.I64 -> Types.I64;
       case ZfgLexer.F32 -> Types.F32;
       case ZfgLexer.F64 -> Types.F64;
       default -> throw new AssertionError();
@@ -615,65 +386,69 @@ public class Parser {
   }
 
   public Type parseFunctionType(final FunctionTypeContext ctx) {
-    // Post-order traversal
     final Type paramsType = parseRecordType(ctx.paramsType);
     final Type returnType = parseType(ctx.returnType);
-    // Error checking
-    if (paramsType == Types.ERR || returnType == Types.ERR) return Types.ERR;
-    // Type inference
-    return Types.Fun(paramsType, returnType);
+    return Types.fun(paramsType, returnType);
   }
 
   public Type parseRecordType(final RecordTypeContext ctx) {
-    // Post-order traversal
-    final int length = ctx.types.size();
-    final boolean[] muts = new boolean[length];
-    for (int i = 0; i < muts.length; i++) muts[i] = ctx.muts.get(i) == null;
-    final String[] names = new String[length];
-    for (int i = 0; i < names.length; i++) names[i] = ctx.names.get(i).getText();
-    final Type[] types = new Type[length];
-    for (int i = 0; i < types.length; i++) types[i] = parseType(ctx.types.get(i));
-    // Error checking
-    if (hasDuplicates(names)) { err(ctx, "Record field names must be unique"); return Types.ERR; }
-    for (int i = 0; i < types.length; i++) if (types[i] == Types.ERR) return Types.ERR;
-    // Type inference
-    return Types.Rec(muts, names, types);
+    final int       length = ctx.types.size();
+    final boolean[] mutas  = new boolean[length];
+    final String[]  names  = new String[length];
+    final Type[]    types  = new Type[length];
+    for (int i = 0; i < length; i++) {
+      mutas[i] = ctx.mutas.get(i) != null;
+      names[i] = ctx.names.get(i).getText();
+      types[i] = parseType(ctx.types.get(i));
+    }
+    if (containsDuplicates(names)) err(ctx, "Duplicate field names in record type");
+    return Types.rec(mutas, names, types);
   }
 
   public Type parseTupleType(final TupleTypeContext ctx) {
-    // Post-order traversal
-    final int length = ctx.types.size();
-    final boolean[] muts = new boolean[length];
-    for (int i = 0; i < muts.length; i++) muts[i] = ctx.muts.get(i) == null;
-    final Type[] types = new Type[length];
-    for (int i = 0; i < types.length; i++) types[i] = parseType(ctx.types.get(i));
-    // Error checking
-    for (int i = 0; i < types.length; i++) if (types[i] == Types.ERR) return Types.ERR;
-    // Type inference
-    return Types.Tup(muts, types);
+    final int       length = ctx.types.size();
+    final boolean[] mutas  = new boolean[length];
+    final Type[]    types  = new Type[length];
+    for (int i = 0; i < length; i++) {
+      mutas[i] = ctx.mutas.get(i) != null;
+      types[i] = parseType(ctx.types.get(i));
+    }
+    return Types.tup(mutas, types);
   }
 
   public Type parseArrayType(final ArrayTypeContext ctx) {
-    // Post-order traversal
-    final boolean mut = ctx.mut != null;
-    final Type type = parseType(ctx.elem);
-    final int length = switch (ctx.length) {
-      case null -> Type.Arr.UNKNOWN_LENGTH;
-      case Token t when Literals.parseIntLit(t.getText(), false) instanceof Inst.I32 i -> i.value;
-      default -> -2;
+    final boolean muta = ctx.muta != null;
+    final Type    type = parseType(ctx.elem);
+    final int     size = switch (ctx.size) {
+      case null -> Type.Arr.UNKNOWN_SIZE;
+      case Token token -> switch (Literals.parseIntLit(((ZfgToken) token).text, false)) {
+        case Literals.Err<Inst> err -> {
+          err(ctx, err.error);
+          yield Type.Arr.UNKNOWN_SIZE;
+        }
+        case Literals.Val<Inst> val -> switch (val.value) {
+          case Inst.I32 i32 -> i32.value;
+          default -> {
+            err(ctx, "Array length must have type i32.");
+            yield Type.Arr.UNKNOWN_SIZE;
+          }
+        };
+      };
     };
-    // Error checking
-    if (length == -2) { err(ctx, "Array length must be an i32 literal"); return Types.ERR; }
-    if (type == Types.ERR) return Types.ERR;
-    // Type inference
-    return length == -1 ? Types.Arr(mut, type) : Types.Arr(mut, type, length);
+    return Types.arr(muta, type, size);
   }
 
   public Type parseNamedType(final NamedTypeContext ctx) {
-    throw new UnsupportedOperationException("Unimplemented method 'parseNamedType'");
+    final String symbolName = ((ZfgToken) ctx.name).text;
+    final Type.Nom type = symbolTable.getType(symbolName);
+    if (type == null) {
+      err(ctx, "Unknown type \'" + symbolName + '\'');
+      return Types.ERR;
+    }
+    return type;
   }
 
-  private static boolean hasDuplicates(final String[] names) {
+  private static boolean containsDuplicates(final String[] names) {
     final int length = names.length;
     if (length < 32) {
       for (int i = length - 1; i >= 1; i -= 1) {
@@ -686,7 +461,7 @@ public class Parser {
       }
       return false;
     } else {
-      final java.util.HashSet<String> set = new java.util.HashSet<>(length, 0.5f);
+      final HashSet<String> set = new HashSet<>(length, 0.5f);
       for (int i = 0; i < length; i++) {
         if (!set.add(names[i])) {
           return true;
@@ -694,23 +469,5 @@ public class Parser {
       }
       return false;
     }
-  }
-
-  //////////////////////////////////////////////////////////////////////////////////////////////////
-  // Function Call
-  //////////////////////////////////////////////////////////////////////////////////////////////////
-
-
-  public void parseFunctionCall(final FunctionCallContext ctx) {
-    throw new UnsupportedOperationException("Unimplemented method 'parseFunctionCall'");
-  }
-
-  //////////////////////////////////////////////////////////////////////////////////////////////////
-  // Variable
-  //////////////////////////////////////////////////////////////////////////////////////////////////
-
-
-  public void parseVariable(final VariableContext ctx) {
-    throw new UnsupportedOperationException("Unimplemented method 'parseVariable'");
   }
 }
