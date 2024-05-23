@@ -4,138 +4,245 @@ import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.Objects;
 
+import org.antlr.v4.runtime.tree.TerminalNode;
+
 import zfg.antlr.ZfgContext;
 import zfg.antlr.ZfgLexer;
+import zfg.antlr.ZfgParser.ComparisonExpressionContext;
 
-public class Ast {
+
+public final class Ast {
+  private Ast() {}
 
   //////////////////////////////////////////////////////////////////////////////////////////////////
-  // Expression
+  // Statements
   //////////////////////////////////////////////////////////////////////////////////////////////////
 
-  public static sealed abstract class Expr {
+  public static interface Stmt {
+    ZfgContext ctx();
+  }
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+  // Declarations
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+
+  public static final class TypeDecl implements Stmt, Symbol {
     public final ZfgContext ctx;
-    public Type type = Types.UNK;
+    public final Modifier mod;
+    public final String name;
+    public final Type.Nom type;
 
-    protected Expr(final ZfgContext ctx) {
+    @Override public ZfgContext ctx() { return ctx; }
+    @Override public Modifier mod() { return mod; }
+    @Override public String name() { return name; }
+    @Override public Type type() { return type; }
+
+    public TypeDecl(final ZfgContext ctx, final Modifier mod, final String name) {
+      assert ctx != null;
+      assert mod != null;
+      assert name != null;
+      assert Names.isUpperCamelCase(name);
+      this.ctx = ctx;
+      this.mod = mod;
+      this.name = name;
+      this.type = Types.nom(name, Types.UNK);
+    }
+  }
+
+  public static final class FunDecl implements Stmt, Symbol {
+    public final ZfgContext ctx;
+    public final Modifier mod;
+    public final String name;
+    private Type type = Types.UNK;
+
+    public FunDecl(final ZfgContext ctx, final Modifier mod, final String name) {
+      assert ctx != null;
+      assert mod != null;
+      assert name != null;
+      assert Names.isLowerSnakeCase(name);
+      this.ctx = ctx;
+      this.mod = mod;
+      this.name = name;
+    }
+
+    @Override public ZfgContext ctx() { return ctx; }
+    @Override public Modifier mod() { return mod; }
+    @Override public String name() { return name; }
+    @Override public Type type() { return type; }
+  }
+
+  public static final class VarDecl implements Stmt, Symbol {
+    public final ZfgContext ctx;
+    public final Modifier mod;
+    public final String name;
+    private Type type = Types.UNK;
+
+    public VarDecl(final ZfgContext ctx, final Modifier mod, final String name) {
+      assert ctx != null;
+      assert mod != null;
+      assert name != null;
+      assert Names.isLowerSnakeCase(name);
+      this.ctx = ctx;
+      this.mod = mod;
+      this.name = name;
+    }
+
+    @Override public ZfgContext ctx() { return ctx; }
+    @Override public Modifier mod() { return mod; }
+    @Override public String name() { return name; }
+    @Override public Type type() { return type; }
+  }
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+  // Expressions
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+
+  public static sealed interface Expr {
+    ZfgContext ctx();
+    Type type();
+    Type evaluateType(final ParserErrorEmitter emit);
+  }
+
+  public static final class ErrorExpr implements Expr {
+    public final ZfgContext ctx;
+
+    public ErrorExpr(final ZfgContext ctx) {
       assert ctx != null;
       this.ctx = ctx;
     }
 
-    public abstract Type evaluateType(final Parser.EmitErr err);
+    @Override public ZfgContext ctx() { return ctx; }
+    @Override public Type type() { return Types.ERR; }
+    @Override public Type evaluateType(final ParserErrorEmitter emit) { return Types.ERR; }
   }
 
-  public static final class Error extends Expr {
-    public Error(final ZfgContext ctx) {
-      super(ctx);
-      this.type = Types.ERR;
+  public static final class LiteralExpr implements Expr {
+    public final ZfgContext ctx;
+    public final Inst inst;
+
+    public LiteralExpr(final ZfgContext ctx, final Inst inst) {
+      assert ctx != null;
+      assert inst != null;
+      this.ctx = ctx;
+      this.inst = inst;
     }
+
+    @Override public ZfgContext ctx() { return ctx; }
+    @Override public Type type() { return inst.type(); }
+    @Override public Type evaluateType(final ParserErrorEmitter emit) { return inst.type(); }
+  }
+
+  public static final class SymbolExpr implements Expr {
+    public final ZfgContext ctx;
+    public final Symbol symbol;
+
+    public SymbolExpr(final ZfgContext ctx, final Symbol symbol) {
+      assert ctx != null;
+      assert symbol != null;
+      this.ctx = ctx;
+      this.symbol = symbol;
+    }
+
+    @Override public ZfgContext ctx() { return ctx; }
+    @Override public Type type() { return symbol.type(); }
+    @Override public Type evaluateType(final ParserErrorEmitter emit) { return symbol.type(); }
+  }
+
+  public static final class FieldAccessExpr implements Expr {
+    public final ZfgContext ctx;
+    public final Expr opd;
+    public final String field;
+    private Type objType = null;
+    private Type type = Types.UNK;
+
+    public FieldAccessExpr(final ZfgContext ctx, final Expr obj, final String field) {
+      assert ctx != null;
+      assert obj != null;
+      assert field != null;
+      assert Names.isLowerSnakeCase(field);
+      this.ctx = ctx;
+      this.opd = obj;
+      this.field = field;
+    }
+
+    @Override public ZfgContext ctx() { return ctx; }
+    @Override public Type type() { return type; }
 
     @Override
-    public Type evaluateType(final Parser.EmitErr err) {
-      return type;
+    public Type evaluateType(final ParserErrorEmitter emit) {
+      if (type != Types.UNK) return type;
+      if (objType == (objType = opd.type())) return type;
+      if (objType == Types.ERR) return type = Types.ERR;
+      if (objType == Types.UNK) return type = Types.UNK;
+      type = switch (objType.kind()) {
+        case BIT, U08, U16, U32, U64, I08, I16, I32, I64, F32, F64 -> {
+          emit.err(ctx, "The primitive type " + objType + " does not have a field '" + field + "'.");
+          yield Types.ERR;
+        }
+        case ARR -> {
+          emit.err(ctx, "The array type " + objType + " does not have a field '" + field + "'.");
+          yield Types.ERR;
+        }
+        case TUP -> {
+          emit.err(ctx, "The tuple type " + objType + " does not have a field '" + field + "'.");
+          yield Types.ERR;
+        }
+        case REC -> {
+
+        }
+        case NOM -> {
+
+        }
+      };
     }
   }
 
-  public static final class Literal extends Expr {
-    public final Inst value;
-
-    public Literal(final ZfgContext ctx, final Inst value) {
-      super(ctx);
-      assert value != null;
-      this.value = value;
-      this.type = value.type();
+  public static final class UnaryExpr implements Expr {
+    public static enum Opr implements Op {
+      POS(ZfgLexer.ADD),
+      NEG(ZfgLexer.SUB),
+      NOT(ZfgLexer.NOT),
+      LNT(ZfgLexer.LNT);
+      final int ttype;
+      Opr(final int ttype) { this.ttype = ttype; }
+      @Override public int ttype() { return ttype; }
     }
 
-    @Override
-    public Type evaluateType(final Parser.EmitErr err) {
-      return type;
-    }
-  }
-
-  public static sealed abstract class BinaryExpr<Opr extends Op> extends Expr {
+    public final ZfgContext ctx;
     public final Opr opr;
-    public final Expr lhs;
-    public final Expr rhs;
-    private Type lhsType;
-    private Type rhsType;
+    public final Expr opd;
+    private Type opdType = null;
+    private Type type = Types.UNK;
 
-    public BinaryExpr(
-      final ZfgContext ctx,
-      final Opr opr,
-      final Expr lhs,
-      final Expr rhs
-    ) {
-      super(ctx);
+    public UnaryExpr(final ZfgContext ctx, final Opr opr, final Expr opd) {
+      assert ctx != null;
       assert opr != null;
-      assert lhs != null;
-      assert rhs != null;
+      assert opd != null;
+      this.ctx = ctx;
       this.opr = opr;
-      this.lhs = lhs;
-      this.rhs = rhs;
+      this.opd = opd;
     }
+
+    @Override public ZfgContext ctx() { return ctx; }
+    @Override public Type type() { return type; }
 
     @Override
-    public final Type evaluateType(final Parser.EmitErr err) {
-      if (!type.hasUnknown()) return type;
-      boolean inputChanged = false;
-      inputChanged |= lhsType != (lhsType = lhs.type);
-      inputChanged |= rhsType != (rhsType = rhs.type);
-      if (!inputChanged) return type;
-      if (hasError(lhsType, rhsType)) return type = Types.ERR;
-      if (hasUnknown(lhsType, rhsType)) return type = Types.UNK;
-      type = hasUnacceptable(accepts(), lhsType, rhsType)
-        ? Types.ERR
-        : evaluateType(lhsType, rhsType);
-      if (type == Types.ERR) emitOpArgsTypeError(err, ctx, opr, lhsType, rhsType);
+    public Type evaluateType(final ParserErrorEmitter emit) {
+      if (type != Types.UNK) return type;
+      if (opdType == (opdType = opd.type())) return type;
+      if (opdType == Types.ERR) return type = Types.ERR;
+      if (opdType == Types.UNK) return type = Types.UNK;
+      type = switch (opr) {
+        case POS, NEG -> AlgebraicExpr.OPERANDS.contains(opdType.kind()) ? opdType : Types.ERR;
+        case NOT -> BitwiseExpr.OPERANDS.contains(opdType.kind()) ? opdType : Types.ERR;
+        case LNT -> opdType == Types.BIT ? Types.BIT : Types.ERR;
+      };
+      if (type == Types.ERR) emit.err(ctx, typeErr(opr, opdType));
       return type;
     }
-
-    protected abstract EnumSet<Type.Kind> accepts();
-    protected abstract Type evaluateType(final Type lhsType, final Type rhsType);
   }
 
-  public static sealed abstract class NaryExpr<Opr extends Op> extends Expr {
-    public final Opr opr;
-    public final Expr[] opds;
-    private Type[] opdTypes;
-
-    public NaryExpr(
-      final ZfgContext ctx,
-      final Opr opr,
-      final Expr[] opds
-    ) {
-      super(ctx);
-      assert opr != null;
-      assert opds != null;
-      assert opds.length >= 2;
-      assert Arrays.stream(opds).allMatch(Objects::nonNull);
-      this.opr = opr;
-      this.opds = opds;
-      this.opdTypes = new Type[opds.length];
-    }
-
-    @Override
-    public final Type evaluateType(final Parser.EmitErr err) {
-      if (!type.hasUnknown()) return type;
-      boolean inputChanged = false;
-      for (int i = 0; i < opds.length; i++)
-        inputChanged |= opdTypes[i] != (opdTypes[i] = opds[i].type);
-      if (!inputChanged) return type;
-      if (hasError(opdTypes)) return type = Types.ERR;
-      if (hasUnknown(opdTypes)) return type = Types.UNK;
-      type = hasUnacceptable(accepts(), opdTypes)
-        ? Types.ERR
-        : evaluateType(opdTypes);
-      if (type == Types.ERR) emitOpArgsTypeError(err, ctx, opr, opdTypes);
-      return type;
-    }
-
-    protected abstract EnumSet<Type.Kind> accepts();
-    protected abstract Type evaluateType(final Type[] opdTypes);
-  }
-
-  public static final class AlgebraicExpr extends BinaryExpr<AlgebraicExpr.Opr> {
+  public static final class AlgebraicExpr implements Expr {
     public static enum Opr implements Op {
       ADD(ZfgLexer.ADD),
       SUB(ZfgLexer.SUB),
@@ -148,46 +255,56 @@ public class Ast {
       @Override public int ttype() { return ttype; }
     }
 
+    private static EnumSet<Type.Kind> OPERANDS = EnumSet.of(
+      Type.Kind.U08,
+      Type.Kind.U16,
+      Type.Kind.U32,
+      Type.Kind.U64,
+      Type.Kind.I08,
+      Type.Kind.I16,
+      Type.Kind.I32,
+      Type.Kind.I64,
+      Type.Kind.F32,
+      Type.Kind.F64
+    );
+
+    public final ZfgContext ctx;
+    public final Opr opr;
+    public final Expr lhs;
+    public final Expr rhs;
+    private Type lhsType = null;
+    private Type rhsType = null;
+    private Type type = Types.UNK;
+
     public AlgebraicExpr(final ZfgContext ctx, final Opr opr, final Expr lhs, final Expr rhs) {
-      super(ctx, opr, lhs, rhs);
+      assert ctx != null;
+      assert opr != null;
+      assert lhs != null;
+      assert rhs != null;
+      this.ctx = ctx;
+      this.opr = opr;
+      this.lhs = lhs;
+      this.rhs = rhs;
     }
 
-    @Override
-    protected EnumSet<Type.Kind> accepts() {
-      return ALGABRAIC_OPERANDS;
-    }
+    @Override public ZfgContext ctx() { return ctx; }
+    @Override public Type type() { return type; }
 
     @Override
-    protected Type evaluateType(final Type lhsType, final Type rhsType) {
-      return commonType(lhsType, rhsType);
+    public Type evaluateType(final ParserErrorEmitter emit) {
+      if (type != Types.UNK) return type;
+      if ((lhsType == (lhsType = lhs.type())) & (rhsType == (rhsType = rhs.type()))) return type;
+      if (lhsType == Types.ERR || rhsType == Types.ERR) return type = Types.ERR;
+      if (lhsType == Types.UNK || rhsType == Types.UNK) return type = Types.UNK;
+      type = OPERANDS.contains(lhsType.kind()) && OPERANDS.contains(rhsType.kind())
+        ? commonType(lhsType, rhsType)
+        : Types.ERR;
+      if (type == Types.ERR) emit.err(ctx, typeErr(opr, lhsType, rhsType));
+      return type;
     }
   }
 
-  public static final class ShiftExpr extends BinaryExpr<ShiftExpr.Opr> {
-    public static enum Opr implements Op {
-      SHL(ZfgLexer.SHL),
-      SHR(ZfgLexer.SHR);
-      final int ttype;
-      Opr(final int ttype) { this.ttype = ttype; }
-      @Override public int ttype() { return ttype; }
-    }
-
-    public ShiftExpr(final ZfgContext ctx, final Opr opr, final Expr lhs, final Expr rhs) {
-      super(ctx, opr, lhs, rhs);
-    }
-
-    @Override
-    protected EnumSet<Type.Kind> accepts() {
-      return BITWISE_OPERANDS;
-    }
-
-    @Override
-    protected Type evaluateType(final Type lhsType, final Type rhsType) {
-      return lhsType;
-    }
-  }
-
-  public static final class BitwiseExpr extends NaryExpr<BitwiseExpr.Opr> {
+  public static final class BitwiseExpr implements Expr {
     public static enum Opr implements Op {
       AND(ZfgLexer.AND),
       IOR(ZfgLexer.IOR),
@@ -197,22 +314,108 @@ public class Ast {
       @Override public int ttype() { return ttype; }
     }
 
+    private static EnumSet<Type.Kind> OPERANDS = EnumSet.of(
+      Type.Kind.BIT,
+      Type.Kind.U08,
+      Type.Kind.U16,
+      Type.Kind.U32,
+      Type.Kind.U64,
+      Type.Kind.I08,
+      Type.Kind.I16,
+      Type.Kind.I32,
+      Type.Kind.I64
+    );
+
+    public final ZfgContext ctx;
+    public final Opr opr;
+    public final Expr[] opds;
+    private final Type[] opdTypes;
+    private Type type = Types.UNK;
+
     public BitwiseExpr(final ZfgContext ctx, final Opr opr, final Expr[] opds) {
-      super(ctx, opr, opds);
+      assert ctx != null;
+      assert opr != null;
+      assert opds != null;
+      assert opds.length >= 2;
+      assert Arrays.stream(opds).allMatch(Objects::nonNull);
+      this.ctx = ctx;
+      this.opr = opr;
+      this.opds = opds;
+      this.opdTypes = new Type[opds.length];
     }
 
-    @Override
-    protected EnumSet<Type.Kind> accepts() {
-      return BITWISE_OPERANDS;
-    }
+    @Override public ZfgContext ctx() { return ctx; }
+    @Override public Type type() { return type; }
 
     @Override
-    protected Type evaluateType(final Type[] opdTypes) {
-      return commonType(opdTypes);
+    public Type evaluateType(final ParserErrorEmitter emit) {
+      if (type != Types.UNK) return type;
+      if (checkTypeChanges(opdTypes, opds)) return type;
+      for (int i = 0; i < opdTypes.length; i++) if (opdTypes[i] == Types.ERR) return type = Types.ERR;
+      for (int i = 0; i < opdTypes.length; i++) if (opdTypes[i] == Types.UNK) return type = Types.UNK;
+      type = checkOperands(OPERANDS, opdTypes) ? commonType(opdTypes) : Types.ERR;
+      if (type == Types.ERR) emit.err(ctx, typeErr(opr, opdTypes));
+      return type;
     }
   }
 
-  public static final class ThreeWayCmpExpr extends BinaryExpr<ThreeWayCmpExpr.Opr> {
+  public static final class ShiftExpr implements Expr {
+    public static enum Opr implements Op {
+      SHL(ZfgLexer.SHL),
+      SHR(ZfgLexer.SHR);
+      final int ttype;
+      Opr(final int ttype) { this.ttype = ttype; }
+      @Override public int ttype() { return ttype; }
+    }
+
+    private static EnumSet<Type.Kind> OPERANDS = EnumSet.of(
+      Type.Kind.U08,
+      Type.Kind.U16,
+      Type.Kind.U32,
+      Type.Kind.U64,
+      Type.Kind.I08,
+      Type.Kind.I16,
+      Type.Kind.I32,
+      Type.Kind.I64
+    );
+
+    public final ZfgContext ctx;
+    public final Opr opr;
+    public final Expr lhs;
+    public final Expr rhs;
+    private Type lhsType = null;
+    private Type rhsType = null;
+    private Type type = Types.UNK;
+
+    public ShiftExpr(final ZfgContext ctx, final Opr opr, final Expr lhs, final Expr rhs) {
+      assert ctx != null;
+      assert opr != null;
+      assert lhs != null;
+      assert rhs != null;
+      this.ctx = ctx;
+      this.opr = opr;
+      this.lhs = lhs;
+      this.rhs = rhs;
+    }
+
+    @Override public ZfgContext ctx() { return ctx; }
+    @Override public Type type() { return type; }
+
+    @Override
+    public Type evaluateType(final ParserErrorEmitter emit) {
+      if (type != Types.UNK) return type;
+      if ((lhsType == (lhsType = lhs.type())) & (rhsType == (rhsType = rhs.type()))) return type;
+      if (lhsType == Types.ERR || rhsType == Types.ERR) return type = Types.ERR;
+      if (lhsType == Types.UNK || rhsType == Types.UNK) return type = Types.UNK;
+      type = OPERANDS.contains(lhsType.kind()) && OPERANDS.contains(rhsType.kind())
+        ? lhsType
+        : Types.ERR;
+      if (type == Types.ERR) emit.err(ctx, typeErr(opr, lhsType, rhsType));
+      return type;
+    }
+  }
+
+  public static final class ThreeWayCompExpr implements Expr {
     public static enum Opr implements Op {
       TWC(ZfgLexer.TWC);
       final int ttype;
@@ -220,22 +423,57 @@ public class Ast {
       @Override public int ttype() { return ttype; }
     }
 
-    public ThreeWayCmpExpr(final ZfgContext ctx, final Opr opr, final Expr lhs, final Expr rhs) {
-      super(ctx, opr, lhs, rhs);
+    private static EnumSet<Type.Kind> OPERANDS = EnumSet.of(
+      Type.Kind.BIT,
+      Type.Kind.U08,
+      Type.Kind.U16,
+      Type.Kind.U32,
+      Type.Kind.U64,
+      Type.Kind.I08,
+      Type.Kind.I16,
+      Type.Kind.I32,
+      Type.Kind.I64,
+      Type.Kind.F32,
+      Type.Kind.F64
+    );
+
+    public final ZfgContext ctx;
+    public final Opr opr;
+    public final Expr lhs;
+    public final Expr rhs;
+    private Type lhsType = null;
+    private Type rhsType = null;
+    private Type type = Types.UNK;
+
+    public ThreeWayCompExpr(final ZfgContext ctx, final Opr opr, final Expr lhs, final Expr rhs) {
+      assert ctx != null;
+      assert opr != null;
+      assert lhs != null;
+      assert rhs != null;
+      this.ctx = ctx;
+      this.opr = opr;
+      this.lhs = lhs;
+      this.rhs = rhs;
     }
 
-    @Override
-    protected EnumSet<Type.Kind> accepts() {
-      return COMPARISON_OPERANDS;
-    }
+    @Override public ZfgContext ctx() { return ctx; }
+    @Override public Type type() { return type; }
 
     @Override
-    protected Type evaluateType(final Type lhsType, final Type rhsType) {
-      return Types.I08;
+    public Type evaluateType(final ParserErrorEmitter emit) {
+      if (type != Types.UNK) return type;
+      if ((lhsType == (lhsType = lhs.type())) & (rhsType == (rhsType = rhs.type()))) return type;
+      if (lhsType == Types.ERR || rhsType == Types.ERR) return type = Types.ERR;
+      if (lhsType == Types.UNK || rhsType == Types.UNK) return type = Types.UNK;
+      type = OPERANDS.contains(lhsType.kind()) && OPERANDS.contains(rhsType.kind())
+        ? Types.I08
+        : Types.ERR;
+      if (type == Types.ERR) emit.err(ctx, typeErr(opr, lhsType, rhsType));
+      return type;
     }
   }
 
-  public static final class ComparisonExpr extends Expr {
+  public static final class ComparisonExpr implements Expr {
     public static enum Opr implements Op {
       EQL(ZfgLexer.EQL),
       NEQ(ZfgLexer.NEQ),
@@ -248,54 +486,87 @@ public class Ast {
       @Override public int ttype() { return ttype; }
     }
 
+    private static EnumSet<Type.Kind> OPERANDS = EnumSet.of(
+      Type.Kind.BIT,
+      Type.Kind.U08,
+      Type.Kind.U16,
+      Type.Kind.U32,
+      Type.Kind.U64,
+      Type.Kind.I08,
+      Type.Kind.I16,
+      Type.Kind.I32,
+      Type.Kind.I64,
+      Type.Kind.F32,
+      Type.Kind.F64
+    );
+
+    public final ZfgContext ctx;
     public final Opr[] oprs;
     public final Expr[] opds;
-    private Type[] opdTypes;
+    private final Type[] opdTypes;
+    private Type type = Types.UNK;
 
-    public ComparisonExpr(
-      final ZfgContext ctx,
-      final Opr[] oprs,
-      final Expr[] opds
-    ) {
-      super(ctx);
+    public ComparisonExpr(final ZfgContext ctx, final Opr[] oprs, final Expr[] opds) {
+      assert ctx != null;
       assert oprs != null;
       assert oprs.length >= 1;
       assert Arrays.stream(oprs).allMatch(Objects::nonNull);
       assert opds != null;
-      assert opds.length == oprs.length + 1;
+      assert opds.length == opds.length + 1;
       assert Arrays.stream(opds).allMatch(Objects::nonNull);
+      this.ctx = ctx;
       this.oprs = oprs;
       this.opds = opds;
       this.opdTypes = new Type[opds.length];
     }
 
+    @Override public ZfgContext ctx() { return ctx; }
+    @Override public Type type() { return type; }
+
     @Override
-    public final Type evaluateType(final Parser.EmitErr err) {
-      if (!type.hasUnknown()) return type;
-      boolean inputChanged = false;
-      for (int i = 0; i < opds.length; i++)
-        inputChanged |= opdTypes[i] != (opdTypes[i] = opds[i].type);
-      if (!inputChanged) return type;
-      if (hasError(opdTypes)) return type = Types.ERR;
-      if (hasUnknown(opdTypes)) return type = Types.UNK;
+    public Type evaluateType(final ParserErrorEmitter emit) {
+      if (type != Types.UNK) return type;
+      if (checkTypeChanges(opdTypes, opds)) return type;
+      for (int i = 0; i < opdTypes.length; i++) if (opdTypes[i] == Types.ERR) return type = Types.ERR;
+      for (int i = 0; i < opdTypes.length; i++) if (opdTypes[i] == Types.UNK) return type = Types.UNK;
       type = Types.BIT;
-      for (int i = 1; i < oprs.length; i++) {
-        final Opr opr = oprs[i];
-        final Type lhsType = opdTypes[i];
-        final Type rhsType = opdTypes[i+1];
+      for (int i = 0; i < oprs.length; i++) {
+        final Type lhs = opdTypes[i];
+        final Type rhs = opdTypes[i+1];
         if (
-          hasUnacceptable(COMPARISON_OPERANDS, lhsType, rhsType) ||
-          commonType(opdTypes[i], opdTypes[i+1]) == Types.ERR
+          !OPERANDS.contains(lhs.kind()) ||
+          !OPERANDS.contains(rhs.kind()) ||
+          commonType(lhs, rhs) == Types.ERR
         ) {
+          emit.err(oprCtx(i), typeErr(oprs[i], lhs, rhs));
           type = Types.ERR;
-          emitOpArgsTypeError(err, ctx, opr, lhsType, rhsType);
         }
       }
       return type;
     }
+
+    private ZfgContext oprCtx(final int i) {
+      return switch (ctx) {
+        case final ComparisonExpressionContext cmpCtx -> {
+          final int j = i * 2;
+          final ZfgContext   lhs = (ZfgContext)   cmpCtx.getChild(j);
+          final TerminalNode opr = (TerminalNode) cmpCtx.getChild(j+1);
+          final ZfgContext   rhs = (ZfgContext)   cmpCtx.getChild(j+2);
+          final ZfgContext oprCtx = new ZfgContext();
+          oprCtx.setParent(cmpCtx);
+          oprCtx.addChild(lhs);
+          oprCtx.addChild(opr);
+          oprCtx.addChild(rhs);
+          oprCtx.start = lhs.start;
+          oprCtx.stop = rhs.stop;
+          yield oprCtx;
+        }
+        case null, default -> ctx;
+      };
+    }
   }
 
-  public static final class LogicalExpr extends NaryExpr<LogicalExpr.Opr> {
+  public static final class LogicalExpr implements Expr {
     public static enum Opr implements Op {
       LCJ(ZfgLexer.LCJ),
       LDJ(ZfgLexer.LDJ);
@@ -304,138 +575,121 @@ public class Ast {
       @Override public int ttype() { return ttype; }
     }
 
+    public final ZfgContext ctx;
+    public final Opr opr;
+    public final Expr[] opds;
+    private final Type[] opdTypes;
+    private Type type = Types.UNK;
+
     public LogicalExpr(final ZfgContext ctx, final Opr opr, final Expr[] opds) {
-      super(ctx, opr, opds);
+      assert ctx != null;
+      assert opr != null;
+      assert opds != null;
+      assert opds.length >= 2;
+      assert Arrays.stream(opds).allMatch(Objects::nonNull);
+      this.ctx = ctx;
+      this.opr = opr;
+      this.opds = opds;
+      this.opdTypes = new Type[opds.length];
     }
 
-    @Override
-    protected EnumSet<Type.Kind> accepts() {
-      return LOGICAL_OPERANDS;
-    }
+    @Override public ZfgContext ctx() { return ctx; }
+    @Override public Type type() { return type; }
 
     @Override
-    protected Type evaluateType(final Type[] opdTypes) {
-      return Types.BIT;
+    public Type evaluateType(final ParserErrorEmitter emit) {
+      if (type != Types.UNK) return type;
+      if (checkTypeChanges(opdTypes, opds)) return type;
+      for (int i = 0; i < opdTypes.length; i++) if (opdTypes[i] == Types.ERR) return type = Types.ERR;
+      for (int i = 0; i < opdTypes.length; i++) if (opdTypes[i] == Types.UNK) return type = Types.UNK;
+      type = checkOperands(Types.BIT, opdTypes) ? Types.BIT : Types.ERR;
+      if (type == Types.ERR) emit.err(ctx, typeErr(opr, opdTypes));
+      return type;
     }
   }
+
 
   //////////////////////////////////////////////////////////////////////////////////////////////////
   // Helpers
   //////////////////////////////////////////////////////////////////////////////////////////////////
 
-  private static interface Op {
+  public static interface Op {
     int ttype();
+    default String symbol() { return ZfgLexer.VOCABULARY.getLiteralName(ttype()); }
   }
 
-  private static boolean hasError(final Type typeA, final Type typeB) {
-    return typeA.hasError() || typeB.hasError();
+  private static boolean checkTypeChanges(final Type[] types, final Expr[] exprs) {
+    boolean unchanged = false;
+    for (int i = 0; i < types.length; i++) unchanged &= types[i] == (types[i] = exprs[i].type());
+    return unchanged;
   }
-  private static boolean hasError(final Type... types) {
-    for (int i = 0; i < types.length; i++) if (types[i].hasError()) return true;
+
+  private static boolean checkOperands(final Type type, final Type[] types) {
+    for (int i = 0; i < types.length; i++) if (types[i] != type) return false;
     return true;
   }
 
-  private static boolean hasUnknown(final Type typeA, final Type typeB) {
-    return typeA.hasUnknown() || typeB.hasUnknown();
-  }
-  private static boolean hasUnknown(final Type... types) {
-    for (int i = 0; i < types.length; i++) if (types[i].hasUnknown()) return true;
-    return false;
+  private static boolean checkOperands(final EnumSet<Type.Kind> set, final Type[] types) {
+    for (int i = 0; i < types.length; i++) if (!set.contains(types[i].kind())) return false;
+    return true;
   }
 
-  private static boolean hasUnacceptable(EnumSet<Type.Kind> accepts, final Type typeA, final Type typeB) {
-    return !accepts.contains(typeA.kind()) || !accepts.contains(typeB.kind());
-  }
-  private static boolean hasUnacceptable(EnumSet<Type.Kind> accepts, final Type... types) {
-    for (int i = 0; i < types.length; i++) if (!accepts.contains(types[i].kind())) return true;
-    return false;
-  }
-
-  private static Type commonType(final Type typeA, final Type typeB) {
-    return typeA == typeB || typeB.isAssignableTo(typeA)
-      ? typeA
-      : typeA.isAssignableTo(typeB)
-      ? typeB
+  public static Type commonType(final Type lhs, final Type rhs) {
+    return lhs == rhs ||
+        (rhs == Types.BIT && BitwiseExpr.OPERANDS.contains(lhs.kind())) || rhs.isAssignableTo(lhs)
+      ? lhs
+      : (lhs == Types.BIT && BitwiseExpr.OPERANDS.contains(rhs.kind())) || lhs.isAssignableTo(rhs)
+      ? rhs
       : Types.ERR;
   }
 
-  private static Type commonType(final Type... types) {
+  public static Type commonType(final Type[] types) {
     Type common = types[0];
-    for (int i = 1; i < types.length; i++) {
-      common = commonType(common, types[i]);
-      if (common == Types.ERR) return common;
-    }
+    for (int i = 1; i < types.length; i++) common = commonType(common, types[i]);
     return common;
   }
 
-  private static void emitOpArgsTypeError(
-    final Parser.EmitErr err,
-    final ZfgContext ctx,
-    final Op op,
-    final Type... types
-  ) {
-    final StringBuilder sb = new StringBuilder();
-    sb.append("The operator ");
-    sb.append(ZfgLexer.VOCABULARY.getLiteralName(op.ttype()));
-    final int length = types.length;
-    if (length == 1) {
-      sb.append(" is undefined for the argument type ");
-      types[0].appendTo(sb, false);
-    } else if (length == 2) {
-      sb.append(" is undefined for the argument types ");
-      types[0].appendTo(sb, false);
-      sb.append(" and ");
-      types[1].appendTo(sb, false);
-    } else {
-      sb.append(" is undefined for the argument types ");
-      final int last = length - 1;
-      for (int i = 0; i < last; i++) {
-        types[i].appendTo(sb, false);
-        sb.append(", ");
-      }
-      sb.append("and ");
-      types[last].appendTo(sb, false);
-    }
+  private static String typeErr(final Op op, final Type opd) {
+    final StringBuilder sb = new StringBuilder()
+      .append("The operator ")
+      .append(op.symbol())
+      .append(" is undefined for argument of type ");
+    opd.appendTo(sb);
     sb.append(".");
-    err.emit(ctx, sb.toString());
+    return sb.toString();
   }
 
-  private static EnumSet<Type.Kind> ALGABRAIC_OPERANDS = EnumSet.of(
-    Type.Kind.U08,
-    Type.Kind.U16,
-    Type.Kind.U32,
-    Type.Kind.U64,
-    Type.Kind.I08,
-    Type.Kind.I16,
-    Type.Kind.I32,
-    Type.Kind.I64,
-    Type.Kind.F32,
-    Type.Kind.F64
-  );
-  private static EnumSet<Type.Kind> BITWISE_OPERANDS = EnumSet.of(
-    Type.Kind.U08,
-    Type.Kind.U16,
-    Type.Kind.U32,
-    Type.Kind.U64,
-    Type.Kind.I08,
-    Type.Kind.I16,
-    Type.Kind.I32,
-    Type.Kind.I64
-  );
-  private static EnumSet<Type.Kind> COMPARISON_OPERANDS = EnumSet.of(
-    Type.Kind.BIT,
-    Type.Kind.U08,
-    Type.Kind.U16,
-    Type.Kind.U32,
-    Type.Kind.U64,
-    Type.Kind.I08,
-    Type.Kind.I16,
-    Type.Kind.I32,
-    Type.Kind.I64,
-    Type.Kind.F32,
-    Type.Kind.F64
-  );
-  private static EnumSet<Type.Kind> LOGICAL_OPERANDS = EnumSet.of(
-    Type.Kind.BIT
-  );
+  private static String typeErr(final Op op, final Type lhs, final Type rhs) {
+    final StringBuilder sb = new StringBuilder()
+      .append("The operator ")
+      .append(op.symbol())
+      .append(" is undefined for arguments of type ");
+    lhs.appendTo(sb);
+    sb.append(" and ");
+    rhs.appendTo(sb);
+    sb.append(".");
+    return sb.toString();
+  }
+
+  private static String typeErr(final Op op, final Type[] opds) {
+    return switch (opds.length) {
+      case 1 -> typeErr(op, opds[0]);
+      case 2 -> typeErr(op, opds[0], opds[1]);
+      default -> {
+        final StringBuilder sb = new StringBuilder()
+          .append("The operator ")
+          .append(op.symbol())
+          .append(" is undefined for arguments of type ");
+        final int last = opds.length - 1;
+        for (int i = 0; i < last; i++) {
+          opds[i].appendTo(sb);
+          sb.append(", ");
+        }
+        sb.append("and ");
+        opds[last].appendTo(sb);
+        sb.append(".");
+        yield sb.toString();
+      }
+    };
+  }
 }

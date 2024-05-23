@@ -50,15 +50,15 @@ statement[int depth]
   ;
 
 typeDeclaration[int depth]
-  : ({$depth == 0}? mod=PUB | mod=LET | mod=MUT) name=UpperId COLON typ=TYPE SETA rhs=type
+  : ({$depth == 0}? mod=PUB | mod=LET | mod=MUT) name=UpperId COLON typed=TYPE SETA rhs=type
   ;
 
 functionDeclaration[int depth]
-  : ({$depth == 0}? mod=PUB | mod=LET | mod=MUT) name=LowerId COLON typ=functionType SETA (rhs=expression | block=scope[$depth+1])
+  : ({$depth == 0}? mod=PUB | mod=LET | mod=MUT) name=LowerId COLON typed=functionType SETA (rhs=expression | block=scope[$depth+1])
   ;
 
 variableDeclaration[int depth]
-  : ({$depth == 0}? mod=PUB | mod=LET | mod=MUT) name=LowerId COLON typ=type SETA (rhs=expression | block=scope[$depth+1])
+  : ({$depth == 0}? mod=PUB | mod=LET | mod=MUT) name=LowerId COLON typed=type SETA (rhs=expression | block=scope[$depth+1])
   ;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -210,7 +210,7 @@ tupleType
 
 arrayType
   : LBRACK
-    muta=MUT? elem=type
+    muta=MUT? typed=type
     (SEMIC size=IntLit)?
     RBRACK
   ;

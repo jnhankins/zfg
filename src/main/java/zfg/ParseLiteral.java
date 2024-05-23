@@ -1,26 +1,22 @@
 package zfg;
 
-public final class Literals {
-  private Literals() {}
+import static zfg.Result.err;
+import static zfg.Result.val;
 
-  public static sealed interface Result<T> {}
-  public static final class Val<T> implements Result<T> {
-    public final T value;
-    public Val(final T value) { this.value = value; }
-  }
-  public static final class Err<T> implements Result<T> {
-    public final String error;
-    public Err(final String error) { this.error = error; }
-  }
+public final class ParseLiteral {
+  private ParseLiteral() {}
 
   private static enum IntKind { BIT, U08, U16, U32, U64, I08, I16, I32, I64 }
   private static enum FltKind { F32, F64 }
 
   // Must be "true" or "false"; case-sensitive. Returns null if it could not be parsed as a Bit.
-  public static final Result<Inst.Bit> parseBitLit(final String s) {
-    if (s.equals("false")) return new Val<>(Insts.bit(0));
-    if (s.equals("true")) return new Val<>(Insts.bit(1));
-    return err(s, IntKind.BIT, " should be either 'true' or 'false'.");
+  public static final Result<Inst.Bit, String> parseBitLit(final String s) {
+    assert s != null;
+    return switch (s) {
+      case "false" -> val(Insts.bit(0));
+      case "true"  -> val(Insts.bit(1));
+      default      -> err(msg(s, IntKind.BIT, " should be either 'true' or 'false'."));
+    };
   }
 
   // Ixx literals have ranges that extend below zero, e.g. I08 has range [-128, 127], however at
@@ -37,7 +33,7 @@ public final class Literals {
   // if a NumberFormatException should be thrown. For example, "x = a - 128i08" will be parsed as
   // ... subtract I08(-128), which should then throw an exception, while "x = -128i08" will be
   // parsed as ... negate I08(-128), which is allowed and should simplify to I(-128).
-  public static final Result<Inst> parseIntLit(final String s, final boolean hasMinusPrefix) {
+  public static final Result<Inst, String> parseIntLit(final String s, final boolean hasMinusPrefix) {
     final boolean hmp = hasMinusPrefix;
     final int len = s.length();
 
@@ -63,29 +59,27 @@ public final class Literals {
     else                        { kind = IntKind.I32; end = len; }
 
     final String t = s.substring(beg, end).replace("_", "");
-    final long v;
-    try {
-      v = Long.parseUnsignedLong(t, radix);
+    final long v; try { v = Long.parseUnsignedLong(t, radix);
     } catch (final NumberFormatException e) {
-      return err(s, kind, " is out of range.");
+      return err(msg(s, kind, " is out of range."));
     }
 
     final Inst inst = switch (kind) {
-      case IntKind.BIT -> v >= 0 && v <=          1L ? Insts.bit((int) v) : null;
-      case IntKind.U08 -> v >= 0 && v <=       0xFFL ? Insts.u08((int) v) : null;
-      case IntKind.U16 -> v >= 0 && v <=     0xFFFFL ? Insts.u16((int) v) : null;
-      case IntKind.U32 -> v >= 0 && v <= 0xFFFFFFFFL ? Insts.u32((int) v) : null;
-      case IntKind.U64 ->                              Insts.u64(      v);
-      case IntKind.I08 -> v >= 0 && v <= (radix != 10 ?       0xFFL : hmp ?       0x80L :       0x7FL) ? Insts.i08((int) v) : null;
-      case IntKind.I16 -> v >= 0 && v <= (radix != 10 ?     0xFFFFL : hmp ?     0x8000L :     0x7FFFL) ? Insts.i16((int) v) : null;
-      case IntKind.I32 -> v >= 0 && v <= (radix != 10 ? 0xFFFFFFFFL : hmp ? 0x80000000L : 0x7FFFFFFFL) ? Insts.i32((int) v) : null;
-      case IntKind.I64 -> v >= 0 || radix != 10 || (hmp && v == 0x8000000000000000L)                   ? Insts.i64(      v) : null;
+      case BIT -> v >= 0 && v <=          1L ? Insts.bit((int) v) : null;
+      case U08 -> v >= 0 && v <=       0xFFL ? Insts.u08((int) v) : null;
+      case U16 -> v >= 0 && v <=     0xFFFFL ? Insts.u16((int) v) : null;
+      case U32 -> v >= 0 && v <= 0xFFFFFFFFL ? Insts.u32((int) v) : null;
+      case U64 ->                              Insts.u64(      v);
+      case I08 -> v >= 0 && v <= (radix != 10 ?       0xFFL : hmp ?       0x80L :       0x7FL) ? Insts.i08((int) v) : null;
+      case I16 -> v >= 0 && v <= (radix != 10 ?     0xFFFFL : hmp ?     0x8000L :     0x7FFFL) ? Insts.i16((int) v) : null;
+      case I32 -> v >= 0 && v <= (radix != 10 ? 0xFFFFFFFFL : hmp ? 0x80000000L : 0x7FFFFFFFL) ? Insts.i32((int) v) : null;
+      case I64 -> v >= 0 || radix != 10 || (hmp && v == 0x8000000000000000L)                   ? Insts.i64(      v) : null;
     };
-    if (inst != null) return new Val<>(inst);
-    return err(s, kind, " is out of range.");
+    if (inst != null) return val(inst);
+    return err(msg(s, kind, " is out of range."));
   }
 
-  public static final Result<Inst> parseFltLit(final String s) {
+  public static final Result<Inst, String> parseFltLit(final String s) {
     final int len = s.length();
 
     @SuppressWarnings("unused")
@@ -103,24 +97,16 @@ public final class Literals {
 
     final String t = s.substring(beg, end).replace("_", "");
     try {
-      return new Val<>(switch (kind) {
+      return val(switch (kind) {
         case FltKind.F32 -> Insts.f32(Float.parseFloat(t));
         case FltKind.F64 -> Insts.f64(Double.parseDouble(t));
       });
     } catch (final NumberFormatException e) {
-      return err(s, kind, " is not properly formatted.");
+      return err(msg(s, kind, " is not properly formatted."));
     }
   }
 
-  private static final <T> Err<T> err(
-    final String literal,
-    final Enum<?> kind,
-    final String reason
-  ) {
-    return new Err<>(
-      "The literal \'" + literal +
-      "'\' of type " + kind.name().toLowerCase() +
-      reason
-    );
+  private static final String msg(final String literal, final Enum<?> kind, final String reason) {
+    return "The literal \'" + literal + "'\' of type " + kind.name().toLowerCase() + reason;
   }
 }

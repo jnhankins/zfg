@@ -17,8 +17,8 @@ public sealed interface Type {
   String toString(final boolean pretty);
   void appendTo(final StringBuilder sb);
   void appendTo(final StringBuilder sb, final boolean pretty);
-  boolean isAssignableTo(final Type targetType);
-  boolean isAssignableTo(final Type targetType, final Cycles cyclic);
+  boolean isAssignableTo(final Type target);
+  boolean isAssignableTo(final Type target, final Cycles cyclic);
 
   public static enum Kind {
     ERR, UNK, BIT, U08, U16, U32, U64, I08, I16, I32, I64, F32, F64, ARR, TUP, REC, FUN, NOM;
@@ -36,7 +36,7 @@ public sealed interface Type {
     @Override public void appendTo(final StringBuilder sb) { sb.append(NAME); }
     @Override public void appendTo(final StringBuilder sb, final boolean pretty) { sb.append(NAME); }
     @Override public boolean isAssignableTo(final Type t) { throw new UnsupportedOperationException(); }
-    @Override public boolean isAssignableTo(final Type t, final Cycles c) { throw new UnsupportedOperationException(); }
+    @Override public boolean isAssignableTo(final Type t, final Cycles c) { return isAssignableTo(t); }
   }
 
   public static final class Unk implements Type {
@@ -51,7 +51,7 @@ public sealed interface Type {
     @Override public void appendTo(final StringBuilder sb) { sb.append(NAME); }
     @Override public void appendTo(final StringBuilder sb, final boolean pretty) { sb.append(NAME); }
     @Override public boolean isAssignableTo(final Type t) { throw new UnsupportedOperationException(); }
-    @Override public boolean isAssignableTo(final Type t, final Cycles c) { throw new UnsupportedOperationException(); }
+    @Override public boolean isAssignableTo(final Type t, final Cycles c) { return isAssignableTo(t); }
   }
 
   public static final class Bit implements Type {
@@ -66,7 +66,7 @@ public sealed interface Type {
     @Override public String toString(final boolean pretty) { return NAME; }
     @Override public void appendTo(final StringBuilder sb) { sb.append(NAME); }
     @Override public void appendTo(final StringBuilder sb, final boolean pretty) { sb.append(NAME); }
-    @Override public boolean isAssignableTo(final Type t) { return ASSIGNABLE.contains(dealias(t).kind()); }
+    @Override public boolean isAssignableTo(final Type t) { return t == this || ASSIGNABLE.contains(dealias(t).kind()); }
     @Override public boolean isAssignableTo(final Type t, final Cycles c) { return isAssignableTo(t); }
   }
 
@@ -83,7 +83,7 @@ public sealed interface Type {
     @Override public String toString(final boolean pretty) { return NAME; }
     @Override public void appendTo(final StringBuilder sb) { sb.append(NAME); }
     @Override public void appendTo(final StringBuilder sb, final boolean pretty) { sb.append(NAME); }
-    @Override public boolean isAssignableTo(final Type t) { return ASSIGNABLE.contains(dealias(t).kind()); }
+    @Override public boolean isAssignableTo(final Type t) { return t == this || ASSIGNABLE.contains(dealias(t).kind()); }
     @Override public boolean isAssignableTo(final Type t, final Cycles c) { return isAssignableTo(t); }
   }
 
@@ -100,7 +100,7 @@ public sealed interface Type {
     @Override public String toString(final boolean pretty) { return NAME; }
     @Override public void appendTo(final StringBuilder sb) { sb.append(NAME); }
     @Override public void appendTo(final StringBuilder sb, final boolean pretty) { sb.append(NAME); }
-    @Override public boolean isAssignableTo(final Type t) { return ASSIGNABLE.contains(dealias(t).kind()); }
+    @Override public boolean isAssignableTo(final Type t) { return t == this || ASSIGNABLE.contains(dealias(t).kind()); }
     @Override public boolean isAssignableTo(final Type t, final Cycles c) { return isAssignableTo(t); }
   }
 
@@ -116,7 +116,7 @@ public sealed interface Type {
     @Override public String toString(final boolean pretty) { return NAME; }
     @Override public void appendTo(final StringBuilder sb) { sb.append(NAME); }
     @Override public void appendTo(final StringBuilder sb, final boolean pretty) { sb.append(NAME); }
-    @Override public boolean isAssignableTo(final Type t) { return ASSIGNABLE.contains(dealias(t).kind()); }
+    @Override public boolean isAssignableTo(final Type t) { return t == this || ASSIGNABLE.contains(dealias(t).kind()); }
     @Override public boolean isAssignableTo(final Type t, final Cycles c) { return isAssignableTo(t); }
   }
 
@@ -132,7 +132,7 @@ public sealed interface Type {
     @Override public String toString(final boolean pretty) { return NAME; }
     @Override public void appendTo(final StringBuilder sb) { sb.append(NAME); }
     @Override public void appendTo(final StringBuilder sb, final boolean pretty) { sb.append(NAME); }
-    @Override public boolean isAssignableTo(final Type t) { return ASSIGNABLE.contains(dealias(t).kind()); }
+    @Override public boolean isAssignableTo(final Type t) { return t == this || ASSIGNABLE.contains(dealias(t).kind()); }
     @Override public boolean isAssignableTo(final Type t, final Cycles c) { return isAssignableTo(t); }
   }
 
@@ -148,7 +148,7 @@ public sealed interface Type {
     @Override public String toString(final boolean pretty) { return NAME; }
     @Override public void appendTo(final StringBuilder sb) { sb.append(NAME); }
     @Override public void appendTo(final StringBuilder sb, final boolean pretty) { sb.append(NAME); }
-    @Override public boolean isAssignableTo(final Type t) { return ASSIGNABLE.contains(dealias(t).kind()); }
+    @Override public boolean isAssignableTo(final Type t) { return t == this || ASSIGNABLE.contains(dealias(t).kind()); }
     @Override public boolean isAssignableTo(final Type t, final Cycles c) { return isAssignableTo(t); }
   }
 
@@ -164,7 +164,7 @@ public sealed interface Type {
     @Override public String toString(final boolean pretty) { return NAME; }
     @Override public void appendTo(final StringBuilder sb) { sb.append(NAME); }
     @Override public void appendTo(final StringBuilder sb, final boolean pretty) { sb.append(NAME); }
-    @Override public boolean isAssignableTo(final Type t) { return ASSIGNABLE.contains(dealias(t).kind()); }
+    @Override public boolean isAssignableTo(final Type t) { return t == this || ASSIGNABLE.contains(dealias(t).kind()); }
     @Override public boolean isAssignableTo(final Type t, final Cycles c) { return isAssignableTo(t); }
   }
 
@@ -180,7 +180,7 @@ public sealed interface Type {
     @Override public String toString(final boolean pretty) { return NAME; }
     @Override public void appendTo(final StringBuilder sb) { sb.append(NAME); }
     @Override public void appendTo(final StringBuilder sb, final boolean pretty) { sb.append(NAME); }
-    @Override public boolean isAssignableTo(final Type t) { return ASSIGNABLE.contains(dealias(t).kind()); }
+    @Override public boolean isAssignableTo(final Type t) { return t == this || ASSIGNABLE.contains(dealias(t).kind()); }
     @Override public boolean isAssignableTo(final Type t, final Cycles c) { return isAssignableTo(t); }
   }
 
@@ -196,7 +196,7 @@ public sealed interface Type {
     @Override public String toString(final boolean pretty) { return NAME; }
     @Override public void appendTo(final StringBuilder sb) { sb.append(NAME); }
     @Override public void appendTo(final StringBuilder sb, final boolean pretty) { sb.append(NAME); }
-    @Override public boolean isAssignableTo(final Type t) { return ASSIGNABLE.contains(dealias(t).kind()); }
+    @Override public boolean isAssignableTo(final Type t) { return t == this || ASSIGNABLE.contains(dealias(t).kind()); }
     @Override public boolean isAssignableTo(final Type t, final Cycles c) { return isAssignableTo(t); }
   }
 
@@ -212,7 +212,7 @@ public sealed interface Type {
     @Override public String toString(final boolean pretty) { return NAME; }
     @Override public void appendTo(final StringBuilder sb) { sb.append(NAME); }
     @Override public void appendTo(final StringBuilder sb, final boolean pretty) { sb.append(NAME); }
-    @Override public boolean isAssignableTo(final Type t) { return ASSIGNABLE.contains(dealias(t).kind()); }
+    @Override public boolean isAssignableTo(final Type t) { return t == this || ASSIGNABLE.contains(dealias(t).kind()); }
     @Override public boolean isAssignableTo(final Type t, final Cycles c) { return isAssignableTo(t); }
   }
 
@@ -228,7 +228,7 @@ public sealed interface Type {
     @Override public String toString(final boolean pretty) { return NAME; }
     @Override public void appendTo(final StringBuilder sb) { sb.append(NAME); }
     @Override public void appendTo(final StringBuilder sb, final boolean pretty) { sb.append(NAME); }
-    @Override public boolean isAssignableTo(final Type t) { return ASSIGNABLE.contains(dealias(t).kind()); }
+    @Override public boolean isAssignableTo(final Type t) { return t == this || ASSIGNABLE.contains(dealias(t).kind()); }
     @Override public boolean isAssignableTo(final Type t, final Cycles c) { return isAssignableTo(t); }
   }
 
@@ -239,7 +239,7 @@ public sealed interface Type {
     public final int     size;
     Arr(final boolean muta, final Type type, final int size) {
       assert type != null;
-      assert size == UNKNOWN_SIZE || size >= 0;
+      assert size >= 0 || size == UNKNOWN_SIZE;
       this.muta = muta;
       this.type = type;
       this.size = size;
@@ -438,7 +438,9 @@ public sealed interface Type {
       return switch (dealias(target)) {
         case final Arr tgt -> {
           if (tgt.size != Arr.UNKNOWN_SIZE && size != tgt.size) yield false;
+          assert size == mutas.length;
           for (int i = 0; i < size; i++) if (tgt.muta && !mutas[i]) yield false;
+          assert size == types.length;
           for (int i = 0; i < size; i++) if (!types[i].isAssignableTo(tgt.type, cycles)) yield false;
           yield true;
         }
@@ -451,19 +453,19 @@ public sealed interface Type {
         case final Rec tgt -> {
           if (size != tgt.size) yield false;
           // Try to match by keys...
-          byKey: do {
+          byKey: for(;;) {
             final int[] map = createKeyIndexMap(names, tgt.names);
             if (map == null) break byKey;
             for (int i = 0; i < size; i++) if (tgt.mutas[map[i]] && !mutas[i]) break byKey;
             for (int i = 0; i < size; i++) if (!types[i].isAssignableTo(tgt.types[map[i]], cycles)) break byKey;
             yield true;
-          } while (false);
+          }
           // Try to match by order...
-          byIdx: do {
+          byIdx: for(;;) {
             for (int i = 0; i < size; i++) if (tgt.mutas[i] && !mutas[i]) break byIdx;
             for (int i = 0; i < size; i++) if (!types[i].isAssignableTo(tgt.types[i], cycles)) break byIdx;
             yield true;
-          } while (false);
+          }
           yield false;
         }
         case null, default -> false;
@@ -534,13 +536,16 @@ public sealed interface Type {
       return Kind.NOM;
     }
     @Override public boolean isUnit() {
-      return type.isUnit();
+      final Type aliased = dealias(this);
+      return aliased != null && type.isUnit();
     }
     @Override public boolean hasError() {
-      return type.hasError();
+      final Type aliased = dealias(this);
+      return aliased != null && type.hasError();
     }
     @Override public boolean hasUnknown() {
-      return type.hasUnknown();
+      final Type aliased = dealias(this);
+      return aliased != null && type.hasError();
     }
     @Override public int hashCode() {
       return Objects.hash(Nom.class, name);
@@ -562,6 +567,7 @@ public sealed interface Type {
     }
     @Override public boolean isAssignableTo(final Type target) { return isAssignableTo(target, null); }
     @Override public boolean isAssignableTo(final Type target, final Cycles _cycles) {
+      if (this == target) return true;
       final Type src = dealias(this);
       final Type tgt = dealias(target);
       if (src == tgt) return true;
@@ -577,41 +583,17 @@ public sealed interface Type {
   //////////////////////////////////////////////////////////////////////////////////////////////////
 
   // Returns the dealiased type, or null if a cycle is detected.
-  private static Type dealias(Type type) {
-    // Most likey, the type is not a type alias...
-    if (type instanceof final Nom nom0) {
-      type = nom0.type;
-    } else {
-      return type;
-    }
-    // No problem, surely the aliased type is not also an alias...
-    if (type instanceof final Nom nom1) {
-      if (nom1 == nom0) return null;
-      type = nom1.type;
-    } else {
-      return type;
-    }
-    // Ok... two aliased types in a row... lets make an array cache for checking for cycles...
-    final Nom[] nomArr = new Nom[32];
-    nomArr[0] = nom0;
-    nomArr[1] = nom1;
-    for (int i = 2; i < nomArr.length; i++) {
-      if (type instanceof final Nom nom) {
-        for (int j = 0; j < i; j++) if (nom == nomArr[j]) return null;
-        nomArr[i] = nom;
-        type = nom.type;
-        continue;
-      }
-      return type;
-    }
-    // Wow... 32 noms in a row? Swap out the array cache for a hash set...
-    final HashSet<Nom> nomSet = new HashSet<>(64, 0.5f);
-    nomSet.addAll(Arrays.asList(nomArr));
-    while (type instanceof final Nom nom) {
-      if (!nomSet.add(nom)) return null;
-      type = nom.type;
-      continue;
-    }
+  public static Type dealias(final Type type) {
+    return type instanceof final Nom nom0 ? dealias(nom0, nom0.type) : type;
+  }
+  private static Type dealias(final Nom nom0, final Type type) {
+    return nom0 == type ? null : type instanceof final Nom nom1 ? dealias(nom0, nom1, nom1.type) : type;
+  }
+  private static Type dealias(final Nom nom0, final Nom nom1, Type type) {
+    final HashSet<Nom> set = new HashSet<>(16, 0.5f);
+    set.add(nom1);
+    set.add(nom0);
+    while (type instanceof Nom nom) if (!set.add(nom)) return null; else type = nom.type;
     return type;
   }
 
