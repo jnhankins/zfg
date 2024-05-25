@@ -41,6 +41,7 @@ POINT: '.' ; // Path separator (e.g. 'std.io.println')
 COLON: ':' ; // Variable id-type separator, field id-type separator, literal id-value separator
 SEMIC: ';' ; // Statement separator, type member separator
 DOUBC: '::'; // Path separator (e.g. 'std::io::println')
+ARROW: '=>'; // Function return type separator (e.g. '(let x: i32) => i32')
 
 // Groupors (Circumfix Operators)
 LPAREN: '(' ; // Expression grouping, function parameters
@@ -83,6 +84,9 @@ TWC: '<=>' ; // Three-way compare infix operator, e.g. 'x <=> y'
 LNT: '!'  ; // Logical NOT prefix operator, e.g. '!x'
 LCJ: '&&' ; // Logical AND infix operator, e.g. 'x && y'
 LDJ: '||' ; // Logical IOR infix operator, e.g. 'x || y'
+
+// Initialization Operator
+SETI: ':='  ; // Initialization infix operator, e.g. 'x := y'
 
 // Assignment Operator
 SETA: '='   ; // Assignment infix operator, e.g. 'x = y'

@@ -32,7 +32,7 @@
       "request": "launch",
       "mainClass": "zfg.Main",
       "args": [
-        "src/main/zfg/types.zfg"
+        "src/main/zfg/test.zfg"
       ],
       "console": "externalTerminal"
     },

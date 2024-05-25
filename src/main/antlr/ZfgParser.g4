@@ -35,30 +35,55 @@ module
 // Statements
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-scope[int depth]
-  : ({$depth == 0}? | {$depth > 0}? LBRACE)
-    stmts+=statement[depth] ( (SEMIC | {EOL()}?)
-    stmts+=statement[depth] )* SEMIC?
-    ({$depth == 0}? | {$depth > 0}? RBRACE)
+// s   == 0 => module scope
+// s&1 != 0 => inside function
+// s&2 != 0 => inside loop
+scope[int s]
+  : ({$s == 0}? | {$s != 0}? LBRACE)
+    stmts+=statement[$s] ( (SEMIC | {EOL()}?)
+    stmts+=statement[$s] )* SEMIC?
+    ({$s == 0}? | {$s != 0}? RBRACE)
   ;
 
-statement[int depth]
-  : typeDeclaration[$depth]
-  | functionDeclaration[$depth]
-  | variableDeclaration[$depth]
+statement[int s]
+  : typeDeclaration[$s]
+  | functionDeclaration[$s]
+  | variableDeclaration[$s]
+  | ifelseStatement[$s]
+  | loopStatement[$s]
+  | {($s&1) != 0}? returnStatement
+  | {($s&2) != 0}? loopControlStatement
   | expression
   ;
 
-typeDeclaration[int depth]
-  : ({$depth == 0}? mod=PUB | mod=LET | mod=MUT) name=UpperId COLON typed=TYPE SETA rhs=type
+typeDeclaration[int s]
+  : ({$s == 0}? mod=PUB | mod=LET | mod=MUT) name=UpperId SETI rhs=type
   ;
 
-functionDeclaration[int depth]
-  : ({$depth == 0}? mod=PUB | mod=LET | mod=MUT) name=LowerId COLON typed=functionType SETA (rhs=expression | block=scope[$depth+1])
+functionDeclaration[int s]
+  : ({$s == 0}? mod=PUB | mod=LET | mod=MUT) name=LowerId (SETI | COLON typed=functionType[false] SETA) rhs=functionConstructor
   ;
 
-variableDeclaration[int depth]
-  : ({$depth == 0}? mod=PUB | mod=LET | mod=MUT) name=LowerId COLON typed=type SETA (rhs=expression | block=scope[$depth+1])
+variableDeclaration[int s]
+  : ({$s == 0}? mod=PUB | mod=LET | mod=MUT) name=LowerId (SETI | COLON typed=type SETA) rhs=expression
+  ;
+
+ifelseStatement[int s]
+  : IF expression scope[$s] (ELSE IF expression scope[$s])* (ELSE scope[$s])?
+  ;
+
+loopStatement[int s]
+  : LOOP scope[$s|2]
+  | WHILE expression scope[$s|2]
+  | FOR (functionDeclaration[$s] | variableDeclaration[$s] | expression)? SEMIC (expression)? SEMIC (expression)? scope[$s|2]
+  ;
+
+returnStatement
+  : RETURN rhs=expression?
+  ;
+
+loopControlStatement
+  : (BREAK | CONTINUE) (name=LowerId)?
   ;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -66,19 +91,19 @@ variableDeclaration[int depth]
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 expression
-  : unambiguousExpression
-  | algebraicExpression
+  : algebraicExpression
   | bitwiseExpression
   | comparisonExpression
   | logicalExpression
   | binaryAssignment
+  | unambiguousExpression
   ;
 
 unambiguousExpression
   : unaryAssignment
   | literalExpression
-  | pathExpression
   | functionCallExpression
+  | pathExpression
   | recordConstructor
   | tupleConstructor
   | arrayConstructor
@@ -173,13 +198,17 @@ arrayConstructor
     RBRACK
   ;
 
+functionConstructor
+  : typed=functionType[true] body=scope[1]
+  ;
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Types
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 type
   : primitiveType
-  | functionType
+  | functionType[false]
   | recordType
   | tupleType
   | arrayType
@@ -190,29 +219,28 @@ primitiveType
   : token=(BIT | U08 | U16 | U32 | U64 | I08 | I16 | I32 | I64 | F32 | F64)
   ;
 
-functionType
-  : paramsType=recordType COLON returnType=type
+functionType[boolean requireNames]
+  : (rec=recordType | {!$requireNames}? tup=tupleType) ARROW ret=type
   ;
 
 recordType
-  : LPAREN (
-    (mutas+=MUT | {$mutas.add(null);}) names+=LowerId COLON types+=type (  COMMA
-    (mutas+=MUT | {$mutas.add(null);}) names+=LowerId COLON types+=type )* COMMA?)?
-    RPAREN
+  : LPAREN (fields+=recordField (COMMA fields+=recordField)* COMMA?)? RPAREN
+  ;
+
+recordField
+  : muta=(MUT|LET)? name=LowerId COLON typed=type
   ;
 
 tupleType
-  : LPAREN (
-    (mutas+=MUT | {$mutas.add(null);}) COLON types+=type (  COMMA
-    (mutas+=MUT | {$mutas.add(null);}) COLON types+=type )* COMMA?)?
-    RPAREN
+  : LPAREN (tupleField (COMMA tupleField)* COMMA?)? RPAREN
+  ;
+
+tupleField
+  : muta=(MUT|LET)? name=LowerId COLON typed=type
   ;
 
 arrayType
-  : LBRACK
-    muta=MUT? typed=type
-    (SEMIC size=IntLit)?
-    RBRACK
+  : LBRACK muta=MUT? typed=type (SEMIC size=IntLit)? RBRACK
   ;
 
 namedType

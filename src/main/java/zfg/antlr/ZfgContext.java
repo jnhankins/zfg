@@ -1,7 +1,7 @@
 package zfg.antlr;
 
-import java.util.Arrays;
 import java.util.AbstractList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -31,7 +31,40 @@ public class ZfgContext extends RuleContextWithAltNum {
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////
-  // Overrides
+  // Dependents
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+
+  public ZfgContext[] dependents;
+  public int dependentCount;
+
+	public <T extends ZfgContext> T addDependent(final T t) {
+    if (dependents == null) {
+      dependents = new ZfgContext[4];
+    } else if (dependentCount == dependents.length) {
+      dependents = Arrays.copyOf(dependents, children.length << 1);
+    }
+    dependents[dependentCount++] = t;
+    return t;
+	}
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+  // Parent
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+
+  public int parentIndex;
+
+	@Override
+	public void setParent(final RuleContext parent) {
+    this.parent = parent;
+	}
+
+  @Override
+  public ZfgContext getParent() {
+    return (ZfgContext) this.parent;
+  }
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+  // Children
   //////////////////////////////////////////////////////////////////////////////////////////////////
 
   public ParseTree[] children;
@@ -40,11 +73,12 @@ public class ZfgContext extends RuleContextWithAltNum {
   @Override
   public <T extends ParseTree> T addAnyChild(final T t) {
     if (children == null) {
-      super.children = new ChildList();
       children = new ParseTree[4];
+      super.children = new ChildList();
     } else if (childCount == children.length) {
       children = Arrays.copyOf(children, children.length << 1);
     }
+    if (t instanceof ZfgContext c) c.parentIndex = childCount;
     children[childCount++] = t;
     return t;
   }
@@ -152,78 +186,6 @@ public class ZfgContext extends RuleContextWithAltNum {
     return childCount;
   }
 
-  //////////////////////////////////////////////////////////////////////////////////////////////////
-  // To String
-  //////////////////////////////////////////////////////////////////////////////////////////////////
-
-  public final String toStringSyntaxTree() {
-    return toStringSyntaxTree(this, false);
-  }
-
-  public final String toStringSyntaxTree(final boolean pretty) {
-    return toStringSyntaxTree(this, pretty);
-  }
-
-  public final String toStringSemanticTree() {
-    return toStringSemanticTree(this, false);
-  }
-
-  public final String toStringSemanticTree(final boolean pretty) {
-    return toStringSemanticTree(this, pretty);
-  }
-
-  private static final String toStringSyntaxTree(final ZfgContext root, final boolean pretty) {
-    if (pretty) {
-      final StringBuilder sb = new StringBuilder();
-      toStringSyntaxTree(sb, root, new StringBuilder(), true);
-      return sb.toString();
-    } else {
-      return Trees.toStringTree(root, ruleNames);
-    }
-  }
-
-  private static final void toStringSyntaxTree(
-    final StringBuilder sb,
-    final Tree node,
-    final StringBuilder indent,
-    final boolean isLast
-  ) {
-    final int indentLength = indent.length();
-    // Indent
-    if (indentLength > 0) sb.append(indent).append(isLast ? LUR : LVR);
-    // Print self
-    sb.append(Utils.escapeWhitespace(Trees.getNodeText(node, ruleNames), false));
-    // Print children
-    final int childCount = node.getChildCount();
-    if (childCount > 0) {
-      indent.append(isLast ? ' ' : LV);
-      for (int c = 0; c < childCount; c++) {
-        sb.append('\n');
-        toStringSyntaxTree(sb, node.getChild(c), indent, c == childCount - 1);
-      }
-      indent.deleteCharAt(indentLength);
-    }
-  }
-
-  private static final String toStringSemanticTree(final ZfgContext root, final boolean pretty) {
-    return "TODO"; // TODO
-  }
-
-  private static final List<String> ruleNames = Arrays.asList(ZfgParser.ruleNames);
-  private static final char LV  = '\u2502'; // │
-  private static final char LVR = '\u251C'; // ├
-  // private static final char LVL = '\u2524'; // ┤
-  // private static final char LH  = '\u2501'; // ─
-  private static final char LUR = '\u2514'; // └
-  // private static final char LUL = '\u2518'; // ┘
-  // private static final char LDR = '\u250C'; // ┌
-  // private static final char LDL = '\u2510'; // ┐
-
-
-  //////////////////////////////////////////////////////////////////////////////////////////////////
-  // Child List
-  //////////////////////////////////////////////////////////////////////////////////////////////////
-
   private final class ChildList extends AbstractList<ParseTree> {
     @Override public int size() { return childCount; }
     @Override public boolean isEmpty() { return childCount == 0; }
@@ -270,7 +232,73 @@ public class ZfgContext extends RuleContextWithAltNum {
         @Override public void set(final ParseTree e) { throw new UnsupportedOperationException(); }
         @Override public void add(final ParseTree e) { throw new UnsupportedOperationException(); }
       };
-
     }
   }
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+  // To String
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+
+  public final String toStringSyntaxTree() {
+    return toStringSyntaxTree(this, false);
+  }
+
+  public final String toStringSyntaxTree(final boolean pretty) {
+    return toStringSyntaxTree(this, pretty);
+  }
+
+  public final String toStringSemanticTree() {
+    return toStringSemanticTree(this, false);
+  }
+
+  public final String toStringSemanticTree(final boolean pretty) {
+    return toStringSemanticTree(this, pretty);
+  }
+
+  private static final String toStringSyntaxTree(final ZfgContext root, final boolean pretty) {
+    if (pretty) {
+      final StringBuilder sb = new StringBuilder();
+      toStringSyntaxTree(sb, root, new StringBuilder(), true);
+      return sb.toString();
+    } else {
+      return Trees.toStringTree(root, ruleNames);
+    }
+  }
+
+  private static final void toStringSyntaxTree(
+    final StringBuilder sb,
+    final Tree          node,
+    final StringBuilder indent,
+    final boolean       isLast
+  ) {
+    final int indentLength = indent.length();
+    // Indent
+    if (indentLength > 0) sb.append(indent).append(isLast ? LUR : LVR);
+    // Print self
+    sb.append(Utils.escapeWhitespace(Trees.getNodeText(node, ruleNames), false));
+    // Print children
+    final int childCount = node.getChildCount();
+    if (childCount > 0) {
+      indent.append(isLast ? ' ' : LV);
+      for (int c = 0; c < childCount; c++) {
+        sb.append('\n');
+        toStringSyntaxTree(sb, node.getChild(c), indent, c == childCount - 1);
+      }
+      indent.deleteCharAt(indentLength);
+    }
+  }
+
+  private static final String toStringSemanticTree(final ZfgContext root, final boolean pretty) {
+    return "TODO"; // TODO
+  }
+
+  private static final List<String> ruleNames = Arrays.asList(ZfgParser.ruleNames);
+  private static final char LV  = '\u2502';
+  private static final char LVR = '\u251C';
+  // private static final char LVL = '\u2524';
+  // private static final char LH  = '\u2501';
+  private static final char LUR = '\u2514';
+  // private static final char LUL = '\u2518';
+  // private static final char LDR = '\u250C';
+  // private static final char LDL = '\u2510';
 }
